@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    driverClassName: oracle.jdbc.OracleDriver
+    url: jdbc:oracle:thin:@cngorarac01.apac.bosch.com:38000/aepqual_app.apac.bosch.com?currentSchema=SUPER_LINE_LEADER
+    username: SUPER_LINE_LEADER
+    password: TQAkldfgHJ$2309
+  flyway:
+    enabled: false
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    schemas: SUPER_LINE_LEADER
+    table: APMS_FLYWAY_SCHEMA_HISTORY
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

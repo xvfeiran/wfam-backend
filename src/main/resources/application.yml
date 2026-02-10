@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: aftermarket-parts-service
+  profiles:
+      active: @spring.profiles.active@
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate.jdbc.fetch_size: 100
+  datasource:
+    hikari:
+      max-lifetime: 1200000   # 20 分钟（毫秒）
+  data:
+    rest:
+#      default-media-type: application/json
+
+server:
+  servlet:
+    context-path: /aftermarket-parts-management-system
+  port: 8102
