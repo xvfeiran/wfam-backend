@@ -1,0 +1,54 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0
+                              https://maven.apache.org/xsd/settings-1.2.0.xsd">
+    <mirrors>
+        <!-- 所有 release 走 maven-public -->
+        <mirror>
+            <id>maven-public</id>
+            <mirrorOf>*,!snapshots</mirrorOf>
+            <name>Public release mirror</name>
+            <url>http://10.8.144.161:31523/repository/maven-public/</url>
+        </mirror>
+
+        <!-- 所有 SNAPSHOT 走 snapshot 仓库 -->
+        <mirror>
+            <id>maven-snapshots</id>
+            <mirrorOf>snapshots</mirrorOf>
+            <name>Snapshot mirror</name>
+            <url>http://10.8.144.161:31523/repository/maven-snapshots/</url>
+        </mirror>
+    </mirrors>
+
+    <profiles>
+        <profile>
+            <id>nexus</id>
+            <repositories>
+                <repository>
+                    <id>nexus-snapshots</id>
+                    <url>http://10.8.144.161:31523/repository/maven-snapshots/</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>nexus-releases</id>
+                    <url>http://10.8.144.161:31523/repository/maven-public/</url>
+                    <releases>
+                        <enabled>true</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+
+    <activeProfiles>
+        <activeProfile>nexus</activeProfile>
+    </activeProfiles>
+</settings>
