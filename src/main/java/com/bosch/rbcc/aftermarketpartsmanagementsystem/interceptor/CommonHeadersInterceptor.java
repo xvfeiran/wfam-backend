@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
@@ -20,6 +21,10 @@ public class CommonHeadersInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, @NonNull HttpServletResponse response,
                              @NonNull Object handler) {
+        // CORS 预检请求不携带认证头，直接放行
+        if (HttpMethod.OPTIONS.name().equals(request.getMethod())) {
+            return true;
+        }
         String token = request.getHeader("x-authentication-header");
         ObjectMapper mapper = new ObjectMapper();
         CommonHeaders commonHeaders = mapper.readValue(token, CommonHeaders.class);
