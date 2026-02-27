@@ -18,5 +18,5 @@ RUN keytool -importcert -trustcacerts -cacerts \
     -alias bosch-root \
     -file /app/bosch-chain.pem -noprompt
 
-EXPOSE 8080
+EXPOSE 8102
 ENTRYPOINT ["java", "-jar", "app.jar"]
