@@ -8,8 +8,10 @@ spring:
     enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
+    baseline-version: 3
     schemas: SUPER_LINE_LEADER
     table: APMS_FLYWAY_SCHEMA_HISTORY
+    ignore-migration-patterns: "*:failed"
 
 springdoc:
   api-docs:

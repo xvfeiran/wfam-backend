@@ -19,7 +19,7 @@ public class TaskDTO {
     @Schema(description = "任务标题", example = "初分析待处理")
     private String title;
     @Schema(description = "数量", example = "3")
-    private int count;
+    private Integer count;
     @Schema(description = "优先级", example = "high")
     private String priority;
 }

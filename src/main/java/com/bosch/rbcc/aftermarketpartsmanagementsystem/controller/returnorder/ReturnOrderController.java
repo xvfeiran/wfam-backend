@@ -2,24 +2,31 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.returnorder;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.mock.MockDataProvider;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ReturnOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
-@Tag(name = "退货单管理", description = "退货单 CRUD 及关联附件查询")
+@Tag(name = "退货单管理", description = "退货单 CRUD 及关联售后件查询")
 @RestController
 @RequestMapping("/api/v1/return-orders")
 @RequiredArgsConstructor
 public class ReturnOrderController {
 
-    private final MockDataProvider mockData;
+    private final ReturnOrderService returnOrderService;
 
     @Operation(summary = "查询退货单列表", description = "支持按单号、客户、状态筛选")
     @GetMapping
@@ -27,60 +34,84 @@ public class ReturnOrderController {
             @Parameter(description = "退货单号（模糊匹配）") @RequestParam(required = false) String orderNumber,
             @Parameter(description = "客户名称") @RequestParam(required = false) String customer,
             @Parameter(description = "退货单状态") @RequestParam(required = false) String status) {
-        List<ReturnOrderDTO> orders = mockData.getOrders();
-        if (orderNumber != null && !orderNumber.isEmpty()) {
-            orders = orders.stream()
-                    .filter(o -> o.getOrderNumber().toLowerCase().contains(orderNumber.toLowerCase()))
-                    .toList();
-        }
-        if (customer != null && !customer.isEmpty()) {
-            orders = orders.stream()
-                    .filter(o -> o.getCustomer().equals(customer))
-                    .toList();
-        }
-        if (status != null && !status.isEmpty()) {
-            orders = orders.stream()
-                    .filter(o -> o.getStatus().equals(status))
-                    .toList();
-        }
-        return orders;
+        return returnOrderService.list(orderNumber, customer, status);
     }
 
     @Operation(summary = "获取退货单详情")
     @GetMapping("/{id}")
     public ReturnOrderDTO getById(@PathVariable String id) {
-        return mockData.getOrders().stream()
-                .filter(o -> o.getId().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
+        return returnOrderService.getById(id);
     }
 
     @Operation(summary = "新建退货单")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ReturnOrderDTO create(@RequestBody ReturnOrderDTO dto) {
-        return dto;
+        return returnOrderService.create(dto);
     }
 
     @Operation(summary = "更新退货单")
     @PutMapping("/{id}")
     public ReturnOrderDTO update(@PathVariable String id, @RequestBody ReturnOrderDTO dto) {
-        dto.setId(id);
-        return dto;
+        return returnOrderService.update(id, dto);
     }
 
     @Operation(summary = "删除退货单")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        // mock - no persistence
+        returnOrderService.delete(id);
     }
 
-    @Operation(summary = "获取退货单关联附件列表")
+    @Operation(summary = "提交退货单，生成退货单号", description = "draft → in_initial_analysis")
+    @PostMapping("/{id}/submit")
+    public ReturnOrderDTO submit(@PathVariable String id) {
+        return returnOrderService.submit(id);
+    }
+
+    @Operation(summary = "抽样确认", description = "in_initial_analysis → in_detailed_analysis，更新抽样件状态")
+    @PostMapping("/{id}/sampling")
+    public ReturnOrderDTO sampling(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<String> sampledPartIds = (List<String>) body.get("sampledPartIds");
+        return returnOrderService.sampling(id, sampledPartIds);
+    }
+
+    @Operation(summary = "提交报废申请", description = "→ scrap_in_progress")
+    @PostMapping("/{id}/scrap")
+    public ReturnOrderDTO scrap(@PathVariable String id) {
+        return returnOrderService.scrap(id);
+    }
+
+    @Operation(summary = "确认 WorkOn 完成", description = "scrap_in_progress → scrapped")
+    @PostMapping("/{id}/scrap/workon-confirm")
+    public ReturnOrderDTO workonConfirm(@PathVariable String id) {
+        return returnOrderService.workonConfirm(id);
+    }
+
+    @Operation(summary = "获取退货单关联售后件列表")
     @GetMapping("/{id}/parts")
     public List<PartDTO> getPartsForOrder(@PathVariable String id) {
-        return mockData.getParts().stream()
-                .filter(p -> p.getOrderId().equals(id))
-                .toList();
+        return returnOrderService.getPartsForOrder(id);
+    }
+
+    @Operation(summary = "导出退货单列表为 Excel")
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) String orderNumber,
+            @RequestParam(required = false) String customer,
+            @RequestParam(required = false) String status) {
+        byte[] data = returnOrderService.exportToExcel(orderNumber, customer, status);
+        String filename = "ReturnOrders_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".xlsx";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        return ResponseEntity.ok().headers(headers).body(data);
+    }
+
+    @Operation(summary = "导入退货单（Excel）")
+    @PostMapping("/import")
+    public Map<String, Integer> importOrders(@RequestParam("file") MultipartFile file) {
+        return returnOrderService.importFromExcel(file);
     }
 }

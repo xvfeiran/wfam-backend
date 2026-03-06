@@ -15,7 +15,7 @@ public class TrendDataPointDTO {
     @Schema(description = "日期", example = "2024-01-15")
     private String date;
     @Schema(description = "退货单数", example = "5")
-    private int orders;
+    private Integer orders;
     @Schema(description = "附件数", example = "12")
-    private int parts;
+    private Integer parts;
 }

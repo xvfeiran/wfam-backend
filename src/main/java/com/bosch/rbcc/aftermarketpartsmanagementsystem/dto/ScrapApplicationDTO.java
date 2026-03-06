@@ -19,7 +19,7 @@ public class ScrapApplicationDTO {
     @Schema(description = "附件编号列表", example = "WS-WSA-0001, WS-WSA-0002")
     private String partNumbers;
     @Schema(description = "报废数量", example = "3")
-    private int quantity;
+    private Integer quantity;
     private String applicant;
     private String approver;
     private String applyTime;

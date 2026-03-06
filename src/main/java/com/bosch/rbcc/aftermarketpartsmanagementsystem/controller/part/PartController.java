@@ -4,110 +4,77 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisReportDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReportTemplateDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.mock.MockDataProvider;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.PartService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
-@Tag(name = "附件管理", description = "附件 CRUD、分析报告及模板匹配")
+@Tag(name = "售后件管理", description = "售后件 CRUD、分析报告及模板匹配")
 @RestController
 @RequestMapping("/api/v1/parts")
 @RequiredArgsConstructor
 public class PartController {
 
+    private final PartService partService;
     private final MockDataProvider mockData;
 
-    @Operation(summary = "查询附件列表", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入筛选")
+    @Operation(summary = "查询售后件列表", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入筛选")
     @GetMapping
     public List<PartDTO> list(
             @Parameter(description = "退货单号（模糊匹配）") @RequestParam(required = false) String orderNumber,
             @Parameter(description = "零件码（模糊匹配）") @RequestParam(required = false) String partCode,
             @Parameter(description = "事业部") @RequestParam(required = false) String businessUnit,
             @Parameter(description = "产品平台") @RequestParam(required = false) String productPlatform,
-            @Parameter(description = "附件状态") @RequestParam(required = false) String status,
+            @Parameter(description = "售后件状态") @RequestParam(required = false) String status,
             @Parameter(description = "QC录入：yes=已录，no=未录") @RequestParam(required = false) String qcCreated) {
-        List<PartDTO> parts = mockData.getParts();
-        if (orderNumber != null && !orderNumber.isEmpty()) {
-            parts = parts.stream()
-                    .filter(p -> p.getOrderNumber() != null && p.getOrderNumber().toLowerCase().contains(orderNumber.toLowerCase()))
-                    .toList();
-        }
-        if ("yes".equals(qcCreated)) {
-            parts = parts.stream().filter(p -> p.getQcNo() != null && !p.getQcNo().isEmpty()).toList();
-        } else if ("no".equals(qcCreated)) {
-            parts = parts.stream().filter(p -> p.getQcNo() == null || p.getQcNo().isEmpty()).toList();
-        }
-        if (partCode != null && !partCode.isEmpty()) {
-            parts = parts.stream()
-                    .filter(p -> p.getPartCode().toLowerCase().contains(partCode.toLowerCase()))
-                    .toList();
-        }
-        if (businessUnit != null && !businessUnit.isEmpty()) {
-            parts = parts.stream()
-                    .filter(p -> p.getBusinessUnit().equals(businessUnit))
-                    .toList();
-        }
-        if (productPlatform != null && !productPlatform.isEmpty()) {
-            parts = parts.stream()
-                    .filter(p -> p.getProductPlatform().equals(productPlatform))
-                    .toList();
-        }
-        if (status != null && !status.isEmpty()) {
-            parts = parts.stream()
-                    .filter(p -> p.getStatus().equals(status))
-                    .toList();
-        }
-        return parts;
+        return partService.list(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated);
     }
 
-    @Operation(summary = "获取附件详情")
+    @Operation(summary = "获取售后件详情")
     @GetMapping("/{id}")
     public PartDTO getById(@PathVariable String id) {
-        return mockData.getParts().stream()
-                .filter(p -> p.getId().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+        return partService.getById(id);
     }
 
-    @Operation(summary = "新建附件")
+    @Operation(summary = "新建售后件")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PartDTO create(@RequestBody PartDTO dto) {
-        return dto;
+        return partService.create(dto);
     }
 
-    @Operation(summary = "更新附件")
+    @Operation(summary = "更新售后件")
     @PutMapping("/{id}")
     public PartDTO update(@PathVariable String id, @RequestBody PartDTO dto) {
-        dto.setId(id);
-        return dto;
+        return partService.update(id, dto);
     }
 
-    @Operation(summary = "删除附件")
+    @Operation(summary = "删除售后件")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
-        // mock - no persistence
+        partService.delete(id);
     }
 
-    @Operation(summary = "录入 QC No.", description = "仅允许状态为精分析审批/完成及之后的售后件录入 QC 单号")
+    @Operation(summary = "提交售后件，生成件号", description = "生成 {BU}-{PLT}-{seq:04d} 格式的件号")
+    @PostMapping("/{id}/submit")
+    public PartDTO submit(@PathVariable String id) {
+        return partService.submit(id);
+    }
+
+    @Operation(summary = "录入 QC No.", description = "仅允许状态为 analysis_completed、scrap_in_progress、scrapped 的售后件录入 QC 单号")
     @PutMapping("/{id}/qc-no")
-    public PartDTO updateQcNo(@PathVariable String id, @RequestBody java.util.Map<String, String> body) {
-        PartDTO part = mockData.getParts().stream()
-                .filter(p -> p.getId().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
-        String qcNo = body.get("qcNo");
-        part.setQcNo(qcNo);
-        return part;
+    public PartDTO updateQcNo(@PathVariable String id, @RequestBody Map<String, String> body) {
+        return partService.updateQcNo(id, body.get("qcNo"));
     }
 
-    @Operation(summary = "获取附件的分析报告")
+    @Operation(summary = "获取售后件的分析报告", description = "暂用 Mock 数据")
     @GetMapping("/{id}/reports")
     public List<AnalysisReportDTO> getReports(@PathVariable String id) {
         return mockData.getReports().stream()
@@ -115,16 +82,13 @@ public class PartController {
                 .toList();
     }
 
-    @Operation(summary = "获取附件匹配的分析模板", description = "根据产品平台和失效类型匹配模板，无匹配则返回默认模板")
+    @Operation(summary = "获取售后件匹配的分析模板", description = "根据产品平台和失效类型匹配模板，无匹配则返回默认模板")
     @GetMapping("/{id}/templates")
     public ReportTemplateDTO getMatchedTemplate(@PathVariable String id) {
-        PartDTO part = mockData.getParts().stream()
-                .filter(p -> p.getId().equals(id))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
-
+        PartDTO part = partService.getById(id);
         return mockData.getTemplates().stream()
                 .filter(t -> t.getProductPlatform().equals(part.getProductPlatform())
+                        && t.getFailureType() != null
                         && t.getFailureType().equals(part.getFailureType()))
                 .findFirst()
                 .orElse(mockData.getTemplates().stream()

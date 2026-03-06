@@ -27,12 +27,12 @@ public class ReturnOrderDTO {
     @Schema(description = "物流单号", example = "SF1234567890")
     private String trackingNumber;
     @Schema(description = "退货数量", example = "5")
-    private int returnQuantity;
-    private int initialAnalysisQuantity;
-    private int detailedAnalysisQuantity;
-    private int scrappedQuantity;
-    private int qcCreatedQuantity;
-    private int qcNotCreatedQuantity;
+    private Integer returnQuantity;
+    private Integer initialAnalysisQuantity;
+    private Integer detailedAnalysisQuantity;
+    private Integer scrappedQuantity;
+    private Integer qcCreatedQuantity;
+    private Integer qcNotCreatedQuantity;
     private String description;
     @Schema(description = "状态", example = "pending_registration")
     private String status;

@@ -50,7 +50,7 @@ public class MockDataProvider {
                         .returnQuantity(50).initialAnalysisQuantity(50).detailedAnalysisQuantity(5)
                         .scrappedQuantity(0).qcCreatedQuantity(3).qcNotCreatedQuantity(2)
                         .description("客户反馈产品异响，怠速时异响明显")
-                        .status("pending_detailed_analysis")
+                        .status("in_detailed_analysis")
                         .createdBy("张三").createdAt("2026-01-15 09:00:00")
                         .build(),
                 ReturnOrderDTO.builder()
@@ -60,7 +60,7 @@ public class MockDataProvider {
                         .returnQuantity(30).initialAnalysisQuantity(30).detailedAnalysisQuantity(3)
                         .scrappedQuantity(0).qcCreatedQuantity(2).qcNotCreatedQuantity(1)
                         .description("传感器数据异常")
-                        .status("pending_sampling")
+                        .status("in_initial_analysis")
                         .createdBy("李四").createdAt("2026-01-18 10:30:00")
                         .build(),
                 ReturnOrderDTO.builder()
@@ -70,7 +70,7 @@ public class MockDataProvider {
                         .returnQuantity(20).initialAnalysisQuantity(20).detailedAnalysisQuantity(2)
                         .scrappedQuantity(10).qcCreatedQuantity(2).qcNotCreatedQuantity(0)
                         .description("电路板故障")
-                        .status("pending_scrap")
+                        .status("scrap_in_progress")
                         .createdBy("王五").createdAt("2026-01-20 14:00:00")
                         .build(),
                 ReturnOrderDTO.builder()
@@ -80,7 +80,7 @@ public class MockDataProvider {
                         .returnQuantity(15).initialAnalysisQuantity(15).detailedAnalysisQuantity(0)
                         .scrappedQuantity(0).qcCreatedQuantity(0).qcNotCreatedQuantity(0)
                         .description("接口松动")
-                        .status("pending_initial_analysis")
+                        .status("in_initial_analysis")
                         .createdBy("赵六").createdAt("2026-01-22 16:00:00")
                         .build(),
                 ReturnOrderDTO.builder()
@@ -89,7 +89,7 @@ public class MockDataProvider {
                         .returnMethod("other")
                         .returnQuantity(45).initialAnalysisQuantity(45).detailedAnalysisQuantity(5)
                         .scrappedQuantity(20).qcCreatedQuantity(5).qcNotCreatedQuantity(0)
-                        .status("completed")
+                        .status("scrapped")
                         .createdBy("钱七").createdAt("2026-01-25 09:30:00")
                         .build()
         ));
@@ -129,7 +129,7 @@ public class MockDataProvider {
                         .vehicleProductionDate("2025-05-20").vehiclePurchaseDate("2025-06-15")
                         .vehicleFailureDate("2026-01-12").vehicleVIN("LSVCD4291F3456789")
                         .vehicleMileage(28900).customerDescription("传感器读数不准确")
-                        .status("pending_initial_analysis").images(List.of())
+                        .status("in_initial_analysis").images(List.of())
                         .createdBy("王五").createdAt("2026-01-19 09:00:00")
                         .build(),
                 PartDTO.builder()
@@ -150,7 +150,7 @@ public class MockDataProvider {
                         .vehicleProductionDate("2025-07-01").vehiclePurchaseDate("2025-08-15")
                         .vehicleFailureDate("2026-01-18").vehicleVIN("WBA3A5C50EF123456")
                         .vehicleMileage(8500).customerDescription("连接器松动导致断电")
-                        .status("pending_initial_analysis").images(List.of())
+                        .status("in_initial_analysis").images(List.of())
                         .createdBy("钱七").createdAt("2026-01-23 14:00:00")
                         .build()
         ));

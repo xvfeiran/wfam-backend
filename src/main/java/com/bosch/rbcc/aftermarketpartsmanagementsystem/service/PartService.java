@@ -1,0 +1,212 @@
+package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
+
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
+import jakarta.persistence.criteria.Predicate;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class PartService {
+
+    private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
+    private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
+    private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
+    private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
+    private static final String STATUS_SCRAPPED = "scrapped";
+    private static final Set<String> QC_ALLOWED_STATUSES = Set.of(
+            STATUS_ANALYSIS_COMPLETED, STATUS_SCRAP_IN_PROGRESS, STATUS_SCRAPPED);
+
+    private final PartRepository partRepo;
+
+    public List<PartDTO> list(String orderNumber, String partCode, String businessUnit,
+                               String productPlatform, String status, String qcCreated) {
+        List<Part> parts = partRepo.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (orderNumber != null && !orderNumber.isBlank()) {
+                // orderId lookup requires join; for now filter in-memory by orderNumber stored in DTO
+                // This will be replaced once ReturnOrder join is set up
+            }
+            if (partCode != null && !partCode.isBlank()) {
+                predicates.add(cb.like(cb.upper(root.get("partCode")), "%" + partCode.toUpperCase() + "%"));
+            }
+            if (businessUnit != null && !businessUnit.isBlank()) {
+                predicates.add(cb.equal(root.get("businessUnit"), businessUnit));
+            }
+            if (productPlatform != null && !productPlatform.isBlank()) {
+                predicates.add(cb.equal(root.get("productPlatform"), productPlatform));
+            }
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if ("yes".equals(qcCreated)) {
+                predicates.add(cb.isNotNull(root.get("qcNo")));
+                predicates.add(cb.notEqual(root.get("qcNo"), ""));
+            } else if ("no".equals(qcCreated)) {
+                predicates.add(cb.or(
+                        cb.isNull(root.get("qcNo")),
+                        cb.equal(root.get("qcNo"), "")
+                ));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        });
+        return parts.stream().map(this::toDTO).collect(Collectors.toList());
+    }
+
+    public PartDTO getById(String id) {
+        return partRepo.findById(id)
+                .map(this::toDTO)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+    }
+
+    @Transactional
+    public PartDTO create(PartDTO dto) {
+        Part part = Part.builder()
+                .id(UUID.randomUUID().toString())
+                .orderId(dto.getOrderId())
+                .partCode(dto.getPartCode())
+                .businessUnit(dto.getBusinessUnit())
+                .productPlatform(dto.getProductPlatform())
+                .productionShift(dto.getProductionShift())
+                .complaintType(dto.getComplaintType())
+                .vehicleProductionDate(parseDate(dto.getVehicleProductionDate()))
+                .vehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()))
+                .vehicleFailureDate(parseDate(dto.getVehicleFailureDate()))
+                .vehicleVin(dto.getVehicleVIN())
+                .vehicleMileage(dto.getVehicleMileage())
+                .customerDescription(dto.getCustomerDescription())
+                .otherDescription(dto.getOtherDescription())
+                .repairStation(dto.getRepairStation())
+                .complaintLocation(dto.getComplaintLocation())
+                .responsibleEngineer(dto.getResponsibleEngineer())
+                .analyst(dto.getAnalyst())
+                .status(STATUS_IN_INITIAL_ANALYSIS)
+                .statusChangedAt(LocalDateTime.now())
+                .build();
+        partRepo.save(part);
+        return toDTO(part);
+    }
+
+    @Transactional
+    public PartDTO update(String id, PartDTO dto) {
+        Part part = partRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+        part.setPartCode(dto.getPartCode());
+        part.setBusinessUnit(dto.getBusinessUnit());
+        part.setProductPlatform(dto.getProductPlatform());
+        part.setProductionShift(dto.getProductionShift());
+        part.setComplaintType(dto.getComplaintType());
+        part.setVehicleProductionDate(parseDate(dto.getVehicleProductionDate()));
+        part.setVehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()));
+        part.setVehicleFailureDate(parseDate(dto.getVehicleFailureDate()));
+        part.setVehicleVin(dto.getVehicleVIN());
+        part.setVehicleMileage(dto.getVehicleMileage());
+        part.setCustomerDescription(dto.getCustomerDescription());
+        part.setOtherDescription(dto.getOtherDescription());
+        part.setRepairStation(dto.getRepairStation());
+        part.setComplaintLocation(dto.getComplaintLocation());
+        part.setResponsibleEngineer(dto.getResponsibleEngineer());
+        part.setAnalyst(dto.getAnalyst());
+        partRepo.save(part);
+        return toDTO(part);
+    }
+
+    @Transactional
+    public void delete(String id) {
+        Part part = partRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+        if (part.getPartNumber() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only unsubmitted parts can be deleted");
+        }
+        partRepo.delete(part);
+    }
+
+    @Transactional
+    public PartDTO submit(String id) {
+        Part part = partRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+        if (part.getPartNumber() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Part has already been submitted");
+        }
+        part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform()));
+        partRepo.save(part);
+        return toDTO(part);
+    }
+
+    @Transactional
+    public PartDTO updateQcNo(String id, String qcNo) {
+        Part part = partRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+        if (!QC_ALLOWED_STATUSES.contains(part.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "QC No. can only be set when status is: " + QC_ALLOWED_STATUSES);
+        }
+        part.setQcNo(qcNo);
+        partRepo.save(part);
+        return toDTO(part);
+    }
+
+    @Transactional
+    public PartDTO updateStatus(String id, String newStatus) {
+        Part part = partRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+        part.setStatus(newStatus);
+        part.setStatusChangedAt(LocalDateTime.now());
+        partRepo.save(part);
+        return toDTO(part);
+    }
+
+    private String generatePartNumber(String bu, String platform) {
+        String prefix = bu + "-" + platform;
+        // startPos: after "BU-PLT-" (prefix.length + 2 for the trailing dash)
+        int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 2, prefix + "-%").orElse(0);
+        return prefix + "-" + String.format("%04d", maxSeq + 1);
+    }
+
+    private PartDTO toDTO(Part part) {
+        return PartDTO.builder()
+                .id(part.getId())
+                .partNumber(part.getPartNumber())
+                .orderId(part.getOrderId())
+                .partCode(part.getPartCode())
+                .businessUnit(part.getBusinessUnit())
+                .productPlatform(part.getProductPlatform())
+                .productionShift(part.getProductionShift())
+                .complaintType(part.getComplaintType())
+                .repairStation(part.getRepairStation())
+                .complaintLocation(part.getComplaintLocation())
+                .responsibleEngineer(part.getResponsibleEngineer())
+                .analyst(part.getAnalyst())
+                .qcNo(part.getQcNo())
+                .vehicleProductionDate(part.getVehicleProductionDate() != null ? part.getVehicleProductionDate().toString() : null)
+                .vehiclePurchaseDate(part.getVehiclePurchaseDate() != null ? part.getVehiclePurchaseDate().toString() : null)
+                .vehicleFailureDate(part.getVehicleFailureDate() != null ? part.getVehicleFailureDate().toString() : null)
+                .vehicleVIN(part.getVehicleVin())
+                .vehicleMileage(part.getVehicleMileage())
+                .customerDescription(part.getCustomerDescription())
+                .otherDescription(part.getOtherDescription())
+                .status(part.getStatus())
+                .images(List.of())
+                .createdBy(part.getCreatedBy())
+                .createdAt(part.getCreatedAt() != null ? part.getCreatedAt().toString() : null)
+                .updatedBy(part.getUpdatedBy())
+                .updatedAt(part.getUpdatedAt() != null ? part.getUpdatedAt().toString() : null)
+                .build();
+    }
+
+    private LocalDate parseDate(String dateStr) {
+        if (dateStr == null || dateStr.isBlank()) return null;
+        return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+    }
+}
