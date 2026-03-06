@@ -22,19 +22,25 @@ public class PartController {
 
     private final MockDataProvider mockData;
 
-    @Operation(summary = "查询附件列表", description = "支持按编号、零件码、事业部、产品平台、状态筛选")
+    @Operation(summary = "查询附件列表", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入筛选")
     @GetMapping
     public List<PartDTO> list(
-            @Parameter(description = "附件编号（模糊匹配）") @RequestParam(required = false) String partNumber,
+            @Parameter(description = "退货单号（模糊匹配）") @RequestParam(required = false) String orderNumber,
             @Parameter(description = "零件码（模糊匹配）") @RequestParam(required = false) String partCode,
             @Parameter(description = "事业部") @RequestParam(required = false) String businessUnit,
             @Parameter(description = "产品平台") @RequestParam(required = false) String productPlatform,
-            @Parameter(description = "附件状态") @RequestParam(required = false) String status) {
+            @Parameter(description = "附件状态") @RequestParam(required = false) String status,
+            @Parameter(description = "QC录入：yes=已录，no=未录") @RequestParam(required = false) String qcCreated) {
         List<PartDTO> parts = mockData.getParts();
-        if (partNumber != null && !partNumber.isEmpty()) {
+        if (orderNumber != null && !orderNumber.isEmpty()) {
             parts = parts.stream()
-                    .filter(p -> p.getPartNumber().toLowerCase().contains(partNumber.toLowerCase()))
+                    .filter(p -> p.getOrderNumber() != null && p.getOrderNumber().toLowerCase().contains(orderNumber.toLowerCase()))
                     .toList();
+        }
+        if ("yes".equals(qcCreated)) {
+            parts = parts.stream().filter(p -> p.getQcNo() != null && !p.getQcNo().isEmpty()).toList();
+        } else if ("no".equals(qcCreated)) {
+            parts = parts.stream().filter(p -> p.getQcNo() == null || p.getQcNo().isEmpty()).toList();
         }
         if (partCode != null && !partCode.isEmpty()) {
             parts = parts.stream()
@@ -87,6 +93,18 @@ public class PartController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
         // mock - no persistence
+    }
+
+    @Operation(summary = "录入 QC No.", description = "仅允许状态为精分析审批/完成及之后的售后件录入 QC 单号")
+    @PutMapping("/{id}/qc-no")
+    public PartDTO updateQcNo(@PathVariable String id, @RequestBody java.util.Map<String, String> body) {
+        PartDTO part = mockData.getParts().stream()
+                .filter(p -> p.getId().equals(id))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+        String qcNo = body.get("qcNo");
+        part.setQcNo(qcNo);
+        return part;
     }
 
     @Operation(summary = "获取附件的分析报告")

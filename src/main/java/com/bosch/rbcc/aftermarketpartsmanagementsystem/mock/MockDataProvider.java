@@ -29,6 +29,16 @@ public class MockDataProvider {
         return List.of("噪音", "断裂", "变形", "异响", "渗漏", "其他");
     }
 
+    public List<Map<String, String>> getUsers() {
+        return List.of(
+                Map.of("id", "user-1", "loginName", "zhangsan", "displayName", "张三"),
+                Map.of("id", "user-2", "loginName", "lisi", "displayName", "李四"),
+                Map.of("id", "user-3", "loginName", "wangwu", "displayName", "王五"),
+                Map.of("id", "user-4", "loginName", "zhaoliu", "displayName", "赵六"),
+                Map.of("id", "user-5", "loginName", "qianqi", "displayName", "钱七")
+        );
+    }
+
     // ========== Return Orders ==========
 
     public List<ReturnOrderDTO> getOrders() {
@@ -92,35 +102,41 @@ public class MockDataProvider {
                 PartDTO.builder()
                         .id("1").partNumber("BU1-PLT1-0001").orderId("1").orderNumber("RO-2026-0001")
                         .partCode("RB-12345-AB").businessUnit("BU1").productPlatform("PLT1")
-                        .productionShift("A班")
+                        .productionShift("A班").complaintType("BA40")
+                        .repairStation("RS-001").complaintLocation("上海").responsibleEngineer("zhangsan").analyst("lisi")
+                        .qcNo("QC-2026-0001")
                         .vehicleProductionDate("2025-06-15").vehiclePurchaseDate("2025-07-20")
                         .vehicleFailureDate("2026-01-10").vehicleVIN("LSVAB2183E2123456")
                         .vehicleMileage(15234).customerDescription("发动机异响，怠速不稳")
-                        .status("pending_detailed_analysis").images(List.of())
+                        .status("analysis_completed").images(List.of())
                         .createdBy("李四").createdAt("2026-01-16 10:00:00")
                         .build(),
                 PartDTO.builder()
                         .id("2").partNumber("BU1-PLT1-0002").orderId("1").orderNumber("RO-2026-0001")
                         .partCode("RB-12345-AC").businessUnit("BU1").productPlatform("PLT1")
-                        .productionShift("B班")
+                        .productionShift("B班").complaintType("BA41")
+                        .repairStation("RS-002").complaintLocation("北京").responsibleEngineer("wangwu").analyst("zhaoliu")
                         .vehicleProductionDate("2025-06-18").vehiclePurchaseDate("2025-08-10")
                         .vehicleFailureDate("2026-01-08").vehicleVIN("LSVAB2183E2123457")
                         .vehicleMileage(12560).customerDescription("怠速抖动")
-                        .status("pending_detailed_analysis").images(List.of())
+                        .status("in_detailed_analysis").images(List.of())
                         .createdBy("李四").createdAt("2026-01-16 10:30:00")
                         .build(),
                 PartDTO.builder()
                         .id("3").partNumber("BU2-PLT3-0001").orderId("2").orderNumber("RO-2026-0002")
                         .partCode("RB-67890-XY").businessUnit("BU2").productPlatform("PLT3")
+                        .complaintType("BA20")
                         .vehicleProductionDate("2025-05-20").vehiclePurchaseDate("2025-06-15")
                         .vehicleFailureDate("2026-01-12").vehicleVIN("LSVCD4291F3456789")
                         .vehicleMileage(28900).customerDescription("传感器读数不准确")
-                        .status("registered").images(List.of())
+                        .status("pending_initial_analysis").images(List.of())
                         .createdBy("王五").createdAt("2026-01-19 09:00:00")
                         .build(),
                 PartDTO.builder()
                         .id("4").partNumber("BU3-PLT2-0001").orderId("3").orderNumber("RO-2026-0003")
                         .partCode("RB-11111-ZZ").businessUnit("BU3").productPlatform("PLT2")
+                        .complaintType("BA42").repairStation("RS-003").complaintLocation("广州")
+                        .responsibleEngineer("qianqi").analyst("zhangsan").qcNo("QC-2026-0002")
                         .vehicleProductionDate("2025-04-10").vehiclePurchaseDate("2025-05-05")
                         .vehicleFailureDate("2026-01-15").vehicleVIN("WVWEF5382G1234567")
                         .vehicleMileage(35000).customerDescription("电路板烧毁")
@@ -130,6 +146,7 @@ public class MockDataProvider {
                 PartDTO.builder()
                         .id("5").partNumber("BU1-PLT4-0001").orderId("4").orderNumber("RO-2026-0004")
                         .partCode("RB-22222-AA").businessUnit("BU1").productPlatform("PLT4")
+                        .complaintType("BA10")
                         .vehicleProductionDate("2025-07-01").vehiclePurchaseDate("2025-08-15")
                         .vehicleFailureDate("2026-01-18").vehicleVIN("WBA3A5C50EF123456")
                         .vehicleMileage(8500).customerDescription("连接器松动导致断电")
