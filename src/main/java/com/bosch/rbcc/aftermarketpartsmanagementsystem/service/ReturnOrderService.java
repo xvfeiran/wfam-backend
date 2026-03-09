@@ -235,9 +235,11 @@ public class ReturnOrderService {
     }
 
     private String generateOrderNumber() {
+        // 格式：年份后两位 + QMC + 四位序号，如 26QMC0001
         int year = LocalDate.now().getYear();
-        String prefix = year + "EM";
-        // startPos: 1-based index after the prefix (e.g. "2026EM" = 6 chars, seq starts at pos 7)
+        String yearSuffix = String.valueOf(year).substring(2); // 获取年份后两位，如 2026 -> 26
+        String prefix = yearSuffix + "QMC";
+        // startPos: 1-based index after the prefix (e.g. "26QMC" = 5 chars, seq starts at pos 6)
         int maxSeq = orderRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
         return prefix + String.format("%04d", maxSeq + 1);
     }
