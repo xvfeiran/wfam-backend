@@ -59,9 +59,9 @@ public class ReportTemplateService {
     }
 
     @Transactional
-    public ReportTemplateDTO uploadAndParse(MultipartFile file, String productPlatform, String failureType) {
+    public ReportTemplateDTO uploadAndParse(MultipartFile file, String productPlatform, String failureType, String name) {
         try {
-            log.info("Uploading template: platform={}, failureType={}, file={}", productPlatform, failureType, file.getOriginalFilename());
+            log.info("Uploading template: platform={}, failureType={}, name={}, file={}", productPlatform, failureType, name, file.getOriginalFilename());
 
             List<ReportTemplateFieldDTO> fields = parserService.parseTemplate(file);
             String fileName = generateFileName(productPlatform, failureType, file.getOriginalFilename());
@@ -72,9 +72,12 @@ public class ReportTemplateService {
             // 将空字符串转换为null，便于匹配逻辑处理
             String normalizedFailureType = (failureType != null && !failureType.trim().isEmpty()) ? failureType : null;
 
+            // 使用自定义名称或默认名称
+            String templateName = (name != null && !name.trim().isEmpty()) ? name.trim() : fileName;
+
             ReportTemplate template = ReportTemplate.builder()
                 .id(UUID.randomUUID().toString())
-                .name(fileName)
+                .name(templateName)
                 .productPlatform(productPlatform)
                 .failureType(normalizedFailureType)
                 .filePath(filePath.toString())
@@ -83,8 +86,8 @@ public class ReportTemplateService {
                 .enabled(1)
                 .build();
             template = repository.save(template);
-            log.info("Template uploaded successfully: id={}, platform={}, failureType={}",
-                template.getId(), template.getProductPlatform(), template.getFailureType());
+            log.info("Template uploaded successfully: id={}, name={}, platform={}, failureType={}",
+                template.getId(), template.getName(), template.getProductPlatform(), template.getFailureType());
             return toDTO(template);
         } catch (IOException e) {
             log.error("Failed to upload template", e);
@@ -108,6 +111,27 @@ public class ReportTemplateService {
 
         templates = repository.findByEnabled(1);
         return templates.isEmpty() ? null : toDTO(templates.get(0));
+    }
+
+    public List<ReportTemplateDTO> matchAllTemplates(String productPlatform, String failureType) {
+        log.debug("Finding all matching templates for platform={} and failureType={}", productPlatform, failureType);
+
+        List<ReportTemplate> templates = repository
+            .findByProductPlatformAndFailureTypeAndEnabled(productPlatform, failureType, 1);
+        if (!templates.isEmpty()) {
+            log.debug("Found {} exact match templates for platform={} and failureType={}", templates.size(), productPlatform, failureType);
+            return templates.stream().map(this::toDTO).collect(Collectors.toList());
+        }
+
+        templates = repository.findByProductPlatformAndEnabled(productPlatform, 1);
+        if (!templates.isEmpty()) {
+            log.debug("Found {} platform match templates for platform={}", templates.size(), productPlatform);
+            return templates.stream().map(this::toDTO).collect(Collectors.toList());
+        }
+
+        templates = repository.findByEnabled(1);
+        log.debug("Found {} default templates", templates.size());
+        return templates.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public Resource downloadTemplate(String id) {

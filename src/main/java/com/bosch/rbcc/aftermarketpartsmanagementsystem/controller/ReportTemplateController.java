@@ -44,9 +44,10 @@ public class ReportTemplateController {
     public ReportTemplateDTO uploadTemplate(
         @RequestParam("file") MultipartFile file,
         @RequestParam("productPlatform") String productPlatform,
-        @RequestParam(value = "failureType", required = false) String failureType
+        @RequestParam(value = "failureType", required = false) String failureType,
+        @RequestParam(value = "name", required = false) String name
     ) {
-        return templateService.uploadAndParse(file, productPlatform, failureType);
+        return templateService.uploadAndParse(file, productPlatform, failureType, name);
     }
 
     @GetMapping("/match")
@@ -56,6 +57,15 @@ public class ReportTemplateController {
         @RequestParam(required = false) String failureType
     ) {
         return templateService.matchTemplate(productPlatform, failureType);
+    }
+
+    @GetMapping("/match-all")
+    @Operation(summary = "Match all templates", description = "Find all matching templates based on product platform and failure type")
+    public List<ReportTemplateDTO> matchAllTemplates(
+        @RequestParam String productPlatform,
+        @RequestParam(required = false) String failureType
+    ) {
+        return templateService.matchAllTemplates(productPlatform, failureType);
     }
 
     @GetMapping("/{id}/download")
