@@ -45,6 +45,9 @@ public class Part {
     @Column(name = "COMPLAINT_TYPE", length = 20)
     private String complaintType;
 
+    @Column(name = "CUSTOMER_FAILURE_TYPE", length = 50)
+    private String failureType;
+
     @Column(name = "VEHICLE_PRODUCTION_DATE")
     private LocalDate vehicleProductionDate;
 

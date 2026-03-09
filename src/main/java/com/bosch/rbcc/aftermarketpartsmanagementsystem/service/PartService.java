@@ -118,6 +118,7 @@ public class PartService {
                 .productPlatform(dto.getProductPlatform())
                 .productionShift(dto.getProductionShift())
                 .complaintType(dto.getComplaintType())
+                .failureType(dto.getFailureType())
                 .vehicleProductionDate(parseDate(dto.getVehicleProductionDate()))
                 .vehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()))
                 .vehicleFailureDate(parseDate(dto.getVehicleFailureDate()))
@@ -145,6 +146,7 @@ public class PartService {
         part.setProductPlatform(dto.getProductPlatform());
         part.setProductionShift(dto.getProductionShift());
         part.setComplaintType(dto.getComplaintType());
+        part.setFailureType(dto.getFailureType());
         part.setVehicleProductionDate(parseDate(dto.getVehicleProductionDate()));
         part.setVehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()));
         part.setVehicleFailureDate(parseDate(dto.getVehicleFailureDate()));
@@ -229,6 +231,7 @@ public class PartService {
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
                 .complaintType(part.getComplaintType())
+                .failureType(part.getFailureType())
                 .repairStation(part.getRepairStation())
                 .complaintLocation(part.getComplaintLocation())
                 .responsibleEngineer(part.getResponsibleEngineer())

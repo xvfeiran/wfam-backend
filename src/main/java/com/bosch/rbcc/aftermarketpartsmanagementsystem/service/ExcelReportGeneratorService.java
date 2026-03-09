@@ -57,7 +57,8 @@ public class ExcelReportGeneratorService {
     }
 
     private void fillDataToWorkbook(Workbook workbook, Map<String, Object> data) {
-        Pattern pattern = Pattern.compile("\\[\\[([a-zA-Z0-9_]+)\\]\\]");
+        // Match [[type:name:...]] format placeholders, extract the field name (second group)
+        Pattern pattern = Pattern.compile("\\[\\[[a-z]+:([a-zA-Z0-9_]+):[^\\]]*\\]\\]");
 
         for (Sheet sheet : workbook) {
             for (Row row : sheet) {
@@ -67,7 +68,7 @@ public class ExcelReportGeneratorService {
                         Matcher matcher = pattern.matcher(cellValue);
                         StringBuffer result = new StringBuffer();
                         while (matcher.find()) {
-                            String fieldName = matcher.group(1);
+                            String fieldName = matcher.group(1); // Extract field name from placeholder
                             Object value = data.get(fieldName);
                             String replacement = value != null ? value.toString() : "";
                             matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));

@@ -30,7 +30,7 @@ public class PartDTO {
     private String productionShift;
     @Schema(description = "退货类型（BA代码）", example = "BA40")
     private String complaintType;
-    @Schema(description = "失效类型", example = "噪音")
+    @Schema(description = "客户失效类型", example = "噪音")
     private String failureType;
     private String repairStation;
     private String complaintLocation;
