@@ -12,6 +12,16 @@ spring:
     schemas: SUPER_LINE_LEADER
     table: APMS_FLYWAY_SCHEMA_HISTORY
     ignore-migration-patterns: "*:failed"
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+file:
+  upload:
+    base-path: ${user.home}/.wfam/upload
+    template-path: ${file.upload.base-path}/templates
+    report-path: ${file.upload.base-path}/reports
 
 springdoc:
   api-docs:

@@ -23,4 +23,8 @@ public class ReportTemplateDTO {
     @Schema(description = "适用失效类型", example = "噪音")
     private String failureType;
     private List<ReportTemplateFieldDTO> fields;
+    @Schema(description = "创建时间")
+    private String createdAt;
+    @Schema(description = "创建人")
+    private String createdBy;
 }

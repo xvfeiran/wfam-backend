@@ -174,10 +174,11 @@ public class PartService {
     public PartDTO submit(String id) {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
-        if (part.getPartNumber() != null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Part has already been submitted");
+        // 如果尚未生成零件编号，则生成新编号
+        if (part.getPartNumber() == null) {
+            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform()));
         }
-        part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform()));
+        // 已提交的单据也可以再次提交（用于更新数据），只保存更新
         partRepo.save(part);
         return toDTO(part);
     }
