@@ -40,7 +40,7 @@ public class CommonHeadersInterceptor implements HandlerInterceptor {
 
     @Override
     public void afterCompletion(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
-                                @NonNull Object handler, Exception ex) {
+                                   @NonNull Object handler, Exception ex) {
         // 在请求处理完成后执行，即视图渲染完成后执行
         // 清理 CommonHeaderManager 中的内容
         CommonHeaderManager.removeCommonHeaders();

@@ -6,18 +6,15 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.ReturnOrderExcelHandler;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
-import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -36,6 +33,7 @@ public class ReturnOrderService {
 
     private final ReturnOrderRepository orderRepo;
     private final PartRepository partRepo;
+    private final ReturnOrderExcelHandler excelHandler;
 
     public List<ReturnOrderDTO> list(String orderNumber, String customer, String status) {
         List<ReturnOrder> orders = orderRepo.findAll((root, query, cb) -> {
@@ -166,72 +164,24 @@ public class ReturnOrderService {
 
     public byte[] exportToExcel(String orderNumber, String customer, String status) {
         List<ReturnOrderDTO> orders = list(orderNumber, customer, status);
-        try (Workbook wb = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            Sheet sheet = wb.createSheet("ReturnOrders");
-            String[] headers = {"退货单号", "客户", "收货日期", "投诉日期", "退回方式", "物流单号", "退货数量", "状态", "创建人", "创建时间"};
-            Row headerRow = sheet.createRow(0);
-            for (int i = 0; i < headers.length; i++) {
-                headerRow.createCell(i).setCellValue(headers[i]);
-            }
-            int rowIdx = 1;
-            for (ReturnOrderDTO dto : orders) {
-                Row row = sheet.createRow(rowIdx++);
-                row.createCell(0).setCellValue(dto.getOrderNumber() != null ? dto.getOrderNumber() : "");
-                row.createCell(1).setCellValue(dto.getCustomer() != null ? dto.getCustomer() : "");
-                row.createCell(2).setCellValue(dto.getReceiveDate() != null ? dto.getReceiveDate() : "");
-                row.createCell(3).setCellValue(dto.getComplaintDate() != null ? dto.getComplaintDate() : "");
-                row.createCell(4).setCellValue(dto.getReturnMethod() != null ? dto.getReturnMethod() : "");
-                row.createCell(5).setCellValue(dto.getTrackingNumber() != null ? dto.getTrackingNumber() : "");
-                row.createCell(6).setCellValue(dto.getReturnQuantity());
-                row.createCell(7).setCellValue(dto.getStatus() != null ? dto.getStatus() : "");
-                row.createCell(8).setCellValue(dto.getCreatedBy() != null ? dto.getCreatedBy() : "");
-                row.createCell(9).setCellValue(dto.getCreatedAt() != null ? dto.getCreatedAt() : "");
-            }
-            wb.write(out);
-            return out.toByteArray();
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Excel export failed: " + e.getMessage());
-        }
+        return excelHandler.exportToExcel(orders);
     }
 
     public Map<String, Integer> importFromExcel(MultipartFile file) {
+        List<ReturnOrderDTO> orders = excelHandler.importFromExcel(file);
         int success = 0;
         int fail = 0;
-        try (Workbook wb = WorkbookFactory.create(file.getInputStream())) {
-            Sheet sheet = wb.getSheetAt(0);
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
-                if (row == null) continue;
-                try {
-                    ReturnOrderDTO dto = ReturnOrderDTO.builder()
-                            .customer(getCellString(row, 0))
-                            .receiveDate(getCellString(row, 1))
-                            .complaintDate(getCellString(row, 2))
-                            .returnMethod(getCellString(row, 3))
-                            .trackingNumber(getCellString(row, 4))
-                            .returnQuantity((int) row.getCell(5).getNumericCellValue())
-                            .description(getCellString(row, 6))
-                            .build();
-                    create(dto);
-                    success++;
-                } catch (Exception e) {
-                    fail++;
-                }
-            }
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Failed to parse Excel file: " + e.getMessage());
-        }
-        return Map.of("success", success, "fail", fail);
-    }
 
-    private String getCellString(Row row, int col) {
-        Cell cell = row.getCell(col);
-        if (cell == null) return null;
-        return switch (cell.getCellType()) {
-            case STRING -> cell.getStringCellValue();
-            case NUMERIC -> String.valueOf((long) cell.getNumericCellValue());
-            default -> null;
-        };
+        for (ReturnOrderDTO dto : orders) {
+            try {
+                create(dto);
+                success++;
+            } catch (Exception e) {
+                fail++;
+            }
+        }
+
+        return Map.of("success", success, "fail", fail);
     }
 
     private String generateOrderNumber() {

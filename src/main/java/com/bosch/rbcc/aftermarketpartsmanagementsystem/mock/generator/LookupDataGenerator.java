@@ -1,0 +1,40 @@
+package com.bosch.rbcc.aftermarketpartsmanagementsystem.mock.generator;
+
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Generates lookup/reference data for the application.
+ * Includes customers, business units, product platforms, failure types, and users.
+ */
+@Component
+public class LookupDataGenerator {
+
+    public List<String> getCustomers() {
+        return List.of("一汽大众", "上汽大众", "宝马", "奔驰", "奥迪", "长城汽车", "比亚迪", "吉利汽车");
+    }
+
+    public List<String> getBusinessUnits() {
+        return List.of("BU1", "BU2", "BU3", "BU4");
+    }
+
+    public List<String> getProductPlatforms() {
+        return List.of("PLT1", "PLT2", "PLT3", "PLT4", "PLT5");
+    }
+
+    public List<String> getFailureTypes() {
+        return List.of("噪音", "断裂", "变形", "异响", "渗漏", "其他");
+    }
+
+    public List<Map<String, String>> getUsers() {
+        return List.of(
+                Map.of("id", "user-1", "loginName", "zhangsan", "displayName", "张三"),
+                Map.of("id", "user-2", "loginName", "lisi", "displayName", "李四"),
+                Map.of("id", "user-3", "loginName", "wangwu", "displayName", "王五"),
+                Map.of("id", "user-4", "loginName", "zhaoliu", "displayName", "赵六"),
+                Map.of("id", "user-5", "loginName", "qianqi", "displayName", "钱七")
+        );
+    }
+}
