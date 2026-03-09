@@ -102,6 +102,25 @@ public class AnalysisReportService {
     }
 
     @Transactional
+    public AnalysisReportDTO withdraw(String reportId, String username) {
+        AnalysisReport report = repository.findById(reportId)
+            .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+
+        // Validate: only submitter can withdraw
+        if (!username.equals(report.getSubmittedBy())) {
+            throw new IllegalStateException("Only the submitter can withdraw the report");
+        }
+
+        // Status change: submitted -> draft
+        report.setStatus("draft");
+        report.setSubmittedBy(null);
+        report.setSubmittedAt(null);
+        report = repository.save(report);
+        log.info("Report withdrawn: id={}, by={}", reportId, username);
+        return toDTO(report);
+    }
+
+    @Transactional
     public void delete(String id) {
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("Report not found: " + id);

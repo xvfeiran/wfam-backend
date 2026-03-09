@@ -310,21 +310,6 @@ public class MockDataProvider {
 
     // ========== Approval Data ==========
 
-    public List<ScrapApplicationDTO> getMyScrapApplications() {
-        return new ArrayList<>(List.of(
-                ScrapApplicationDTO.builder()
-                        .id("1").orderNumber("RO-2026-0001").partNumbers("BU1-PLT1-0001, BU1-PLT1-0002")
-                        .quantity(2).applyTime("2026-02-01 10:00").status("pending")
-                        .reason("零件损坏无法修复").approver("王五")
-                        .build(),
-                ScrapApplicationDTO.builder()
-                        .id("2").orderNumber("RO-2026-0002").partNumbers("BU2-PLT3-0001")
-                        .quantity(1).applyTime("2026-02-02 14:30").status("approved")
-                        .reason("客户要求报废处理").approver("王五").approveTime("2026-02-02 16:00")
-                        .build()
-        ));
-    }
-
     public List<AnalysisApplicationDTO> getMyAnalysisApplications() {
         return new ArrayList<>(List.of(
                 AnalysisApplicationDTO.builder()
@@ -338,21 +323,6 @@ public class MockDataProvider {
                         .productPlatform("PLT3").failureType("渗漏").submitTime("2026-02-02 10:30")
                         .status("approved").summary("油封渗漏分析报告").approver("赵六").approveTime("2026-02-02 15:00")
                         .content(Map.of("failureMode", "材料失效", "failureDescription", "油封老化导致渗漏", "rootCause", "材料选型不当", "improvement", "更换耐久性更好的油封材料", "responsibleDept", "采购部"))
-                        .build()
-        ));
-    }
-
-    public List<ScrapApplicationDTO> getPendingScrapApprovals() {
-        return new ArrayList<>(List.of(
-                ScrapApplicationDTO.builder()
-                        .id("3").orderNumber("RO-2026-0003").partNumbers("BU3-PLT2-0001")
-                        .quantity(1).applicant("赵六").applyTime("2026-02-03 09:15")
-                        .status("pending").reason("超期未处理")
-                        .build(),
-                ScrapApplicationDTO.builder()
-                        .id("4").orderNumber("RO-2026-0004").partNumbers("BU1-PLT4-0001")
-                        .quantity(1).applicant("钱七").applyTime("2026-02-04 08:00")
-                        .status("pending").reason("质量问题无法使用")
                         .build()
         ));
     }
