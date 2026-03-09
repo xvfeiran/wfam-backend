@@ -20,4 +20,7 @@ public interface PartRepository extends JpaRepository<Part, String>,
     Optional<Integer> findMaxSeqByPrefix(@Param("startPos") int startPos, @Param("pattern") String pattern);
 
     long countByOrderIdAndIsSample(String orderId, int isSample);
+
+    @Query(value = "SELECT * FROM APMS_PART p WHERE p.ORDER_ID IN (SELECT r.ID FROM APMS_RETURN_ORDER r WHERE r.ORDER_NUMBER LIKE :orderNumber)", nativeQuery = true)
+    List<Part> findByOrderNumber(@Param("orderNumber") String orderNumber);
 }

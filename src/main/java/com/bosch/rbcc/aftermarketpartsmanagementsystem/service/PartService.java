@@ -3,6 +3,7 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,38 +30,75 @@ public class PartService {
             STATUS_ANALYSIS_COMPLETED, STATUS_SCRAP_IN_PROGRESS, STATUS_SCRAPPED);
 
     private final PartRepository partRepo;
+    private final ReturnOrderRepository returnOrderRepository;
 
     public List<PartDTO> list(String orderNumber, String partCode, String businessUnit,
                                String productPlatform, String status, String qcCreated) {
-        List<Part> parts = partRepo.findAll((root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-            if (orderNumber != null && !orderNumber.isBlank()) {
-                // orderId lookup requires join; for now filter in-memory by orderNumber stored in DTO
-                // This will be replaced once ReturnOrder join is set up
-            }
+        List<Part> parts;
+
+        // 如果有 orderNumber 过滤条件，使用 JOIN 查询
+        if (orderNumber != null && !orderNumber.isBlank()) {
+            parts = partRepo.findByOrderNumber("%" + orderNumber.toUpperCase() + "%");
+
+            // 应用其他过滤条件（在内存中过滤）
             if (partCode != null && !partCode.isBlank()) {
-                predicates.add(cb.like(cb.upper(root.get("partCode")), "%" + partCode.toUpperCase() + "%"));
+                parts = parts.stream()
+                        .filter(p -> p.getPartCode() != null && p.getPartCode().toUpperCase().contains(partCode.toUpperCase()))
+                        .collect(Collectors.toList());
             }
             if (businessUnit != null && !businessUnit.isBlank()) {
-                predicates.add(cb.equal(root.get("businessUnit"), businessUnit));
+                parts = parts.stream()
+                        .filter(p -> businessUnit.equals(p.getBusinessUnit()))
+                        .collect(Collectors.toList());
             }
             if (productPlatform != null && !productPlatform.isBlank()) {
-                predicates.add(cb.equal(root.get("productPlatform"), productPlatform));
+                parts = parts.stream()
+                        .filter(p -> productPlatform.equals(p.getProductPlatform()))
+                        .collect(Collectors.toList());
             }
             if (status != null && !status.isBlank()) {
-                predicates.add(cb.equal(root.get("status"), status));
+                parts = parts.stream()
+                        .filter(p -> status.equals(p.getStatus()))
+                        .collect(Collectors.toList());
             }
             if ("yes".equals(qcCreated)) {
-                predicates.add(cb.isNotNull(root.get("qcNo")));
-                predicates.add(cb.notEqual(root.get("qcNo"), ""));
+                parts = parts.stream()
+                        .filter(p -> p.getQcNo() != null && !p.getQcNo().isBlank())
+                        .collect(Collectors.toList());
             } else if ("no".equals(qcCreated)) {
-                predicates.add(cb.or(
-                        cb.isNull(root.get("qcNo")),
-                        cb.equal(root.get("qcNo"), "")
-                ));
+                parts = parts.stream()
+                        .filter(p -> p.getQcNo() == null || p.getQcNo().isBlank())
+                        .collect(Collectors.toList());
             }
-            return cb.and(predicates.toArray(new Predicate[0]));
-        });
+        } else {
+            // 没有 orderNumber 过滤，使用标准查询
+            parts = partRepo.findAll((root, query, cb) -> {
+                List<Predicate> predicates = new ArrayList<>();
+                if (partCode != null && !partCode.isBlank()) {
+                    predicates.add(cb.like(cb.upper(root.get("partCode")), "%" + partCode.toUpperCase() + "%"));
+                }
+                if (businessUnit != null && !businessUnit.isBlank()) {
+                    predicates.add(cb.equal(root.get("businessUnit"), businessUnit));
+                }
+                if (productPlatform != null && !productPlatform.isBlank()) {
+                    predicates.add(cb.equal(root.get("productPlatform"), productPlatform));
+                }
+                if (status != null && !status.isBlank()) {
+                    predicates.add(cb.equal(root.get("status"), status));
+                }
+                if ("yes".equals(qcCreated)) {
+                    predicates.add(cb.isNotNull(root.get("qcNo")));
+                    predicates.add(cb.notEqual(root.get("qcNo"), ""));
+                } else if ("no".equals(qcCreated)) {
+                    predicates.add(cb.or(
+                            cb.isNull(root.get("qcNo")),
+                            cb.equal(root.get("qcNo"), "")
+                    ));
+                }
+                return cb.and(predicates.toArray(new Predicate[0]));
+            });
+        }
+
         return parts.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
@@ -175,10 +213,16 @@ public class PartService {
     }
 
     private PartDTO toDTO(Part part) {
+        // 从退货单表中查询关联的退货单编号
+        String orderNumber = returnOrderRepository.findById(part.getOrderId())
+                .map(order -> order.getOrderNumber())
+                .orElse(null);
+
         return PartDTO.builder()
                 .id(part.getId())
                 .partNumber(part.getPartNumber())
                 .orderId(part.getOrderId())
+                .orderNumber(orderNumber)
                 .partCode(part.getPartCode())
                 .businessUnit(part.getBusinessUnit())
                 .productPlatform(part.getProductPlatform())
