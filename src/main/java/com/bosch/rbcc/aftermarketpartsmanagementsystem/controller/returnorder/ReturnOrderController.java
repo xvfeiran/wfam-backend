@@ -1,5 +1,6 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.returnorder;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageResponse;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ReturnOrderService;
@@ -13,6 +14,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
@@ -28,13 +33,17 @@ public class ReturnOrderController {
 
     private final ReturnOrderService returnOrderService;
 
-    @Operation(summary = "查询退货单列表", description = "支持按单号、客户、状态筛选")
+    @Operation(summary = "查询退货单列表", description = "支持按单号、客户、状态、日期范围筛选，支持分页和排序")
     @GetMapping
-    public List<ReturnOrderDTO> list(
+    public PageResponse<ReturnOrderDTO> list(
             @Parameter(description = "退货单号（模糊匹配）") @RequestParam(required = false) String orderNumber,
             @Parameter(description = "客户名称") @RequestParam(required = false) String customer,
-            @Parameter(description = "退货单状态") @RequestParam(required = false) String status) {
-        return returnOrderService.list(orderNumber, customer, status);
+            @Parameter(description = "退货单状态") @RequestParam(required = false) String status,
+            @Parameter(description = "收件日期开始") @RequestParam(required = false) String receiveDateStart,
+            @Parameter(description = "收件日期结束") @RequestParam(required = false) String receiveDateEnd,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<ReturnOrderDTO> page = returnOrderService.list(orderNumber, customer, status, receiveDateStart, receiveDateEnd, pageable);
+        return PageResponse.of(page);
     }
 
     @Operation(summary = "获取退货单详情")
@@ -100,8 +109,10 @@ public class ReturnOrderController {
     public ResponseEntity<byte[]> export(
             @RequestParam(required = false) String orderNumber,
             @RequestParam(required = false) String customer,
-            @RequestParam(required = false) String status) {
-        byte[] data = returnOrderService.exportToExcel(orderNumber, customer, status);
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String receiveDateStart,
+            @RequestParam(required = false) String receiveDateEnd) {
+        byte[] data = returnOrderService.exportToExcel(orderNumber, customer, status, receiveDateStart, receiveDateEnd);
         String filename = "ReturnOrders_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".xlsx";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));

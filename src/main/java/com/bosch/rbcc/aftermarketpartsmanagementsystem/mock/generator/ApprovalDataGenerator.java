@@ -83,16 +83,16 @@ public class ApprovalDataGenerator {
             String id, String reportNumber, String partNumber,
             String productPlatform, String failureType,
             String submitTime, String status, String summary,
-            String approveTime, Map<String, Object> content) {
+            String approver, String approveTime, Map<String, String> content) {
         return buildApplication(id, reportNumber, partNumber, productPlatform,
-                failureType, submitTime, status, summary, approveTime, content, null);
+                failureType, submitTime, status, summary, approver, approveTime, content, null);
     }
 
     private static AnalysisApplicationDTO buildApplication(
             String id, String reportNumber, String partNumber,
             String productPlatform, String failureType,
             String submitTime, String status, String summary,
-            String approveTime, Map<String, Object> content, String submitter) {
+            String approver, String approveTime, Map<String, String> content, String submitter) {
 
         AnalysisApplicationDTO.AnalysisApplicationDTOBuilder builder = AnalysisApplicationDTO.builder()
                 .id(id)
@@ -108,8 +108,10 @@ public class ApprovalDataGenerator {
         if (submitter != null) {
             builder.submitter(submitter);
         }
+        if (approver != null) {
+            builder.approver(approver);
+        }
         if (approveTime != null) {
-            builder.approver("赵六");
             builder.approveTime(approveTime);
         }
 

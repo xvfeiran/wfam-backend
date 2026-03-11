@@ -19,7 +19,7 @@ public class ReportDataGenerator {
                         .id("report-1")
                         .partId("4")
                         .templateId("template-1")
-                        .content(Map.of(
+                        .content(Map.<String, Object>of(
                                 "failureMode", "电气失效",
                                 "failureDescription", "电路板在高温环境下工作导致元器件损坏",
                                 "rootCause", "散热设计不足，长时间高负载运行导致温度过高",

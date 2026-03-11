@@ -9,6 +9,9 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRep
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.ReturnOrderExcelHandler;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,8 +38,9 @@ public class ReturnOrderService {
     private final PartRepository partRepo;
     private final ReturnOrderExcelHandler excelHandler;
 
-    public List<ReturnOrderDTO> list(String orderNumber, String customer, String status) {
-        List<ReturnOrder> orders = orderRepo.findAll((root, query, cb) -> {
+    public Page<ReturnOrderDTO> list(String orderNumber, String customer, String status,
+                                      String receiveDateStart, String receiveDateEnd, Pageable pageable) {
+        Page<ReturnOrder> page = orderRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (orderNumber != null && !orderNumber.isBlank()) {
                 predicates.add(cb.like(cb.upper(root.get("orderNumber")), "%" + orderNumber.toUpperCase() + "%"));
@@ -47,9 +51,20 @@ public class ReturnOrderService {
             if (status != null && !status.isBlank()) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
+            if (receiveDateStart != null && !receiveDateStart.isBlank()) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("receiveDate"), LocalDate.parse(receiveDateStart)));
+            }
+            if (receiveDateEnd != null && !receiveDateEnd.isBlank()) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("receiveDate"), LocalDate.parse(receiveDateEnd)));
+            }
             return cb.and(predicates.toArray(new Predicate[0]));
-        });
-        return orders.stream().map(this::toDTO).collect(Collectors.toList());
+        }, pageable);
+
+        List<ReturnOrderDTO> dtos = page.getContent().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
     public ReturnOrderDTO getById(String id) {
@@ -162,8 +177,10 @@ public class ReturnOrderService {
                 .collect(Collectors.toList());
     }
 
-    public byte[] exportToExcel(String orderNumber, String customer, String status) {
-        List<ReturnOrderDTO> orders = list(orderNumber, customer, status);
+    public byte[] exportToExcel(String orderNumber, String customer, String status,
+                                 String receiveDateStart, String receiveDateEnd) {
+        List<ReturnOrderDTO> orders = list(orderNumber, customer, status, receiveDateStart, receiveDateEnd,
+                org.springframework.data.domain.PageRequest.of(0, 1000)).getContent();
         return excelHandler.exportToExcel(orders);
     }
 
