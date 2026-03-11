@@ -66,11 +66,21 @@ public class ReturnOrderController {
         return returnOrderService.update(id, dto);
     }
 
-    @Operation(summary = "删除退货单")
+    @Operation(summary = "删除退货单", description = "支持级联删除关联售后件")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String id) {
-        returnOrderService.delete(id);
+    public void delete(
+        @PathVariable String id,
+        @Parameter(description = "是否级联删除关联售后件") @RequestParam(required = false, defaultValue = "false") boolean cascade
+    ) {
+        returnOrderService.delete(id, cascade);
+    }
+
+    @Operation(summary = "获取退货单关联的售后件数量")
+    @GetMapping("/{id}/parts-count")
+    public Map<String, Long> getPartsCount(@PathVariable String id) {
+        long count = returnOrderService.getPartsCount(id);
+        return Map.of("partsCount", count);
     }
 
     @Operation(summary = "提交退货单，生成退货单号", description = "draft → in_initial_analysis")

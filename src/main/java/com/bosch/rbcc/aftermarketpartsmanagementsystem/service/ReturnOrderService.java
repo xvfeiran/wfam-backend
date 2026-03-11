@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -117,13 +118,42 @@ public class ReturnOrderService {
     }
 
     @Transactional
-    public void delete(String id) {
+    public void delete(String id, boolean cascade) {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
+
+        // Check permission: non-draft orders can only be deleted by QMC Manager
         if (!STATUS_DRAFT.equals(order.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only draft orders can be deleted");
+            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
+            if (!isQMCManager) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can delete submitted orders");
+            }
         }
+
+        // Check for associated parts
+        List<Part> parts = partRepo.findByOrderId(id);
+
+        if (!parts.isEmpty()) {
+            if (cascade) {
+                // Cascade delete: delete all associated parts first
+                partRepo.deleteAll(parts);
+            } else {
+                // Non-cascade: throw error
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot delete return order with existing parts. Use ?cascade=true to delete with all associated parts.");
+            }
+        }
+
         orderRepo.delete(order);
+    }
+
+    // Keep backward compatibility
+    public void delete(String id) {
+        delete(id, false);
+    }
+
+    public long getPartsCount(String orderId) {
+        return partRepo.countByOrderId(orderId);
     }
 
     @Transactional
