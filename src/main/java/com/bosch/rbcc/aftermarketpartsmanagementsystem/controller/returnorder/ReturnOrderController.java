@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -55,13 +56,13 @@ public class ReturnOrderController {
     @Operation(summary = "新建退货单")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ReturnOrderDTO create(@RequestBody ReturnOrderDTO dto) {
+    public ReturnOrderDTO create(@Valid @RequestBody ReturnOrderDTO dto) {
         return returnOrderService.create(dto);
     }
 
     @Operation(summary = "更新退货单")
     @PutMapping("/{id}")
-    public ReturnOrderDTO update(@PathVariable String id, @RequestBody ReturnOrderDTO dto) {
+    public ReturnOrderDTO update(@PathVariable String id, @Valid @RequestBody ReturnOrderDTO dto) {
         return returnOrderService.update(id, dto);
     }
 
