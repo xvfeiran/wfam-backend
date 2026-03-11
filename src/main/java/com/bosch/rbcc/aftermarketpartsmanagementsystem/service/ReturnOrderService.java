@@ -4,6 +4,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.ReturnOrderExcelHandler;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 public class ReturnOrderService {
 
     private static final String STATUS_DRAFT = "draft";
+    private static final String ROLE_QMC_MANAGER = "W_RBCC_AEP_WFAM_QMC_Manager";
     private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
@@ -94,6 +96,15 @@ public class ReturnOrderService {
     public ReturnOrderDTO update(String id, ReturnOrderDTO dto) {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
+
+        // Check permission: non-draft orders can only be edited by QMC Manager
+        if (!STATUS_DRAFT.equals(order.getStatus())) {
+            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
+            if (!isQMCManager) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can edit submitted orders");
+            }
+        }
+
         order.setCustomer(dto.getCustomer());
         order.setReceiveDate(parseDate(dto.getReceiveDate()));
         order.setComplaintDate(parseDate(dto.getComplaintDate()));
@@ -275,5 +286,16 @@ public class ReturnOrderService {
     private LocalDate parseDate(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+    }
+
+    /**
+     * Check if current user has the specified role
+     */
+    private boolean hasRole(String roleName) {
+        var headers = CommonHeaderManager.getCommonHeaders();
+        if (headers == null || headers.getRoleNames() == null) {
+            return false;
+        }
+        return headers.getRoleNames().contains(roleName);
     }
 }
