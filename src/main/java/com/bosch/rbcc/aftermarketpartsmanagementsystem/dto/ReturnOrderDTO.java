@@ -20,6 +20,8 @@ public class ReturnOrderDTO {
     private String id;
     @Schema(description = "退货单号", example = "RO-2024-001")
     private String orderNumber;
+    @Schema(description = "客户ID", example = "1")
+    private String customerId;
     @Schema(description = "客户", example = "一汽大众")
     private String customer;
     @Schema(description = "收货日期", example = "2024-01-15")

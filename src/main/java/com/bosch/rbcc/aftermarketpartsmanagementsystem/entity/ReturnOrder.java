@@ -27,7 +27,11 @@ public class ReturnOrder {
     @Column(name = "ORDER_NUMBER", length = 20, unique = true)
     private String orderNumber;
 
-    @Column(name = "CUSTOMER", length = 100, nullable = false)
+    @Column(name = "CUSTOMER_ID", length = 36)
+    private String customerId;
+
+    // 保留用于显示和兼容
+    @Column(name = "CUSTOMER", length = 100)
     private String customer;
 
     @Column(name = "RECEIVE_DATE", nullable = false)

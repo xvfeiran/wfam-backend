@@ -1,11 +1,13 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.customer;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Customer;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.CustomerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,9 +21,20 @@ public class CustomerController {
     private final CustomerService customerService;
 
     @GetMapping
-    @Operation(summary = "获取所有客户", description = "获取所有客户列表")
+    @Operation(summary = "获取所有客户（用于下拉选择）", description = "获取所有客户列表，不分页")
     public List<Customer> getAll() {
         return customerService.getAll();
+    }
+
+    @GetMapping("/page")
+    @Operation(summary = "分页查询客户", description = "分页查询客户列表，支持按名称或代码排序")
+    public PageDTO<Customer> getPage(
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortOrder,
+            @PageableDefault(size = 10) Pageable pageable) {
+        return customerService.getPage(name, code, sortBy, sortOrder, pageable);
     }
 
     @GetMapping("/{id}")
@@ -40,12 +53,5 @@ public class CustomerController {
     @Operation(summary = "更新客户", description = "更新客户信息")
     public Customer update(@PathVariable String id, @RequestBody Customer customer) {
         return customerService.update(id, customer);
-    }
-
-    @DeleteMapping("/{id}")
-    @Operation(summary = "删除客户", description = "删除客户")
-    public ResponseEntity<Void> delete(@PathVariable String id) {
-        customerService.delete(id);
-        return ResponseEntity.noContent().build();
     }
 }

@@ -26,7 +26,7 @@ public class Customer {
     @Column(name = "NAME", length = 100, nullable = false, unique = true)
     private String name;
 
-    @Column(name = "CODE", length = 50, nullable = false, unique = true)
+    @Column(name = "CODE", length = 50, nullable = true, unique = true)
     private String code;
 
     @CreatedBy

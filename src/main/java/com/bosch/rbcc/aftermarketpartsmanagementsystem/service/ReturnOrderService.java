@@ -48,8 +48,12 @@ public class ReturnOrderService {
             if (orderNumber != null && !orderNumber.isBlank()) {
                 predicates.add(cb.like(cb.upper(root.get("orderNumber")), "%" + orderNumber.toUpperCase() + "%"));
             }
+            // Support both customerId (for API) and customer (for backward compatibility)
             if (customer != null && !customer.isBlank()) {
-                predicates.add(cb.equal(root.get("customer"), customer));
+                predicates.add(cb.or(
+                    cb.equal(root.get("customerId"), customer),
+                    cb.equal(root.get("customer"), customer)
+                ));
             }
             if (status != null && !status.isBlank()) {
                 predicates.add(cb.equal(root.get("status"), status));
@@ -80,7 +84,8 @@ public class ReturnOrderService {
     public ReturnOrderDTO create(ReturnOrderDTO dto) {
         ReturnOrder order = ReturnOrder.builder()
                 .id(UUID.randomUUID().toString())
-                .customer(dto.getCustomer())
+                .customerId(dto.getCustomerId())
+                .customer(dto.getCustomer()) // 保留客户名称用于显示
                 .receiveDate(parseDate(dto.getReceiveDate()))
                 .complaintDate(parseDate(dto.getComplaintDate()))
                 .returnMethod(dto.getReturnMethod())
@@ -106,7 +111,8 @@ public class ReturnOrderService {
             }
         }
 
-        order.setCustomer(dto.getCustomer());
+        order.setCustomerId(dto.getCustomerId());
+        order.setCustomer(dto.getCustomer()); // 保留客户名称用于显示
         order.setReceiveDate(parseDate(dto.getReceiveDate()));
         order.setComplaintDate(parseDate(dto.getComplaintDate()));
         order.setReturnMethod(dto.getReturnMethod());
@@ -235,8 +241,34 @@ public class ReturnOrderService {
         return toDTO(order);
     }
 
-    public List<PartDTO> getPartsForOrder(String orderId) {
-        return partRepo.findByOrderId(orderId).stream()
+    public List<PartDTO> getPartsForOrder(String orderId, String partNumber, String partCode,
+                                           String businessUnit, String productPlatform, String status) {
+        List<Part> parts = partRepo.findByOrderId(orderId);
+
+        return parts.stream()
+                .filter(part -> {
+                    if (partNumber != null && !partNumber.isEmpty() &&
+                        (part.getPartNumber() == null || !part.getPartNumber().contains(partNumber))) {
+                        return false;
+                    }
+                    if (partCode != null && !partCode.isEmpty() &&
+                        (part.getPartCode() == null || !part.getPartCode().contains(partCode))) {
+                        return false;
+                    }
+                    if (businessUnit != null && !businessUnit.isEmpty() &&
+                        (part.getBusinessUnit() == null || !part.getBusinessUnit().equals(businessUnit))) {
+                        return false;
+                    }
+                    if (productPlatform != null && !productPlatform.isEmpty() &&
+                        (part.getProductPlatform() == null || !part.getProductPlatform().equals(productPlatform))) {
+                        return false;
+                    }
+                    if (status != null && !status.isEmpty() &&
+                        (part.getStatus() == null || !part.getStatus().equals(status))) {
+                        return false;
+                    }
+                    return true;
+                })
                 .map(this::toPartDTO)
                 .collect(Collectors.toList());
     }
@@ -285,6 +317,7 @@ public class ReturnOrderService {
         return ReturnOrderDTO.builder()
                 .id(order.getId())
                 .orderNumber(order.getOrderNumber())
+                .customerId(order.getCustomerId())
                 .customer(order.getCustomer())
                 .receiveDate(order.getReceiveDate() != null ? order.getReceiveDate().toString() : null)
                 .complaintDate(order.getComplaintDate() != null ? order.getComplaintDate().toString() : null)
