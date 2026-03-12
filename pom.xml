@@ -27,6 +27,7 @@
         <url/>
     </scm>
     <properties>
+        <!-- Java 21 path for Claude Code: C:\Users\XEF1CNG\.jdks\corretto-21.0.5 -->
         <java.version>21</java.version>
     </properties>
     <dependencies>

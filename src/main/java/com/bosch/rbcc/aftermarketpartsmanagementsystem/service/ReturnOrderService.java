@@ -173,10 +173,28 @@ public class ReturnOrderService {
     public ReturnOrderDTO sampling(String id, List<String> sampledPartIds) {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
-        if (!STATUS_IN_INITIAL_ANALYSIS.equals(order.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order must be in_initial_analysis status for sampling");
+
+        // Allow sampling for orders in both in_initial_analysis and in_detailed_analysis status
+        boolean isResampling = STATUS_IN_DETAILED_ANALYSIS.equals(order.getStatus());
+        if (!STATUS_IN_INITIAL_ANALYSIS.equals(order.getStatus()) && !isResampling) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Order must be in_initial_analysis or in_detailed_analysis status for sampling");
         }
+
         List<Part> parts = partRepo.findByOrderId(id);
+
+        // If resampling, reset all parts first
+        if (isResampling) {
+            for (Part part : parts) {
+                if ("in_detailed_analysis".equals(part.getStatus())) {
+                    part.setStatus("in_initial_analysis");
+                }
+                part.setIsSample(0);
+                partRepo.save(part);
+            }
+        }
+
+        // Apply new sampling selection
         for (Part part : parts) {
             boolean sampled = sampledPartIds != null && sampledPartIds.contains(part.getId());
             part.setIsSample(sampled ? 1 : 0);
@@ -186,8 +204,13 @@ public class ReturnOrderService {
             }
             partRepo.save(part);
         }
-        order.setStatus(STATUS_IN_DETAILED_ANALYSIS);
-        orderRepo.save(order);
+
+        // Update order status only on first sampling, not during resampling
+        if (!isResampling) {
+            order.setStatus(STATUS_IN_DETAILED_ANALYSIS);
+            orderRepo.save(order);
+        }
+
         return toDTO(order);
     }
 
@@ -306,6 +329,7 @@ public class ReturnOrderService {
                 .otherDescription(part.getOtherDescription())
                 .status(part.getStatus())
                 .images(List.of())
+                .isSample(part.getIsSample())
                 .createdBy(part.getCreatedBy())
                 .createdAt(part.getCreatedAt() != null ? part.getCreatedAt().toString() : null)
                 .updatedBy(part.getUpdatedBy())

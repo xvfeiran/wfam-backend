@@ -47,6 +47,8 @@ public class PartDTO {
     @Schema(description = "状态", example = "registered")
     private String status;
     private List<String> images;
+    @Schema(description = "是否抽样 (0=未抽样, 1=已抽样)", example = "0")
+    private Integer isSample;
     private String createdBy;
     private String createdAt;
     private String updatedBy;
