@@ -310,13 +310,47 @@ public class ReturnOrderService {
     }
 
     private String generateOrderNumber() {
+        return generateOrderNumberForYear(LocalDate.now().getYear());
+    }
+
+    private String generateOrderNumberForYear(int year) {
         // 格式：年份后两位 + QMC + 四位序号，如 26QMC0001
-        int year = LocalDate.now().getYear();
-        String yearSuffix = String.valueOf(year).substring(2); // 获取年份后两位，如 2026 -> 26
+        String yearSuffix = String.valueOf(year).substring(2);
         String prefix = yearSuffix + "QMC";
         // startPos: 1-based index after the prefix (e.g. "26QMC" = 5 chars, seq starts at pos 6)
         int maxSeq = orderRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
         return prefix + String.format("%04d", maxSeq + 1);
+    }
+
+    /**
+     * 导入专用：创建退货单并直接提交（状态为 in_initial_analysis）。
+     * 退货单号年份取自收货时间，而非当前系统年份。
+     * 返回包含 orderId 和 orderNumber 的 DTO。
+     */
+    @Transactional
+    public ReturnOrderDTO createAndSubmitForImport(ReturnOrderDTO dto) {
+        LocalDate receiveDate   = parseDate(dto.getReceiveDate());
+        LocalDate complaintDate = parseDate(dto.getComplaintDate());
+
+        int year = (receiveDate != null) ? receiveDate.getYear() : LocalDate.now().getYear();
+        String orderNumber = generateOrderNumberForYear(year);
+
+        ReturnOrder order = ReturnOrder.builder()
+                .id(UUID.randomUUID().toString())
+                .orderNumber(orderNumber)
+                .customerId(dto.getCustomerId())
+                .customer(dto.getCustomer())
+                .receiveDate(receiveDate)
+                .complaintDate(complaintDate)
+                .returnMethod(dto.getReturnMethod())
+                .trackingNumber(dto.getTrackingNumber())
+                .returnQuantity(dto.getReturnQuantity())
+                .failureType(dto.getFailureType())
+                .description(dto.getDescription())
+                .status(STATUS_SCRAPPED)
+                .build();
+        orderRepo.save(order);
+        return toDTO(order);
     }
 
     private ReturnOrderDTO toDTO(ReturnOrder order) {
