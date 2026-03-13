@@ -36,6 +36,9 @@ public class Part {
     @Column(name = "BUSINESS_UNIT", length = 50, nullable = false)
     private String businessUnit;
 
+    @Column(name = "PRODUCT_CATEGORY", length = 50, nullable = false)
+    private String productCategory;
+
     @Column(name = "PRODUCT_PLATFORM", length = 50, nullable = false)
     private String productPlatform;
 

@@ -115,6 +115,7 @@ public class PartService {
                 .orderId(dto.getOrderId())
                 .partCode(dto.getPartCode())
                 .businessUnit(dto.getBusinessUnit())
+                .productCategory(dto.getProductCategory())
                 .productPlatform(dto.getProductPlatform())
                 .productionShift(dto.getProductionShift())
                 .complaintType(dto.getComplaintType())
@@ -143,6 +144,7 @@ public class PartService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
         part.setPartCode(dto.getPartCode());
         part.setBusinessUnit(dto.getBusinessUnit());
+        part.setProductCategory(dto.getProductCategory());
         part.setProductPlatform(dto.getProductPlatform());
         part.setProductionShift(dto.getProductionShift());
         part.setComplaintType(dto.getComplaintType());
@@ -228,6 +230,7 @@ public class PartService {
                 .orderNumber(orderNumber)
                 .partCode(part.getPartCode())
                 .businessUnit(part.getBusinessUnit())
+                .productCategory(part.getProductCategory())
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
                 .complaintType(part.getComplaintType())

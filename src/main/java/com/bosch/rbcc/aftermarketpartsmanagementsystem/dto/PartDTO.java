@@ -25,6 +25,8 @@ public class PartDTO {
     private String partCode;
     @Schema(description = "事业部", example = "WS")
     private String businessUnit;
+    @Schema(description = "产品类别", example = "EPS")
+    private String productCategory;
     @Schema(description = "产品平台", example = "WSA")
     private String productPlatform;
     private String productionShift;

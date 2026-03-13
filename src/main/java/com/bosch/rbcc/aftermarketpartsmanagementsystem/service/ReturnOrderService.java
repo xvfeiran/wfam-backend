@@ -285,10 +285,21 @@ public class ReturnOrderService {
                 .collect(Collectors.toList());
     }
 
+    private static final int EXPORT_MAX_ROWS = 5000;
+
     public byte[] exportToExcel(String orderNumber, String customer, String status,
                                  String receiveDateStart, String receiveDateEnd) {
+        // 先计算总量，超限则拒绝，避免生成超大文件
+        long total = list(orderNumber, customer, status, receiveDateStart, receiveDateEnd,
+                org.springframework.data.domain.PageRequest.of(0, 1)).getTotalElements();
+
+        if (total > EXPORT_MAX_ROWS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "导出数量（" + total + " 条）超过上限 " + EXPORT_MAX_ROWS + " 条，请添加筛选条件缩小范围后重试");
+        }
+
         List<ReturnOrderDTO> orders = list(orderNumber, customer, status, receiveDateStart, receiveDateEnd,
-                org.springframework.data.domain.PageRequest.of(0, 1000)).getContent();
+                org.springframework.data.domain.PageRequest.of(0, EXPORT_MAX_ROWS)).getContent();
         return excelHandler.exportToExcel(orders);
     }
 
@@ -392,6 +403,7 @@ public class ReturnOrderService {
                 .orderId(part.getOrderId())
                 .partCode(part.getPartCode())
                 .businessUnit(part.getBusinessUnit())
+                .productCategory(part.getProductCategory())
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
                 .complaintType(part.getFailureType())
