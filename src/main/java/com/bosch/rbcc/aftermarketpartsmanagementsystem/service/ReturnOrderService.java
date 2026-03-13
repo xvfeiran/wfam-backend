@@ -93,7 +93,7 @@ public class ReturnOrderService {
                 .trackingNumber(dto.getTrackingNumber())
                 .returnQuantity(dto.getReturnQuantity())
                 .failureType(dto.getFailureType())
-                .description(dto.getDescription())
+
                 .status(STATUS_DRAFT)
                 .build();
         orderRepo.save(order);
@@ -357,7 +357,7 @@ public class ReturnOrderService {
                 .trackingNumber(dto.getTrackingNumber())
                 .returnQuantity(dto.getReturnQuantity())
                 .failureType(dto.getFailureType())
-                .description(dto.getDescription())
+
                 .status(STATUS_SCRAPPED)
                 .build();
         orderRepo.save(order);
@@ -387,7 +387,7 @@ public class ReturnOrderService {
                 .scrappedQuantity(scrappedCount)
                 .qcCreatedQuantity(qcCreated)
                 .qcNotCreatedQuantity(qcNotCreated)
-                .description(order.getDescription())
+
                 .status(order.getStatus())
                 .createdBy(order.getCreatedBy())
                 .createdAt(order.getCreatedAt() != null ? order.getCreatedAt().toString() : null)

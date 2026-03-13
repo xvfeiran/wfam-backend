@@ -35,7 +35,7 @@ import java.util.Map;
  *   列6  0Km/Field   忽略（固定 BA40）
  *   列7  数量        忽略（固定 0）
  *   列8  退货单号    忽略
- *   列9  备注        description
+ *   列9  备注        忽略
  *
  * 固定字段：
  *   customerId   = 60399b05-b5e9-4b0e-b2eb-107df4ebbcbc (UNKNOWN)
@@ -144,9 +144,6 @@ public class ReturnOrderImportParser {
         // Column 3: tracking number (optional)
         String trackingNumber = getCellString(row, 3);
 
-        // Column 9: description (optional)
-        String description = getCellString(row, 9);
-
         return ReturnOrderDTO.builder()
                 .customerId(FIXED_CUSTOMER_ID)
                 .receiveDate(parsedDate)
@@ -155,7 +152,6 @@ public class ReturnOrderImportParser {
                 .trackingNumber(trackingNumber)
                 .returnQuantity(FIXED_RETURN_QUANTITY)
                 .failureType(FIXED_FAILURE_TYPE)
-                .description(description)
                 .build();
     }
 

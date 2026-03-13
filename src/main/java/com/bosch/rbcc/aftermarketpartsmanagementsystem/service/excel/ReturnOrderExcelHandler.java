@@ -112,7 +112,6 @@ public class ReturnOrderExcelHandler {
                 .returnMethod(getCellString(row, 3))
                 .trackingNumber(getCellString(row, 4))
                 .returnQuantity((int) row.getCell(5).getNumericCellValue())
-                .description(getCellString(row, 6))
                 .build();
     }
 

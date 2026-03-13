@@ -115,7 +115,6 @@ public class ImportService {
                 entry.put("orderNumber",   created.getOrderNumber());
                 entry.put("receiveDate",   created.getReceiveDate());
                 entry.put("trackingNumber", created.getTrackingNumber());
-                entry.put("description",   created.getDescription());
                 importLogEntries.add(entry);
 
             } catch (Exception e) {

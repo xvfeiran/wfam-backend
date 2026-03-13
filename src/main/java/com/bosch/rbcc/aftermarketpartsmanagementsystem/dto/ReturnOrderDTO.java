@@ -47,7 +47,6 @@ public class ReturnOrderDTO {
     private Integer scrappedQuantity;
     private Integer qcCreatedQuantity;
     private Integer qcNotCreatedQuantity;
-    private String description;
     @Schema(description = "状态", example = "pending_registration")
     private String status;
     private String createdBy;
