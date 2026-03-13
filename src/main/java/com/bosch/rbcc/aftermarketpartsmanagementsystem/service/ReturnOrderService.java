@@ -82,6 +82,7 @@ public class ReturnOrderService {
 
     @Transactional
     public ReturnOrderDTO create(ReturnOrderDTO dto) {
+        // failureType is required
         ReturnOrder order = ReturnOrder.builder()
                 .id(UUID.randomUUID().toString())
                 .customerId(dto.getCustomerId())
@@ -91,6 +92,7 @@ public class ReturnOrderService {
                 .returnMethod(dto.getReturnMethod())
                 .trackingNumber(dto.getTrackingNumber())
                 .returnQuantity(dto.getReturnQuantity())
+                .failureType(dto.getFailureType())
                 .description(dto.getDescription())
                 .status(STATUS_DRAFT)
                 .build();
@@ -118,6 +120,10 @@ public class ReturnOrderService {
         order.setReturnMethod(dto.getReturnMethod());
         order.setTrackingNumber(dto.getTrackingNumber());
         order.setReturnQuantity(dto.getReturnQuantity());
+        // complaintType can be updated
+        if (dto.getFailureType() != null) {
+            order.setFailureType(dto.getFailureType());
+        }
         order.setDescription(dto.getDescription());
         orderRepo.save(order);
         return toDTO(order);
@@ -179,6 +185,12 @@ public class ReturnOrderService {
     public ReturnOrderDTO sampling(String id, List<String> sampledPartIds) {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
+
+        // 0km退货单（complaintType = BA20）不能抽样
+        if ("BA20".equals(order.getFailureType())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "0km orders (BA20) cannot be sampled. They must go through the scrap process directly.");
+        }
 
         // Allow sampling for orders in both in_initial_analysis and in_detailed_analysis status
         boolean isResampling = STATUS_IN_DETAILED_ANALYSIS.equals(order.getStatus());
@@ -324,6 +336,7 @@ public class ReturnOrderService {
                 .returnMethod(order.getReturnMethod())
                 .trackingNumber(order.getTrackingNumber())
                 .returnQuantity(order.getReturnQuantity())
+                .failureType(order.getFailureType())
                 .initialAnalysisQuantity(parts.size())
                 .detailedAnalysisQuantity(detailedCount)
                 .scrappedQuantity(scrappedCount)
@@ -347,7 +360,7 @@ public class ReturnOrderService {
                 .businessUnit(part.getBusinessUnit())
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
-                .complaintType(part.getComplaintType())
+                .complaintType(part.getFailureType())
                 .repairStation(part.getRepairStation())
                 .complaintLocation(part.getComplaintLocation())
                 .responsibleEngineer(part.getResponsibleEngineer())

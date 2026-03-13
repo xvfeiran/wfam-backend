@@ -38,6 +38,10 @@ public class ReturnOrderDTO {
     @Min(value = 1, message = "退货数量不能小于1")
     @Max(value = 9999, message = "退货数量不能大于9999")
     private Integer returnQuantity;
+
+    @Schema(description = "失效类型（BA20代表0km，不能抽样）", example = "BA40")
+    private String failureType;
+
     private Integer initialAnalysisQuantity;
     private Integer detailedAnalysisQuantity;
     private Integer scrappedQuantity;

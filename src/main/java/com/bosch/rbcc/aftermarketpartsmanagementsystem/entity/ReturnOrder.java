@@ -49,6 +49,9 @@ public class ReturnOrder {
     @Column(name = "RETURN_QUANTITY", nullable = false)
     private Integer returnQuantity;
 
+    @Column(name = "FAILURE_TYPE", length = 20, nullable = false)
+    private String failureType;
+
     @Column(name = "DESCRIPTION", length = 500)
     private String description;
 
