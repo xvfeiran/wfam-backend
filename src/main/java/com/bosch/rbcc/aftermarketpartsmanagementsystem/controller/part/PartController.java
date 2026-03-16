@@ -82,12 +82,13 @@ public class PartController {
                 .toList();
     }
 
-    @Operation(summary = "获取售后件匹配的分析模板", description = "根据产品平台和失效类型匹配模板，无匹配则返回默认模板")
+    @Operation(summary = "获取售后件匹配的分析模板", description = "根据产品类别和失效类型匹配模板，无匹配则返回默认模板")
     @GetMapping("/{id}/templates")
     public ReportTemplateDTO getMatchedTemplate(@PathVariable String id) {
         PartDTO part = partService.getById(id);
         return mockData.getTemplates().stream()
-                .filter(t -> t.getProductPlatform().equals(part.getProductPlatform())
+                .filter(t -> t.getProductCategory() != null
+                        && t.getProductCategory().equals(part.getProductCategory())
                         && t.getFailureType() != null
                         && t.getFailureType().equals(part.getFailureType()))
                 .findFirst()

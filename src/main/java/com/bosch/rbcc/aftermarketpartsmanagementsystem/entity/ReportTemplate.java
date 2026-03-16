@@ -26,8 +26,8 @@ public class ReportTemplate {
     @Column(name = "NAME", length = 200, nullable = false)
     private String name;
 
-    @Column(name = "PRODUCT_PLATFORM", length = 50)
-    private String productPlatform;
+    @Column(name = "PRODUCT_CATEGORY", length = 50)
+    private String productCategory;
 
     @Column(name = "FAILURE_TYPE", length = 50)
     private String failureType;
@@ -42,6 +42,7 @@ public class ReportTemplate {
     private String fieldDefinitions;
 
     @Column(name = "ENABLED")
+    @Builder.Default
     private Integer enabled = 1;
 
     @CreatedBy

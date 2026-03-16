@@ -7,7 +7,7 @@ import java.util.Map;
 
 /**
  * Generates lookup/reference data for the application.
- * Includes customers, business units, product platforms, failure types, and users.
+ * Includes customers, business units, product platforms, product categories, failure types, and users.
  */
 @Component
 public class LookupDataGenerator {
@@ -24,8 +24,33 @@ public class LookupDataGenerator {
         return List.of("PLT1", "PLT2", "PLT3", "PLT4", "PLT5");
     }
 
+    public List<String> getProductCategories() {
+        return List.of(
+            "WSA",   // 汽油机喷嘴
+            "WSM",   // 柴油机喷嘴
+            "PCE",   // 电子控制
+            "ESY",   // 电子系统
+            "BRY",   // 制动系统
+            "CHG",   // 充电系统
+            "STA",   // 起动系统
+            "IGN",   // 点火系统
+            "FUE",   // 燃油系统
+            "EMS"    // 发动机管理系统
+        );
+    }
+
     public List<String> getFailureTypes() {
-        return List.of("噪音", "断裂", "变形", "异响", "渗漏", "其他");
+        return List.of(
+            "噪音",
+            "断裂",
+            "变形",
+            "异响",
+            "渗漏",
+            "卡滞",
+            "功能失效",
+            "损坏",
+            "其他"
+        );
     }
 
     public List<Map<String, String>> getUsers() {

@@ -38,6 +38,10 @@ public class MockDataProvider {
         return lookupDataGenerator.getProductPlatforms();
     }
 
+    public List<String> getProductCategories() {
+        return lookupDataGenerator.getProductCategories();
+    }
+
     public List<String> getFailureTypes() {
         return lookupDataGenerator.getFailureTypes();
     }

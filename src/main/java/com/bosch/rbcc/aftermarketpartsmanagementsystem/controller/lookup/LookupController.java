@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "数据字典", description = "客户、事业部、产品平台、失效类型等下拉选项数据")
+@Tag(name = "数据字典", description = "客户、事业部、产品平台、产品类别、失效类型等下拉选项数据")
 @RestController
 @RequestMapping("/api/v1/lookups")
 @RequiredArgsConstructor
@@ -29,17 +29,19 @@ public class LookupController {
         result.put("customers", mockData.getCustomers());
         result.put("businessUnits", mockData.getBusinessUnits());
         result.put("productPlatforms", mockData.getProductPlatforms());
+        result.put("productCategories", mockData.getProductCategories());
         result.put("failureTypes", mockData.getFailureTypes());
         return result;
     }
 
-    @Operation(summary = "获取指定类型的下拉选项", description = "type可选值: customers, business-units, product-platforms, failure-types")
+    @Operation(summary = "获取指定类型的下拉选项", description = "type可选值: customers, business-units, product-platforms, product-categories, failure-types")
     @GetMapping("/{type}")
     public List<String> getLookup(@Parameter(description = "数据类型") @PathVariable String type) {
         return switch (type) {
             case "customers" -> mockData.getCustomers();
             case "business-units" -> mockData.getBusinessUnits();
             case "product-platforms" -> mockData.getProductPlatforms();
+            case "product-categories" -> mockData.getProductCategories();
             case "failure-types" -> mockData.getFailureTypes();
             default -> List.of();
         };

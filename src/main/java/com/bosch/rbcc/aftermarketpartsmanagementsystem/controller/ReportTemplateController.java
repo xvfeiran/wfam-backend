@@ -43,29 +43,29 @@ public class ReportTemplateController {
     @Operation(summary = "Upload and parse template", description = "Upload an Excel template file and parse its field definitions")
     public ReportTemplateDTO uploadTemplate(
         @RequestParam("file") MultipartFile file,
-        @RequestParam("productPlatform") String productPlatform,
+        @RequestParam("productCategory") String productCategory,
         @RequestParam(value = "failureType", required = false) String failureType,
         @RequestParam(value = "name", required = false) String name
     ) {
-        return templateService.uploadAndParse(file, productPlatform, failureType, name);
+        return templateService.uploadAndParse(file, productCategory, failureType, name);
     }
 
     @GetMapping("/match")
-    @Operation(summary = "Match template", description = "Find the best matching template based on product platform and failure type")
+    @Operation(summary = "Match template", description = "Find the best matching template based on product category and failure type")
     public ReportTemplateDTO matchTemplate(
-        @RequestParam String productPlatform,
+        @RequestParam String productCategory,
         @RequestParam(required = false) String failureType
     ) {
-        return templateService.matchTemplate(productPlatform, failureType);
+        return templateService.matchTemplate(productCategory, failureType);
     }
 
     @GetMapping("/match-all")
-    @Operation(summary = "Match all templates", description = "Find all matching templates based on product platform and failure type")
+    @Operation(summary = "Match all templates", description = "Find all matching templates based on product category and failure type")
     public List<ReportTemplateDTO> matchAllTemplates(
-        @RequestParam String productPlatform,
+        @RequestParam String productCategory,
         @RequestParam(required = false) String failureType
     ) {
-        return templateService.matchAllTemplates(productPlatform, failureType);
+        return templateService.matchAllTemplates(productCategory, failureType);
     }
 
     @GetMapping("/{id}/download")

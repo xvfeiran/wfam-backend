@@ -59,12 +59,12 @@ public class ReportTemplateService {
     }
 
     @Transactional
-    public ReportTemplateDTO uploadAndParse(MultipartFile file, String productPlatform, String failureType, String name) {
+    public ReportTemplateDTO uploadAndParse(MultipartFile file, String productCategory, String failureType, String name) {
         try {
-            log.info("Uploading template: platform={}, failureType={}, name={}, file={}", productPlatform, failureType, name, file.getOriginalFilename());
+            log.info("Uploading template: category={}, failureType={}, name={}, file={}", productCategory, failureType, name, file.getOriginalFilename());
 
             List<ReportTemplateFieldDTO> fields = parserService.parseTemplate(file);
-            String fileName = generateFileName(productPlatform, failureType, file.getOriginalFilename());
+            String fileName = generateFileName(productCategory, failureType, file.getOriginalFilename());
             Path filePath = Paths.get(templateBasePath, fileName);
             Files.createDirectories(filePath.getParent());
             file.transferTo(filePath.toFile());
@@ -78,7 +78,7 @@ public class ReportTemplateService {
             ReportTemplate template = ReportTemplate.builder()
                 .id(UUID.randomUUID().toString())
                 .name(templateName)
-                .productPlatform(productPlatform)
+                .productCategory(productCategory)
                 .failureType(normalizedFailureType)
                 .filePath(filePath.toString())
                 .fileName(file.getOriginalFilename())
@@ -86,8 +86,8 @@ public class ReportTemplateService {
                 .enabled(1)
                 .build();
             template = repository.save(template);
-            log.info("Template uploaded successfully: id={}, name={}, platform={}, failureType={}",
-                template.getId(), template.getName(), template.getProductPlatform(), template.getFailureType());
+            log.info("Template uploaded successfully: id={}, name={}, category={}, failureType={}",
+                template.getId(), template.getName(), template.getProductCategory(), template.getFailureType());
             return toDTO(template);
         } catch (IOException e) {
             log.error("Failed to upload template", e);
@@ -95,17 +95,17 @@ public class ReportTemplateService {
         }
     }
 
-    public ReportTemplateDTO matchTemplate(String productPlatform, String failureType) {
+    public ReportTemplateDTO matchTemplate(String productCategory, String failureType) {
         List<ReportTemplate> templates = repository
-            .findByProductPlatformAndFailureTypeAndEnabled(productPlatform, failureType, 1);
+            .findByProductCategoryAndFailureTypeAndEnabled(productCategory, failureType, 1);
         if (!templates.isEmpty()) {
-            log.debug("Exact match found for platform={} and failureType={}", productPlatform, failureType);
+            log.debug("Exact match found for category={} and failureType={}", productCategory, failureType);
             return toDTO(templates.get(0));
         }
 
-        templates = repository.findByProductPlatformAndEnabled(productPlatform, 1);
+        templates = repository.findByProductCategoryAndEnabled(productCategory, 1);
         if (!templates.isEmpty()) {
-            log.debug("Platform match found for platform={}", productPlatform);
+            log.debug("Category match found for category={}", productCategory);
             return toDTO(templates.get(0));
         }
 
@@ -113,19 +113,19 @@ public class ReportTemplateService {
         return templates.isEmpty() ? null : toDTO(templates.get(0));
     }
 
-    public List<ReportTemplateDTO> matchAllTemplates(String productPlatform, String failureType) {
-        log.debug("Finding all matching templates for platform={} and failureType={}", productPlatform, failureType);
+    public List<ReportTemplateDTO> matchAllTemplates(String productCategory, String failureType) {
+        log.debug("Finding all matching templates for category={} and failureType={}", productCategory, failureType);
 
         List<ReportTemplate> templates = repository
-            .findByProductPlatformAndFailureTypeAndEnabled(productPlatform, failureType, 1);
+            .findByProductCategoryAndFailureTypeAndEnabled(productCategory, failureType, 1);
         if (!templates.isEmpty()) {
-            log.debug("Found {} exact match templates for platform={} and failureType={}", templates.size(), productPlatform, failureType);
+            log.debug("Found {} exact match templates for category={} and failureType={}", templates.size(), productCategory, failureType);
             return templates.stream().map(this::toDTO).collect(Collectors.toList());
         }
 
-        templates = repository.findByProductPlatformAndEnabled(productPlatform, 1);
+        templates = repository.findByProductCategoryAndEnabled(productCategory, 1);
         if (!templates.isEmpty()) {
-            log.debug("Found {} platform match templates for platform={}", templates.size(), productPlatform);
+            log.debug("Found {} category match templates for category={}", templates.size(), productCategory);
             return templates.stream().map(this::toDTO).collect(Collectors.toList());
         }
 
@@ -153,11 +153,11 @@ public class ReportTemplateService {
         log.info("Template deleted: id={}", id);
     }
 
-    private String generateFileName(String productPlatform, String failureType, String originalFileName) {
+    private String generateFileName(String productCategory, String failureType, String originalFileName) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String extension = originalFileName.substring(originalFileName.lastIndexOf("."));
         String failureTypeStr = (failureType != null && !failureType.trim().isEmpty()) ? failureType : "通用";
-        return String.format("%s-%s-%s%s", productPlatform, failureTypeStr, timestamp, extension);
+        return String.format("%s-%s-%s%s", productCategory, failureTypeStr, timestamp, extension);
     }
 
     private ReportTemplateDTO toDTO(ReportTemplate entity) {
@@ -166,7 +166,7 @@ public class ReportTemplateService {
         return ReportTemplateDTO.builder()
             .id(entity.getId())
             .name(entity.getName())
-            .productPlatform(entity.getProductPlatform())
+            .productCategory(entity.getProductCategory())
             .failureType(entity.getFailureType())
             .fields(fields)
             .createdAt(entity.getCreatedAt() != null ? entity.getCreatedAt().format(formatter) : null)
