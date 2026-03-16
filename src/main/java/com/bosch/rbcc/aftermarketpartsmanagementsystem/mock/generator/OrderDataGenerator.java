@@ -69,7 +69,6 @@ public class OrderDataGenerator {
                 .scrappedQuantity(scrappedQuantity)
                 .qcCreatedQuantity(qcCreatedQuantity)
                 .qcNotCreatedQuantity(qcNotCreatedQuantity)
-                .description(description)
                 .status(status)
                 .createdBy(createdBy)
                 .createdAt(createdAt)

@@ -83,7 +83,6 @@ public class ReturnOrderExcelHandler {
         row.createCell(3).setCellValue(dto.getReturnMethod() != null ? dto.getReturnMethod() : "");
         row.createCell(4).setCellValue(dto.getTrackingNumber() != null ? dto.getTrackingNumber() : "");
         row.createCell(5).setCellValue(dto.getReturnQuantity());
-        row.createCell(6).setCellValue(dto.getDescription() != null ? dto.getDescription() : "");
     }
 
     private List<ReturnOrderDTO> parseOrdersFromSheet(Sheet sheet) {

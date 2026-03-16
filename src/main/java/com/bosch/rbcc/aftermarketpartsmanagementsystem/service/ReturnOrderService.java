@@ -124,7 +124,6 @@ public class ReturnOrderService {
         if (dto.getFailureType() != null) {
             order.setFailureType(dto.getFailureType());
         }
-        order.setDescription(dto.getDescription());
         orderRepo.save(order);
         return toDTO(order);
     }
@@ -236,6 +235,13 @@ public class ReturnOrderService {
     public ReturnOrderDTO scrap(String id) {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
+
+        // 只有未开始报废的状态才能提交报废申请
+        if (STATUS_SCRAP_IN_PROGRESS.equals(order.getStatus()) || STATUS_SCRAPPED.equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Order is already in scrap process and cannot be modified");
+        }
+
         order.setStatus(STATUS_SCRAP_IN_PROGRESS);
         orderRepo.save(order);
         return toDTO(order);
