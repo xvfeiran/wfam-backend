@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PartService {
 
+    private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
@@ -110,6 +111,17 @@ public class PartService {
 
     @Transactional
     public PartDTO create(PartDTO dto) {
+        // Check if the associated return order allows adding new parts
+        var returnOrder = returnOrderRepository.findById(dto.getOrderId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId()));
+
+        String orderStatus = returnOrder.getStatus();
+        // Only draft and in_initial_analysis status can add parts
+        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_IN_INITIAL_ANALYSIS.equals(orderStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Parts can only be added to return orders in 'draft' or 'in_initial_analysis' status. Current status: " + orderStatus);
+        }
+
         Part part = Part.builder()
                 .id(UUID.randomUUID().toString())
                 .orderId(dto.getOrderId())
