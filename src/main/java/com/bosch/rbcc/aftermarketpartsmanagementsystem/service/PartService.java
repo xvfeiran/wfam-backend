@@ -2,6 +2,7 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -20,6 +21,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class PartService {
+
+    private static final String ROLE_QMC_MANAGER = "W_RBCC_AEP_WFAM_QMC_Manager";
 
     private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
@@ -154,6 +157,15 @@ public class PartService {
     public PartDTO update(String id, PartDTO dto) {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+
+        // Check permission: submitted parts (with partNumber) can only be edited by QMC Manager
+        if (part.getPartNumber() != null) {
+            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
+            if (!isQMCManager) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can edit submitted parts");
+            }
+        }
+
         part.setPartCode(dto.getPartCode());
         part.setBusinessUnit(dto.getBusinessUnit());
         part.setProductCategory(dto.getProductCategory());
@@ -180,9 +192,15 @@ public class PartService {
     public void delete(String id) {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+
+        // Check permission: submitted parts (with partNumber) can only be deleted by QMC Manager
         if (part.getPartNumber() != null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only unsubmitted parts can be deleted");
+            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
+            if (!isQMCManager) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can delete submitted parts");
+            }
         }
+
         partRepo.delete(part);
     }
 
@@ -192,7 +210,7 @@ public class PartService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
         // 如果尚未生成零件编号，则生成新编号
         if (part.getPartNumber() == null) {
-            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform()));
+            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductCategory()));
         }
         // 已提交的单据也可以再次提交（用于更新数据），只保存更新
         partRepo.save(part);
@@ -222,11 +240,19 @@ public class PartService {
         return toDTO(part);
     }
 
-    private String generatePartNumber(String bu, String platform) {
-        String prefix = bu + "-" + platform;
-        // startPos: after "BU-PLT-" (prefix.length + 2 for the trailing dash)
-        int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 2, prefix + "-%").orElse(0);
-        return prefix + "-" + String.format("%04d", maxSeq + 1);
+    private String generatePartNumber(String bu, String productCategory) {
+        String prefix = bu + productCategory;
+        // startPos: 1-based index after the prefix (e.g. "RBCABS" = 6 chars, seq starts at pos 7)
+        int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
+        return prefix + String.format("%04d", maxSeq + 1);
+    }
+
+    private boolean hasRole(String roleName) {
+        var headers = CommonHeaderManager.getCommonHeaders();
+        if (headers == null || headers.getRoleNames() == null) {
+            return false;
+        }
+        return headers.getRoleNames().contains(roleName);
     }
 
     private PartDTO toDTO(Part part) {
