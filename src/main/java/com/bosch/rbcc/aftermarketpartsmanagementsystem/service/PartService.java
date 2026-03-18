@@ -25,6 +25,7 @@ public class PartService {
     private static final String ROLE_QMC_MANAGER = "W_RBCC_AEP_WFAM_QMC_Manager";
 
     private static final String STATUS_DRAFT = "draft";
+    private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
@@ -35,6 +36,7 @@ public class PartService {
 
     private final PartRepository partRepo;
     private final ReturnOrderRepository returnOrderRepository;
+    private final AnalysisOrderService analysisOrderService;
 
     public List<PartDTO> list(String orderNumber, String partCode, String businessUnit,
                                String productPlatform, String status, String qcCreated) {
@@ -119,10 +121,15 @@ public class PartService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId()));
 
         String orderStatus = returnOrder.getStatus();
-        // Only draft and in_initial_analysis status can add parts
-        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_IN_INITIAL_ANALYSIS.equals(orderStatus)) {
+        // Only draft and submitted status can add parts
+        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Parts can only be added to return orders in 'draft' or 'in_initial_analysis' status. Current status: " + orderStatus);
+                "Parts can only be added to return orders in 'draft' or 'submitted' status. Current status: " + orderStatus);
+        }
+
+        // Analyst is required
+        if (dto.getAnalyst() == null || dto.getAnalyst().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Analyst is required");
         }
 
         Part part = Part.builder()
@@ -133,8 +140,8 @@ public class PartService {
                 .productCategory(dto.getProductCategory())
                 .productPlatform(dto.getProductPlatform())
                 .productionShift(dto.getProductionShift())
-                .complaintType(dto.getComplaintType())
                 .failureType(dto.getFailureType())
+                .boschFailureType(dto.getBoschFailureType())
                 .vehicleProductionDate(parseDate(dto.getVehicleProductionDate()))
                 .vehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()))
                 .vehicleFailureDate(parseDate(dto.getVehicleFailureDate()))
@@ -150,6 +157,10 @@ public class PartService {
                 .statusChangedAt(LocalDateTime.now())
                 .build();
         partRepo.save(part);
+
+        // 触发分析单自动创建（幂等）
+        analysisOrderService.getOrCreate(dto.getOrderId(), dto.getAnalyst());
+
         return toDTO(part);
     }
 
@@ -171,8 +182,8 @@ public class PartService {
         part.setProductCategory(dto.getProductCategory());
         part.setProductPlatform(dto.getProductPlatform());
         part.setProductionShift(dto.getProductionShift());
-        part.setComplaintType(dto.getComplaintType());
         part.setFailureType(dto.getFailureType());
+        part.setBoschFailureType(dto.getBoschFailureType());
         part.setVehicleProductionDate(parseDate(dto.getVehicleProductionDate()));
         part.setVehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()));
         part.setVehicleFailureDate(parseDate(dto.getVehicleFailureDate()));
@@ -241,8 +252,8 @@ public class PartService {
     }
 
     private String generatePartNumber(String bu, String productCategory) {
-        String prefix = bu + productCategory;
-        // startPos: 1-based index after the prefix (e.g. "RBCABS" = 6 chars, seq starts at pos 7)
+        String prefix = bu + "-" + productCategory + "-";
+        // startPos: 1-based index after the prefix (e.g. "RBCA-BS-" = 8 chars, seq starts at pos 9)
         int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
         return prefix + String.format("%04d", maxSeq + 1);
     }
@@ -271,8 +282,8 @@ public class PartService {
                 .productCategory(part.getProductCategory())
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
-                .complaintType(part.getComplaintType())
                 .failureType(part.getFailureType())
+                .boschFailureType(part.getBoschFailureType())
                 .repairStation(part.getRepairStation())
                 .complaintLocation(part.getComplaintLocation())
                 .responsibleEngineer(part.getResponsibleEngineer())

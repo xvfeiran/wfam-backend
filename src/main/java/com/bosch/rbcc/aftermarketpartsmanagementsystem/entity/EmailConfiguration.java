@@ -26,6 +26,7 @@ public class EmailConfiguration {
     @Column(name = "SMTP_HOST", nullable = false, length = 255)
     private String smtpHost;
 
+    @Builder.Default
     @Column(name = "SMTP_PORT")
     private Integer smtpPort = 25;
 
@@ -44,9 +45,11 @@ public class EmailConfiguration {
     @Column(name = "EMAIL_PASSWORD", nullable = false, length = 255)
     private String emailPassword;
 
+    @Builder.Default
     @Column(name = "ENABLE_SSL")
     private Boolean enableSsl = false;
 
+    @Builder.Default
     @Column(name = "ENABLED")
     private Boolean enabled = true;
 

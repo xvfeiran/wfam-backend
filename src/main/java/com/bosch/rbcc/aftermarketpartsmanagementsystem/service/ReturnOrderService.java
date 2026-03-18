@@ -21,7 +21,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,11 +30,8 @@ import java.util.stream.Collectors;
 public class ReturnOrderService {
 
     private static final String STATUS_DRAFT = "draft";
+    private static final String STATUS_SUBMITTED = "submitted";
     private static final String ROLE_QMC_MANAGER = "W_RBCC_AEP_WFAM_QMC_Manager";
-    private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
-    private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
-    private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
-    private static final String STATUS_SCRAPPED = "scrapped";
 
     private final ReturnOrderRepository orderRepo;
     private final PartRepository partRepo;
@@ -92,7 +88,7 @@ public class ReturnOrderService {
                 .returnMethod(dto.getReturnMethod())
                 .trackingNumber(dto.getTrackingNumber())
                 .returnQuantity(dto.getReturnQuantity())
-                .failureType(dto.getFailureType())
+                .complaintType(dto.getComplaintType())
 
                 .status(STATUS_DRAFT)
                 .build();
@@ -121,8 +117,8 @@ public class ReturnOrderService {
         order.setTrackingNumber(dto.getTrackingNumber());
         order.setReturnQuantity(dto.getReturnQuantity());
         // complaintType can be updated
-        if (dto.getFailureType() != null) {
-            order.setFailureType(dto.getFailureType());
+        if (dto.getComplaintType() != null) {
+            order.setComplaintType(dto.getComplaintType());
         }
         orderRepo.save(order);
         return toDTO(order);
@@ -175,86 +171,7 @@ public class ReturnOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not in draft status");
         }
         order.setOrderNumber(generateOrderNumber());
-        order.setStatus(STATUS_IN_INITIAL_ANALYSIS);
-        orderRepo.save(order);
-        return toDTO(order);
-    }
-
-    @Transactional
-    public ReturnOrderDTO sampling(String id, List<String> sampledPartIds) {
-        ReturnOrder order = orderRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
-
-        // 0km退货单（complaintType = BA20）不能抽样
-        if ("BA20".equals(order.getFailureType())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "0km orders (BA20) cannot be sampled. They must go through the scrap process directly.");
-        }
-
-        // Allow sampling for orders in both in_initial_analysis and in_detailed_analysis status
-        boolean isResampling = STATUS_IN_DETAILED_ANALYSIS.equals(order.getStatus());
-        if (!STATUS_IN_INITIAL_ANALYSIS.equals(order.getStatus()) && !isResampling) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Order must be in_initial_analysis or in_detailed_analysis status for sampling");
-        }
-
-        List<Part> parts = partRepo.findByOrderId(id);
-
-        // If resampling, reset all parts first
-        if (isResampling) {
-            for (Part part : parts) {
-                if ("in_detailed_analysis".equals(part.getStatus())) {
-                    part.setStatus("in_initial_analysis");
-                }
-                part.setIsSample(0);
-                partRepo.save(part);
-            }
-        }
-
-        // Apply new sampling selection
-        for (Part part : parts) {
-            boolean sampled = sampledPartIds != null && sampledPartIds.contains(part.getId());
-            part.setIsSample(sampled ? 1 : 0);
-            if (sampled) {
-                part.setStatus("in_detailed_analysis");
-                part.setStatusChangedAt(LocalDateTime.now());
-            }
-            partRepo.save(part);
-        }
-
-        // Update order status only on first sampling, not during resampling
-        if (!isResampling) {
-            order.setStatus(STATUS_IN_DETAILED_ANALYSIS);
-            orderRepo.save(order);
-        }
-
-        return toDTO(order);
-    }
-
-    @Transactional
-    public ReturnOrderDTO scrap(String id) {
-        ReturnOrder order = orderRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
-
-        // 只有未开始报废的状态才能提交报废申请
-        if (STATUS_SCRAP_IN_PROGRESS.equals(order.getStatus()) || STATUS_SCRAPPED.equals(order.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Order is already in scrap process and cannot be modified");
-        }
-
-        order.setStatus(STATUS_SCRAP_IN_PROGRESS);
-        orderRepo.save(order);
-        return toDTO(order);
-    }
-
-    @Transactional
-    public ReturnOrderDTO workonConfirm(String id) {
-        ReturnOrder order = orderRepo.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
-        if (!STATUS_SCRAP_IN_PROGRESS.equals(order.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order must be in scrap_in_progress status");
-        }
-        order.setStatus(STATUS_SCRAPPED);
+        order.setStatus(STATUS_SUBMITTED);
         orderRepo.save(order);
         return toDTO(order);
     }
@@ -362,9 +279,9 @@ public class ReturnOrderService {
                 .returnMethod(dto.getReturnMethod())
                 .trackingNumber(dto.getTrackingNumber())
                 .returnQuantity(dto.getReturnQuantity())
-                .failureType(dto.getFailureType())
+                .complaintType(dto.getComplaintType())
 
-                .status(STATUS_SCRAPPED)
+                .status(STATUS_SUBMITTED)
                 .build();
         orderRepo.save(order);
         return toDTO(order);
@@ -387,7 +304,7 @@ public class ReturnOrderService {
                 .returnMethod(order.getReturnMethod())
                 .trackingNumber(order.getTrackingNumber())
                 .returnQuantity(order.getReturnQuantity())
-                .failureType(order.getFailureType())
+                .complaintType(order.getComplaintType())
                 .initialAnalysisQuantity(parts.size())
                 .detailedAnalysisQuantity(detailedCount)
                 .scrappedQuantity(scrappedCount)
@@ -412,7 +329,8 @@ public class ReturnOrderService {
                 .productCategory(part.getProductCategory())
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
-                .complaintType(part.getFailureType())
+                .failureType(part.getFailureType())
+                .boschFailureType(part.getBoschFailureType())
                 .repairStation(part.getRepairStation())
                 .complaintLocation(part.getComplaintLocation())
                 .responsibleEngineer(part.getResponsibleEngineer())

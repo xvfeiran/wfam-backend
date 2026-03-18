@@ -1,0 +1,3 @@
+-- 历史编号保持不变，新编号由应用层生成新格式（BU-Category-NNNN）
+-- 无 DDL 变更，仅留注释说明分界
+-- 新格式示例：RBCA-BS-0001（BU + '-' + productCategory + '-' + 4位序号）

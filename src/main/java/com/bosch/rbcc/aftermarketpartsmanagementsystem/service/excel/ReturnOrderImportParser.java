@@ -41,7 +41,7 @@ import java.util.Map;
  *   customerId   = 60399b05-b5e9-4b0e-b2eb-107df4ebbcbc (UNKNOWN)
  *   returnMethod = express
  *   returnQuantity = 0
- *   failureType  = BA40
+ *   complaintType = BA40
  */
 @Slf4j
 @Component
@@ -50,7 +50,7 @@ public class ReturnOrderImportParser {
     private static final String FIXED_CUSTOMER_ID = "60399b05-b5e9-4b0e-b2eb-107df4ebbcbc";
     private static final String FIXED_RETURN_METHOD = "express";
     private static final int FIXED_RETURN_QUANTITY = 0;
-    private static final String FIXED_FAILURE_TYPE = "BA40";
+    private static final String FIXED_COMPLAINT_TYPE = "BA40";
 
     private static final List<DateTimeFormatter> DATE_FORMATTERS = List.of(
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
@@ -151,7 +151,7 @@ public class ReturnOrderImportParser {
                 .returnMethod(FIXED_RETURN_METHOD)
                 .trackingNumber(trackingNumber)
                 .returnQuantity(FIXED_RETURN_QUANTITY)
-                .failureType(FIXED_FAILURE_TYPE)
+                .complaintType(FIXED_COMPLAINT_TYPE)
                 .build();
     }
 

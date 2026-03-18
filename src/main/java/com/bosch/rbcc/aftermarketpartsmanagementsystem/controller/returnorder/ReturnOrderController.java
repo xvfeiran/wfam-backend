@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+// sampling/scrap endpoints removed in v3.0
 
 @Tag(name = "退货单管理", description = "退货单 CRUD 及关联售后件查询")
 @RestController
@@ -87,26 +88,6 @@ public class ReturnOrderController {
     @PostMapping("/{id}/submit")
     public ReturnOrderDTO submit(@PathVariable String id) {
         return returnOrderService.submit(id);
-    }
-
-    @Operation(summary = "抽样确认", description = "in_initial_analysis → in_detailed_analysis，更新抽样件状态")
-    @PostMapping("/{id}/sampling")
-    public ReturnOrderDTO sampling(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        List<String> sampledPartIds = (List<String>) body.get("sampledPartIds");
-        return returnOrderService.sampling(id, sampledPartIds);
-    }
-
-    @Operation(summary = "提交报废申请", description = "→ scrap_in_progress")
-    @PostMapping("/{id}/scrap")
-    public ReturnOrderDTO scrap(@PathVariable String id) {
-        return returnOrderService.scrap(id);
-    }
-
-    @Operation(summary = "确认 WorkOn 完成", description = "scrap_in_progress → scrapped")
-    @PostMapping("/{id}/scrap/workon-confirm")
-    public ReturnOrderDTO workonConfirm(@PathVariable String id) {
-        return returnOrderService.workonConfirm(id);
     }
 
     @Operation(summary = "获取退货单关联售后件列表", description = "支持按零件号、零件码、事业部、产品平台、状态筛选")

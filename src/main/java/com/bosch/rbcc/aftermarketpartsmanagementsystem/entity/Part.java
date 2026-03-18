@@ -45,11 +45,12 @@ public class Part {
     @Column(name = "PRODUCTION_SHIFT", length = 20)
     private String productionShift;
 
-    @Column(name = "COMPLAINT_TYPE", length = 20)
-    private String complaintType;
-
+    // COMPLAINT_TYPE 列保留（不使用 Java 字段），前端/后端不再映射
     @Column(name = "CUSTOMER_FAILURE_TYPE", length = 50)
     private String failureType;
+
+    @Column(name = "BOSCH_FAILURE_TYPE", length = 20)
+    private String boschFailureType;
 
     @Column(name = "VEHICLE_PRODUCTION_DATE")
     private LocalDate vehicleProductionDate;

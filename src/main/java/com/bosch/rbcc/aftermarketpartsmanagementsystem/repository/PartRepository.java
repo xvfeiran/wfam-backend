@@ -25,4 +25,6 @@ public interface PartRepository extends JpaRepository<Part, String>,
 
     @Query(value = "SELECT * FROM APMS_PART p WHERE p.ORDER_ID IN (SELECT r.ID FROM APMS_RETURN_ORDER r WHERE r.ORDER_NUMBER LIKE :orderNumber)", nativeQuery = true)
     List<Part> findByOrderNumber(@Param("orderNumber") String orderNumber);
+
+    List<Part> findByOrderIdAndAnalyst(String orderId, String analyst);
 }

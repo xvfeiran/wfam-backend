@@ -30,10 +30,10 @@ public class PartDTO {
     @Schema(description = "产品平台", example = "WSA")
     private String productPlatform;
     private String productionShift;
-    @Schema(description = "退货类型（BA代码）", example = "BA40")
-    private String complaintType;
-    @Schema(description = "客户失效类型", example = "噪音")
+    @Schema(description = "客户失效类型（NVH/功能/外观）", example = "NVH")
     private String failureType;
+    @Schema(description = "博世失效类型", example = "BA40")
+    private String boschFailureType;
     private String repairStation;
     private String complaintLocation;
     private String responsibleEngineer;
