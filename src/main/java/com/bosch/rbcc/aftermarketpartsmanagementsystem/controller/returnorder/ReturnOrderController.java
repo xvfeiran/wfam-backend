@@ -90,16 +90,18 @@ public class ReturnOrderController {
         return returnOrderService.submit(id);
     }
 
-    @Operation(summary = "获取退货单关联售后件列表", description = "支持按零件号、零件码、事业部、产品平台、状态筛选")
+    @Operation(summary = "获取退货单关联售后件列表（分页）", description = "支持按关键词、事业部、产品平台、状态筛选，支持分页和排序")
     @GetMapping("/{id}/parts")
-    public List<PartDTO> getPartsForOrder(
+    public PageResponse<PartDTO> getPartsForOrder(
             @PathVariable String id,
-            @Parameter(description = "零件号（模糊匹配）") @RequestParam(required = false) String partNumber,
-            @Parameter(description = "零件码（模糊匹配）") @RequestParam(required = false) String partCode,
+            @Parameter(description = "关键词（模糊匹配零件号和零件码）") @RequestParam(required = false) String keyword,
             @Parameter(description = "事业部") @RequestParam(required = false) String businessUnit,
             @Parameter(description = "产品平台") @RequestParam(required = false) String productPlatform,
-            @Parameter(description = "售后件状态") @RequestParam(required = false) String status) {
-        return returnOrderService.getPartsForOrder(id, partNumber, partCode, businessUnit, productPlatform, status);
+            @Parameter(description = "售后件状态") @RequestParam(required = false) String status,
+            @Parameter(description = "分析师") @RequestParam(required = false) String analyst,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<PartDTO> page = returnOrderService.getPartsForOrder(id, keyword, businessUnit, productPlatform, status, analyst, pageable);
+        return PageResponse.of(page);
     }
 
     @Operation(summary = "导出退货单列表为 Excel")

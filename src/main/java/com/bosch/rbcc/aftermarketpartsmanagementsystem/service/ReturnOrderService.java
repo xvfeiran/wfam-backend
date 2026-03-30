@@ -176,36 +176,39 @@ public class ReturnOrderService {
         return toDTO(order);
     }
 
-    public List<PartDTO> getPartsForOrder(String orderId, String partNumber, String partCode,
-                                           String businessUnit, String productPlatform, String status) {
-        List<Part> parts = partRepo.findByOrderId(orderId);
+    public Page<PartDTO> getPartsForOrder(String orderId, String keyword, String businessUnit,
+                                           String productPlatform, String status, String analyst,
+                                           Pageable pageable) {
+        Page<Part> page = partRepo.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("orderId"), orderId));
+            if (keyword != null && !keyword.isBlank()) {
+                String pattern = "%" + keyword.toUpperCase() + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.upper(root.get("partNumber")), pattern),
+                    cb.like(cb.upper(root.get("partCode")), pattern)
+                ));
+            }
+            if (businessUnit != null && !businessUnit.isBlank()) {
+                predicates.add(cb.equal(root.get("businessUnit"), businessUnit));
+            }
+            if (productPlatform != null && !productPlatform.isBlank()) {
+                predicates.add(cb.equal(root.get("productPlatform"), productPlatform));
+            }
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (analyst != null && !analyst.isBlank()) {
+                predicates.add(cb.equal(root.get("analyst"), analyst));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        }, pageable);
 
-        return parts.stream()
-                .filter(part -> {
-                    if (partNumber != null && !partNumber.isEmpty() &&
-                        (part.getPartNumber() == null || !part.getPartNumber().contains(partNumber))) {
-                        return false;
-                    }
-                    if (partCode != null && !partCode.isEmpty() &&
-                        (part.getPartCode() == null || !part.getPartCode().contains(partCode))) {
-                        return false;
-                    }
-                    if (businessUnit != null && !businessUnit.isEmpty() &&
-                        (part.getBusinessUnit() == null || !part.getBusinessUnit().equals(businessUnit))) {
-                        return false;
-                    }
-                    if (productPlatform != null && !productPlatform.isEmpty() &&
-                        (part.getProductPlatform() == null || !part.getProductPlatform().equals(productPlatform))) {
-                        return false;
-                    }
-                    if (status != null && !status.isEmpty() &&
-                        (part.getStatus() == null || !part.getStatus().equals(status))) {
-                        return false;
-                    }
-                    return true;
-                })
+        List<PartDTO> dtos = page.getContent().stream()
                 .map(this::toPartDTO)
                 .collect(Collectors.toList());
+
+        return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
     private static final int EXPORT_MAX_ROWS = 5000;
