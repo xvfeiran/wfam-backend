@@ -1,8 +1,12 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisReportDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisReport;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisReportRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,8 +25,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalysisReportService {
 
+    private static final String STATUS_PENDING_APPROVAL = "pending_approval";
+    private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
+    private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
+
     private final AnalysisReportRepository repository;
     private final ObjectMapper objectMapper;
+    private final PartRepository partRepository;
+    private final AnalysisOrderRepository analysisOrderRepository;
 
     public List<AnalysisReportDTO> getAll() {
         return repository.findAll().stream()
@@ -73,6 +84,30 @@ public class AnalysisReportService {
         report.setSubmittedAt(LocalDateTime.now());
         report = repository.save(report);
         log.info("Report submitted: id={}, by={}", reportId, submittedBy);
+
+        // 联动：Part → pending_approval
+        partRepository.findById(report.getPartId()).ifPresent(part -> {
+            part.setStatus(STATUS_PENDING_APPROVAL);
+            part.setStatusChangedAt(LocalDateTime.now());
+            partRepository.save(part);
+
+            // 联动：若所有抽样件均为 pending_approval → AnalysisOrder → pending_approval
+            analysisOrderRepository.findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
+                .ifPresent(ao -> {
+                    List<Part> sampledParts = partRepository
+                        .findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
+                        .stream().filter(p -> p.getIsSample() != null && p.getIsSample() == 1)
+                        .toList();
+                    boolean allPendingApproval = !sampledParts.isEmpty()
+                        && sampledParts.stream().allMatch(p -> STATUS_PENDING_APPROVAL.equals(p.getStatus()));
+                    if (allPendingApproval) {
+                        ao.setStatus(STATUS_PENDING_APPROVAL);
+                        ao.setStatusChangedAt(LocalDateTime.now());
+                        analysisOrderRepository.save(ao);
+                    }
+                });
+        });
+
         return toDTO(report);
     }
 
