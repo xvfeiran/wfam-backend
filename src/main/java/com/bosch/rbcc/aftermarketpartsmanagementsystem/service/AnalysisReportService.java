@@ -156,6 +156,24 @@ public class AnalysisReportService {
         report.setRejectReason(reason);
         report = repository.save(report);
         log.info("Report rejected: id={}, by={}, reason={}", reportId, approvedBy, reason);
+
+        // 联动：Part → in_detailed_analysis
+        partRepository.findById(report.getPartId()).ifPresent(part -> {
+            part.setStatus(STATUS_IN_DETAILED_ANALYSIS);
+            part.setStatusChangedAt(LocalDateTime.now());
+            partRepository.save(part);
+
+            // 联动：若 AnalysisOrder 当前为 pending_approval → 回退为 in_detailed_analysis
+            analysisOrderRepository.findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
+                .ifPresent(ao -> {
+                    if (STATUS_PENDING_APPROVAL.equals(ao.getStatus())) {
+                        ao.setStatus(STATUS_IN_DETAILED_ANALYSIS);
+                        ao.setStatusChangedAt(LocalDateTime.now());
+                        analysisOrderRepository.save(ao);
+                    }
+                });
+        });
+
         return toDTO(report);
     }
 

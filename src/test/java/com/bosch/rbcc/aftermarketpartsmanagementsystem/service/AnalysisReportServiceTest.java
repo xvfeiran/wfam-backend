@@ -149,4 +149,41 @@ class AnalysisReportServiceTest {
         assertThat(analysisOrder.getStatus()).isEqualTo("pending_approval"); // 不变
         verify(analysisOrderRepository, never()).save(any());
     }
+
+    @Test
+    void reject_shouldSetPartBackToInDetailedAnalysis() {
+        report.setStatus("submitted");
+        sampledPart.setStatus("pending_approval");
+        analysisOrder.setStatus("pending_approval");
+
+        when(repository.findById("r-1")).thenReturn(Optional.of(report));
+        when(repository.save(any())).thenReturn(report);
+        when(partRepository.findById("p-1")).thenReturn(Optional.of(sampledPart));
+        when(analysisOrderRepository.findByOrderIdAndAnalyst("order-1", "analyst1"))
+                .thenReturn(Optional.of(analysisOrder));
+
+        service.reject("r-1", "qmc-leader", "需要补充数据");
+
+        assertThat(sampledPart.getStatus()).isEqualTo("in_detailed_analysis");
+        assertThat(analysisOrder.getStatus()).isEqualTo("in_detailed_analysis");
+        verify(analysisOrderRepository).save(analysisOrder);
+    }
+
+    @Test
+    void reject_analysisOrderNotPendingApproval_shouldNotUpdateAnalysisOrder() {
+        report.setStatus("submitted");
+        sampledPart.setStatus("pending_approval");
+        analysisOrder.setStatus("in_detailed_analysis"); // 已经回退过，不是 pending_approval
+
+        when(repository.findById("r-1")).thenReturn(Optional.of(report));
+        when(repository.save(any())).thenReturn(report);
+        when(partRepository.findById("p-1")).thenReturn(Optional.of(sampledPart));
+        when(analysisOrderRepository.findByOrderIdAndAnalyst("order-1", "analyst1"))
+                .thenReturn(Optional.of(analysisOrder));
+
+        service.reject("r-1", "qmc-leader", "需要补充数据");
+
+        assertThat(sampledPart.getStatus()).isEqualTo("in_detailed_analysis");
+        verify(analysisOrderRepository, never()).save(any());
+    }
 }
