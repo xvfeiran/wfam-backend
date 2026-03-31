@@ -56,4 +56,23 @@ class AnalysisOrderServiceStatusSyncTest {
         assertThat(part2.getStatus()).isEqualTo("scrap_in_progress");
         verify(partRepo, times(2)).save(any(Part.class));
     }
+
+    @Test
+    void workonConfirm_shouldUpdateAllPartsToScrapped() {
+        order.setStatus("workon_scrap_in_progress");
+        part1.setStatus("scrap_in_progress");
+        part2.setStatus("scrap_in_progress");
+
+        when(analysisOrderRepo.findById("ao-1")).thenReturn(Optional.of(order));
+        when(partRepo.findByOrderIdAndAnalyst("order-1", "analyst1"))
+                .thenReturn(List.of(part1, part2));
+        when(analysisOrderRepo.save(any())).thenReturn(order);
+        when(returnOrderRepo.findById(any())).thenReturn(Optional.empty()); // toDTO calls returnOrderRepo internally
+
+        service.workonConfirm("ao-1");
+
+        assertThat(part1.getStatus()).isEqualTo("scrapped");
+        assertThat(part2.getStatus()).isEqualTo("scrapped");
+        verify(partRepo, times(2)).save(any(Part.class));
+    }
 }

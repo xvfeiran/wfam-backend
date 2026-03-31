@@ -29,6 +29,7 @@ public class AnalysisOrderService {
     private static final String STATUS_WORKON_SCRAP_IN_PROGRESS = "workon_scrap_in_progress";
     private static final String STATUS_WORKON_SCRAPPED = "workon_scrapped";
     private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
+    private static final String STATUS_SCRAPPED = "scrapped";
 
     private final AnalysisOrderRepository analysisOrderRepo;
     private final PartRepository partRepo;
@@ -143,6 +144,15 @@ public class AnalysisOrderService {
         ao.setStatus(STATUS_WORKON_SCRAPPED);
         ao.setStatusChangedAt(LocalDateTime.now());
         analysisOrderRepo.save(ao);
+
+        // 联动更新所有关联 Part 状态
+        List<Part> parts = partRepo.findByOrderIdAndAnalyst(ao.getOrderId(), ao.getAnalyst());
+        for (Part part : parts) {
+            part.setStatus(STATUS_SCRAPPED);
+            part.setStatusChangedAt(LocalDateTime.now());
+            partRepo.save(part);
+        }
+
         return toDTO(ao);
     }
 
