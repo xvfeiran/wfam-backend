@@ -102,4 +102,51 @@ class AnalysisReportServiceTest {
         assertThat(analysisOrder.getStatus()).isEqualTo("in_detailed_analysis"); // 不变
         verify(analysisOrderRepository, never()).save(any());
     }
+
+    @Test
+    void approve_shouldSetPartToAnalysisCompleted() {
+        report.setStatus("submitted");
+        sampledPart.setStatus("pending_approval");
+        analysisOrder.setStatus("pending_approval");
+
+        when(repository.findById("r-1")).thenReturn(Optional.of(report));
+        when(repository.save(any())).thenReturn(report);
+        when(partRepository.findById("p-1")).thenReturn(Optional.of(sampledPart));
+        when(analysisOrderRepository.findByOrderIdAndAnalyst("order-1", "analyst1"))
+                .thenReturn(Optional.of(analysisOrder));
+        // 只有一个抽样件，approve 后为 analysis_completed → all match → AnalysisOrder 也更新
+        when(partRepository.findByOrderIdAndAnalyst("order-1", "analyst1"))
+                .thenReturn(List.of(sampledPart));
+
+        service.approve("r-1", "qmc-leader", null);
+
+        assertThat(sampledPart.getStatus()).isEqualTo("analysis_completed");
+        assertThat(analysisOrder.getStatus()).isEqualTo("analysis_completed");
+        verify(analysisOrderRepository).save(analysisOrder);
+    }
+
+    @Test
+    void approve_notAllPartsApproved_shouldNotUpdateAnalysisOrder() {
+        report.setStatus("submitted");
+        sampledPart.setStatus("pending_approval");
+        analysisOrder.setStatus("pending_approval");
+        Part sampledPart2 = Part.builder()
+                .id("p-2").orderId("order-1").analyst("analyst1")
+                .isSample(1).status("pending_approval").build();
+
+        when(repository.findById("r-1")).thenReturn(Optional.of(report));
+        when(repository.save(any())).thenReturn(report);
+        when(partRepository.findById("p-1")).thenReturn(Optional.of(sampledPart));
+        when(analysisOrderRepository.findByOrderIdAndAnalyst("order-1", "analyst1"))
+                .thenReturn(Optional.of(analysisOrder));
+        // sampledPart 变为 analysis_completed，sampledPart2 仍为 pending_approval → not all match
+        when(partRepository.findByOrderIdAndAnalyst("order-1", "analyst1"))
+                .thenReturn(List.of(sampledPart, sampledPart2));
+
+        service.approve("r-1", "qmc-leader", null);
+
+        assertThat(sampledPart.getStatus()).isEqualTo("analysis_completed");
+        assertThat(analysisOrder.getStatus()).isEqualTo("pending_approval"); // 不变
+        verify(analysisOrderRepository, never()).save(any());
+    }
 }

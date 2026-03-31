@@ -119,6 +119,30 @@ public class AnalysisReportService {
         report.setApprovedAt(LocalDateTime.now());
         report = repository.save(report);
         log.info("Report approved: id={}, by={}", reportId, approvedBy);
+
+        // 联动：Part → analysis_completed
+        partRepository.findById(report.getPartId()).ifPresent(part -> {
+            part.setStatus(STATUS_ANALYSIS_COMPLETED);
+            part.setStatusChangedAt(LocalDateTime.now());
+            partRepository.save(part);
+
+            // 联动：若所有抽样件均为 analysis_completed → AnalysisOrder → analysis_completed
+            analysisOrderRepository.findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
+                .ifPresent(ao -> {
+                    List<Part> sampledParts = partRepository
+                        .findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
+                        .stream().filter(p -> p.getIsSample() != null && p.getIsSample() == 1)
+                        .toList();
+                    boolean allCompleted = !sampledParts.isEmpty()
+                        && sampledParts.stream().allMatch(p -> STATUS_ANALYSIS_COMPLETED.equals(p.getStatus()));
+                    if (allCompleted) {
+                        ao.setStatus(STATUS_ANALYSIS_COMPLETED);
+                        ao.setStatusChangedAt(LocalDateTime.now());
+                        analysisOrderRepository.save(ao);
+                    }
+                });
+        });
+
         return toDTO(report);
     }
 
