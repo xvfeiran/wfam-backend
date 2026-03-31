@@ -8,7 +8,6 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRep
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -49,7 +48,7 @@ class AnalysisOrderServiceStatusSyncTest {
         when(partRepo.findByOrderIdAndAnalyst("order-1", "analyst1"))
                 .thenReturn(List.of(part1, part2));
         when(analysisOrderRepo.save(any())).thenReturn(order);
-        when(returnOrderRepo.findById(any())).thenReturn(Optional.empty());
+        when(returnOrderRepo.findById(any())).thenReturn(Optional.empty()); // toDTO calls returnOrderRepo internally
 
         service.scrap("ao-1");
 
