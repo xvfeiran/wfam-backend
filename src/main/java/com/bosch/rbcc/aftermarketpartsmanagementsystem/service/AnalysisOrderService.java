@@ -116,12 +116,22 @@ public class AnalysisOrderService {
                 "Analysis order is already in scrap process");
         }
 
+        // 校验所有售后件是否满足报废条件：未抽样 或 已抽样且精分析审批完成
+        List<Part> parts = partRepo.findByOrderIdAndAnalyst(ao.getOrderId(), ao.getAnalyst());
+        List<String> unqualifiedParts = parts.stream()
+                .filter(p -> !(p.getIsSample() == 0 || STATUS_ANALYSIS_COMPLETED.equals(p.getStatus())))
+                .map(p -> p.getPartNumber() != null ? p.getPartNumber() : p.getId())
+                .collect(Collectors.toList());
+        if (!unqualifiedParts.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "以下售后件不满足报废条件（需未抽样或已抽样且精分析审批完成）：" + String.join(", ", unqualifiedParts));
+        }
+
         ao.setStatus(STATUS_WORKON_SCRAP_IN_PROGRESS);
         ao.setStatusChangedAt(LocalDateTime.now());
         analysisOrderRepo.save(ao);
 
         // 联动更新所有关联 Part 状态
-        List<Part> parts = partRepo.findByOrderIdAndAnalyst(ao.getOrderId(), ao.getAnalyst());
         for (Part part : parts) {
             part.setStatus(STATUS_SCRAP_IN_PROGRESS);
             part.setStatusChangedAt(LocalDateTime.now());
