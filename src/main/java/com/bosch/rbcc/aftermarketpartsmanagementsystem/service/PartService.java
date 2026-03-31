@@ -28,11 +28,12 @@ public class PartService {
     private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
+    private static final String STATUS_PENDING_APPROVAL = "pending_approval";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
     private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
     private static final String STATUS_SCRAPPED = "scrapped";
     private static final Set<String> QC_ALLOWED_STATUSES = Set.of(
-            STATUS_ANALYSIS_COMPLETED, STATUS_SCRAP_IN_PROGRESS, STATUS_SCRAPPED);
+            STATUS_PENDING_APPROVAL, STATUS_ANALYSIS_COMPLETED, STATUS_SCRAP_IN_PROGRESS, STATUS_SCRAPPED);
 
     private final PartRepository partRepo;
     private final ReturnOrderRepository returnOrderRepository;
