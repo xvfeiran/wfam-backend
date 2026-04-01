@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,7 @@ public class ApprovalService {
             case "submitted" -> "pending";
             case "approved" -> "approved";
             case "rejected" -> "rejected";
+            case "withdrawn" -> "withdrawn";
             default -> "draft";
         };
     }
@@ -96,7 +98,9 @@ public class ApprovalService {
         }
     }
 
+    private static final DateTimeFormatter DISPLAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
     private String formatDateTime(java.time.LocalDateTime dateTime) {
-        return dateTime != null ? dateTime.toString() : null;
+        return dateTime != null ? dateTime.format(DISPLAY_FORMATTER) : null;
     }
 }

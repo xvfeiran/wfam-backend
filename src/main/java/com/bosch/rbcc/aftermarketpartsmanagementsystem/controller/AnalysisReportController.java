@@ -1,6 +1,8 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisReportDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaders;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.AnalysisReportService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ExcelReportGeneratorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,7 +54,12 @@ public class AnalysisReportController {
     @PostMapping
     @Operation(summary = "Create or update report", description = "Create a new report or update an existing one")
     public AnalysisReportDTO saveReport(@RequestBody AnalysisReportDTO dto) {
-        return reportService.createOrUpdate(dto);
+        return reportService.createOrUpdate(dto, getCurrentUsername());
+    }
+
+    private String getCurrentUsername() {
+        CommonHeaders headers = CommonHeaderManager.getCommonHeaders();
+        return headers != null && headers.getUsername() != null ? headers.getUsername() : "anonymous";
     }
 
     @PostMapping("/{id}/submit")

@@ -59,15 +59,18 @@ public class AnalysisReportService {
     }
 
     @Transactional
-    public AnalysisReportDTO createOrUpdate(AnalysisReportDTO dto) {
+    public AnalysisReportDTO createOrUpdate(AnalysisReportDTO dto, String username) {
         Optional<AnalysisReport> existing = repository.findByPartId(dto.getPartId());
         AnalysisReport report;
 
         if (existing.isPresent()) {
             report = existing.get();
-            updateReportFromDTO(report, dto);
+            if ("approved".equals(report.getStatus())) {
+                throw new IllegalStateException("Cannot modify an approved analysis report");
+            }
+            updateReportFromDTO(report, dto, username);
         } else {
-            report = createReportFromDTO(dto);
+            report = createReportFromDTO(dto, username);
         }
         report = repository.save(report);
         log.info("Report saved: id={}, partId={}", report.getId(), report.getPartId());
@@ -182,17 +185,33 @@ public class AnalysisReportService {
         AnalysisReport report = repository.findById(reportId)
             .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
 
-        // Validate: only submitter can withdraw
-        if (!username.equals(report.getSubmittedBy())) {
+        // Validate: only submitter can withdraw (skip when username is null, e.g. unauthenticated dev env)
+        if (username != null && !username.equals(report.getSubmittedBy())) {
             throw new IllegalStateException("Only the submitter can withdraw the report");
         }
 
-        // Status change: submitted -> draft
-        report.setStatus("draft");
-        report.setSubmittedBy(null);
-        report.setSubmittedAt(null);
+        // Status change: submitted -> withdrawn (keep submittedBy/submittedAt for history)
+        report.setStatus("withdrawn");
         report = repository.save(report);
         log.info("Report withdrawn: id={}, by={}", reportId, username);
+
+        // 联动：Part → in_detailed_analysis
+        partRepository.findById(report.getPartId()).ifPresent(part -> {
+            part.setStatus(STATUS_IN_DETAILED_ANALYSIS);
+            part.setStatusChangedAt(LocalDateTime.now());
+            partRepository.save(part);
+
+            // 联动：若 AnalysisOrder 当前为 pending_approval → 回退为 in_detailed_analysis
+            analysisOrderRepository.findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
+                .ifPresent(ao -> {
+                    if (STATUS_PENDING_APPROVAL.equals(ao.getStatus())) {
+                        ao.setStatus(STATUS_IN_DETAILED_ANALYSIS);
+                        ao.setStatusChangedAt(LocalDateTime.now());
+                        analysisOrderRepository.save(ao);
+                    }
+                });
+        });
+
         return toDTO(report);
     }
 
@@ -205,19 +224,23 @@ public class AnalysisReportService {
         log.info("Report deleted: id={}", id);
     }
 
-    private AnalysisReport createReportFromDTO(AnalysisReportDTO dto) {
-        return AnalysisReport.builder()
+    private AnalysisReport createReportFromDTO(AnalysisReportDTO dto, String username) {
+        String status = dto.getStatus() != null ? dto.getStatus() : "draft";
+        AnalysisReport.AnalysisReportBuilder builder = AnalysisReport.builder()
             .id(UUID.randomUUID().toString())
             .partId(dto.getPartId())
             .templateId(dto.getTemplateId())
             .content(serializeContent(dto.getContent()))
             .summary(dto.getSummary())
-            .status(dto.getStatus() != null ? dto.getStatus() : "draft")
-            .attachments(serializeAttachments(dto.getAttachments()))
-            .build();
+            .status(status)
+            .attachments(serializeAttachments(dto.getAttachments()));
+        if ("submitted".equals(status)) {
+            builder.submittedBy(username).submittedAt(LocalDateTime.now());
+        }
+        return builder.build();
     }
 
-    private void updateReportFromDTO(AnalysisReport report, AnalysisReportDTO dto) {
+    private void updateReportFromDTO(AnalysisReport report, AnalysisReportDTO dto, String username) {
         report.setTemplateId(dto.getTemplateId());
         report.setContent(serializeContent(dto.getContent()));
         report.setSummary(dto.getSummary());
@@ -225,6 +248,10 @@ public class AnalysisReportService {
             report.setStatus(dto.getStatus());
         }
         report.setAttachments(serializeAttachments(dto.getAttachments()));
+        if ("submitted".equals(dto.getStatus())) {
+            report.setSubmittedBy(username);
+            report.setSubmittedAt(LocalDateTime.now());
+        }
     }
 
     private String serializeContent(Map<String, Object> content) {

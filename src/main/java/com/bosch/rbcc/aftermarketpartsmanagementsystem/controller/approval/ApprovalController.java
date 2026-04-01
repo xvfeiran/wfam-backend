@@ -1,6 +1,8 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.approval;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisApplicationDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaders;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.AnalysisReportService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ApprovalService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,9 +27,8 @@ public class ApprovalController {
 
     @Operation(summary = "获取我的分析报告申请")
     @GetMapping("/my/analysis")
-    public List<AnalysisApplicationDTO> getMyAnalysisApplications(HttpServletRequest request) {
-        String username = request.getRemoteUser();
-        return approvalService.getMyAnalysisApplications(username);
+    public List<AnalysisApplicationDTO> getMyAnalysisApplications() {
+        return approvalService.getMyAnalysisApplications(getCurrentUsername());
     }
 
     @Operation(summary = "获取待审批的分析报告")
@@ -40,29 +41,28 @@ public class ApprovalController {
     @PostMapping("/{id}/approve")
     public void approve(
             @PathVariable String id,
-            @RequestBody(required = false) Map<String, String> body,
-            HttpServletRequest request) {
-        String username = request.getRemoteUser();
+            @RequestBody(required = false) Map<String, String> body) {
         String comment = body != null ? body.get("comment") : null;
-        analysisReportService.approve(id, username, comment);
+        analysisReportService.approve(id, getCurrentUsername(), comment);
     }
 
     @Operation(summary = "审批驳回")
     @PostMapping("/{id}/reject")
     public void reject(
             @PathVariable String id,
-            @RequestBody Map<String, String> body,
-            HttpServletRequest request) {
-        String username = request.getRemoteUser();
-        String reason = body.get("reason");
-        analysisReportService.reject(id, username, reason);
+            @RequestBody Map<String, String> body) {
+        analysisReportService.reject(id, getCurrentUsername(), body.get("reason"));
     }
 
     @Operation(summary = "撤回申请")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void withdraw(@PathVariable String id, HttpServletRequest request) {
-        String username = request.getRemoteUser();
-        analysisReportService.withdraw(id, username);
+    public void withdraw(@PathVariable String id) {
+        analysisReportService.withdraw(id, getCurrentUsername());
+    }
+
+    private String getCurrentUsername() {
+        CommonHeaders headers = CommonHeaderManager.getCommonHeaders();
+        return headers != null && headers.getUsername() != null ? headers.getUsername() : "anonymous";
     }
 }
