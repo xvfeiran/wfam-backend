@@ -11,39 +11,26 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "APMS_REPORT_TEMPLATE")
+@Table(name = "APMS_PART_CODE")
 @EntityListeners(AuditingEntityListener.class)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReportTemplate {
+public class PartCode {
 
     @Id
     @Column(name = "ID", length = 36)
     private String id;
 
-    @Column(name = "NAME", length = 200, nullable = false)
-    private String name;
+    @Column(name = "PART_CODE", length = 100, nullable = false, unique = true)
+    private String partCode;
 
-    @Column(name = "PRODUCT_PLATFORM", length = 50)
+    @Column(name = "BUSINESS_UNIT", length = 100)
+    private String businessUnit;
+
+    @Column(name = "PRODUCT_PLATFORM", length = 100)
     private String productPlatform;
-
-    @Column(name = "FAILURE_TYPE", length = 50)
-    private String failureType;
-
-    @Column(name = "FILE_PATH", length = 500, nullable = false)
-    private String filePath;
-
-    @Column(name = "FILE_NAME", length = 200, nullable = false)
-    private String fileName;
-
-    @Column(name = "FIELD_DEFINITIONS", length = 4000)
-    private String fieldDefinitions;
-
-    @Column(name = "ENABLED")
-    @Builder.Default
-    private Integer enabled = 1;
 
     @CreatedBy
     @Column(name = "CREATED_BY", length = 100, nullable = false, updatable = false)

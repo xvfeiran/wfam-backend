@@ -194,7 +194,6 @@ public class AnalysisOrderService {
                 .orderId(p.getOrderId())
                 .partCode(p.getPartCode())
                 .businessUnit(p.getBusinessUnit())
-                .productCategory(p.getProductCategory())
                 .productPlatform(p.getProductPlatform())
                 .productionShift(p.getProductionShift())
                 .failureType(p.getFailureType())

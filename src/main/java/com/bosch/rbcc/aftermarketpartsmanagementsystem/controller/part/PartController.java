@@ -87,8 +87,8 @@ public class PartController {
     public ReportTemplateDTO getMatchedTemplate(@PathVariable String id) {
         PartDTO part = partService.getById(id);
         return mockData.getTemplates().stream()
-                .filter(t -> t.getProductCategory() != null
-                        && t.getProductCategory().equals(part.getProductCategory())
+                .filter(t -> t.getProductPlatform() != null
+                        && t.getProductPlatform().equals(part.getProductPlatform())
                         && t.getFailureType() != null
                         && t.getFailureType().equals(part.getFailureType()))
                 .findFirst()

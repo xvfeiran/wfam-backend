@@ -138,7 +138,6 @@ public class PartService {
                 .orderId(dto.getOrderId())
                 .partCode(dto.getPartCode())
                 .businessUnit(dto.getBusinessUnit())
-                .productCategory(dto.getProductCategory())
                 .productPlatform(dto.getProductPlatform())
                 .productionShift(dto.getProductionShift())
                 .failureType(dto.getFailureType())
@@ -180,7 +179,6 @@ public class PartService {
 
         part.setPartCode(dto.getPartCode());
         part.setBusinessUnit(dto.getBusinessUnit());
-        part.setProductCategory(dto.getProductCategory());
         part.setProductPlatform(dto.getProductPlatform());
         part.setProductionShift(dto.getProductionShift());
         part.setFailureType(dto.getFailureType());
@@ -222,7 +220,7 @@ public class PartService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
         // 如果尚未生成零件编号，则生成新编号
         if (part.getPartNumber() == null) {
-            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductCategory()));
+            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform()));
         }
         // 已提交的单据也可以再次提交（用于更新数据），只保存更新
         partRepo.save(part);
@@ -252,8 +250,8 @@ public class PartService {
         return toDTO(part);
     }
 
-    private String generatePartNumber(String bu, String productCategory) {
-        String prefix = bu + "-" + productCategory + "-";
+    private String generatePartNumber(String bu, String productPlatform) {
+        String prefix = bu + "-" + productPlatform + "-";
         // startPos: 1-based index after the prefix (e.g. "RBCA-BS-" = 8 chars, seq starts at pos 9)
         int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
         return prefix + String.format("%04d", maxSeq + 1);
@@ -280,7 +278,6 @@ public class PartService {
                 .orderNumber(orderNumber)
                 .partCode(part.getPartCode())
                 .businessUnit(part.getBusinessUnit())
-                .productCategory(part.getProductCategory())
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
                 .failureType(part.getFailureType())

@@ -27,7 +27,7 @@ public class TemplateDataGenerator {
         return ReportTemplateDTO.builder()
                 .id("template-plt1-noise")
                 .name("PLT1-噪音分析模板")
-                .productCategory("PLT1")
+                .productPlatform("PLT1")
                 .failureType("噪音")
                 .fields(buildNoiseFields())
                 .build();
@@ -37,7 +37,7 @@ public class TemplateDataGenerator {
         return ReportTemplateDTO.builder()
                 .id("template-plt1-fracture")
                 .name("PLT1-断裂分析模板")
-                .productCategory("PLT1")
+                .productPlatform("PLT1")
                 .failureType("断裂")
                 .fields(buildFractureFields())
                 .build();
@@ -47,7 +47,7 @@ public class TemplateDataGenerator {
         return ReportTemplateDTO.builder()
                 .id("template-plt2-leak")
                 .name("PLT2-渗漏分析模板")
-                .productCategory("PLT2")
+                .productPlatform("PLT2")
                 .failureType("渗漏")
                 .fields(buildLeakFields())
                 .build();
@@ -57,7 +57,7 @@ public class TemplateDataGenerator {
         return ReportTemplateDTO.builder()
                 .id("template-default")
                 .name("通用精分析模板")
-                .productCategory("")
+                .productPlatform("")
                 .failureType("")
                 .fields(buildCommonFields())
                 .build();

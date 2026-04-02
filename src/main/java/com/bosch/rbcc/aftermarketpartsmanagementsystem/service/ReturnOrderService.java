@@ -329,7 +329,6 @@ public class ReturnOrderService {
                 .orderId(part.getOrderId())
                 .partCode(part.getPartCode())
                 .businessUnit(part.getBusinessUnit())
-                .productCategory(part.getProductCategory())
                 .productPlatform(part.getProductPlatform())
                 .productionShift(part.getProductionShift())
                 .failureType(part.getFailureType())

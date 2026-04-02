@@ -18,8 +18,8 @@ public class ReportTemplateDTO {
     private String id;
     @Schema(description = "模板名称", example = "WSA噪音分析模板")
     private String name;
-    @Schema(description = "适用产品类别", example = "WSA")
-    private String productCategory;
+    @Schema(description = "适用产品平台", example = "WSA")
+    private String productPlatform;
     @Schema(description = "适用失效类型", example = "噪音")
     private String failureType;
     private List<ReportTemplateFieldDTO> fields;
