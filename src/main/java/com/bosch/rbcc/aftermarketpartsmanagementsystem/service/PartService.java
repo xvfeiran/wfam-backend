@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PartService {
 
-    private static final String ROLE_QMC_MANAGER = "W_RBCC_AEP_WFAM_QMC_Manager";
+    private static final String ROLE_QMC_LEADER = "W_RBCC_AEP_WFAM_QMC_Manager";
 
     private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_SUBMITTED = "submitted";
@@ -169,11 +169,11 @@ public class PartService {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
 
-        // Check permission: submitted parts (with partNumber) can only be edited by QMC Manager
+        // Check permission: submitted parts (with partNumber) can only be edited by QMC Leader
         if (part.getPartNumber() != null) {
-            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
-            if (!isQMCManager) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can edit submitted parts");
+            boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
+            if (!isQMCLeader) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Leader can edit submitted parts");
             }
         }
 
@@ -203,11 +203,11 @@ public class PartService {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
 
-        // Check permission: submitted parts (with partNumber) can only be deleted by QMC Manager
+        // Check permission: submitted parts (with partNumber) can only be deleted by QMC Leader
         if (part.getPartNumber() != null) {
-            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
-            if (!isQMCManager) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can delete submitted parts");
+            boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
+            if (!isQMCLeader) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Leader can delete submitted parts");
             }
         }
 

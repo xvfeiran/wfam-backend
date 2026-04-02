@@ -31,7 +31,7 @@ public class ReturnOrderService {
 
     private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_SUBMITTED = "submitted";
-    private static final String ROLE_QMC_MANAGER = "W_RBCC_AEP_WFAM_QMC_Manager";
+    private static final String ROLE_QMC_LEADER = "W_RBCC_AEP_WFAM_QMC_Leader";
 
     private final ReturnOrderRepository orderRepo;
     private final PartRepository partRepo;
@@ -101,11 +101,11 @@ public class ReturnOrderService {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
 
-        // Check permission: non-draft orders can only be edited by QMC Manager
+        // Check permission: non-draft orders can only be edited by QMC Leader
         if (!STATUS_DRAFT.equals(order.getStatus())) {
-            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
-            if (!isQMCManager) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can edit submitted orders");
+            boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
+            if (!isQMCLeader) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Leader can edit submitted orders");
             }
         }
 
@@ -129,11 +129,11 @@ public class ReturnOrderService {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
 
-        // Check permission: non-draft orders can only be deleted by QMC Manager
+        // Check permission: non-draft orders can only be deleted by QMC Leader
         if (!STATUS_DRAFT.equals(order.getStatus())) {
-            boolean isQMCManager = hasRole(ROLE_QMC_MANAGER);
-            if (!isQMCManager) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Manager can delete submitted orders");
+            boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
+            if (!isQMCLeader) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Leader can delete submitted orders");
             }
         }
 
