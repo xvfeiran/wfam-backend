@@ -43,6 +43,12 @@ public class PartCodeController {
         return partCodeService.getById(id);
     }
 
+    @GetMapping("/by-part-code")
+    @Operation(summary = "根据零件号精确查询（用于售后件表单自动填充）")
+    public PartCode getByPartCode(@RequestParam String partCode) {
+        return partCodeService.getByPartCode(partCode);
+    }
+
     @PostMapping
     @Operation(summary = "创建零件号")
     public PartCode create(@RequestBody PartCode partCode) {

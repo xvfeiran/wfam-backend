@@ -52,6 +52,13 @@ public class PartCodeService {
         return partCodeRepository.findById(id).orElse(null);
     }
 
+    /**
+     * 根据零件号精确查询（用于售后件表单自动填充产品类型和BU）
+     */
+    public PartCode getByPartCode(String partCode) {
+        return partCodeRepository.findByPartCode(partCode).orElse(null);
+    }
+
     @Transactional
     public PartCode create(PartCode partCode) {
         if (partCodeRepository.existsByPartCode(partCode.getPartCode())) {
