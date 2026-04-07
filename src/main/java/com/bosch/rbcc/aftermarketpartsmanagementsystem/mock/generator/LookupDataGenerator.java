@@ -56,11 +56,19 @@ public class LookupDataGenerator {
     public List<Map<String, String>> getUsers() {
         return List.of(
                 Map.of("id", "user-1", "loginName", "zhangsan", "displayName", "Zhang San"),
-                Map.of("id", "user-2", "loginName", "lisi", "displayName", "Li Si"),
+                Map.of("id", "user-2", "loginName", "lisi", "displayName", "Li Si (Analyst)"),
                 Map.of("id", "user-3", "loginName", "wangwu", "displayName", "Wang Wu"),
-                Map.of("id", "user-4", "loginName", "zhaoliu", "displayName", "Zhao Liu"),
-                Map.of("id", "user-5", "loginName", "qianqi", "displayName", "Qian Qi"),
+                Map.of("id", "user-4", "loginName", "zhaoliu", "displayName", "Zhao Liu (Analyst)"),
+                Map.of("id", "user-5", "loginName", "qianqi", "displayName", "Qian Qi (Analyst)"),
                 Map.of("id", "user-6", "loginName", "sunba", "displayName", "Sun Ba")
+        );
+    }
+
+    public List<Map<String, String>> getAnalysts() {
+        return List.of(
+                Map.of("id", "user-2", "loginName", "lisi", "displayName", "Li Si (Analyst)"),
+                Map.of("id", "user-4", "loginName", "zhaoliu", "displayName", "Zhao Liu (Analyst)"),
+                Map.of("id", "user-5", "loginName", "qianqi", "displayName", "Qian Qi (Analyst)")
         );
     }
 }

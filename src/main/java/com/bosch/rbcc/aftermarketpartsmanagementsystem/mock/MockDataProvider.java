@@ -50,6 +50,10 @@ public class MockDataProvider {
         return lookupDataGenerator.getUsers();
     }
 
+    public List<java.util.Map<String, String>> getAnalysts() {
+        return lookupDataGenerator.getAnalysts();
+    }
+
     // ========== Return Orders ==========
 
     public List<ReturnOrderDTO> getOrders() {

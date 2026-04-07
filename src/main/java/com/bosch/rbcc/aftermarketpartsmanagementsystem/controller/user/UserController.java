@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -19,9 +20,12 @@ public class UserController {
 
     private final MockDataProvider mockData;
 
-    @Operation(summary = "获取系统用户列表", description = "返回 id / loginName / displayName，用于责任工程师、分析师下拉")
+    @Operation(summary = "获取系统用户列表", description = "返回 id / loginName / displayName，用于责任工程师、分析师下拉。role=analyst 时只返回分析师")
     @GetMapping
-    public List<Map<String, String>> list() {
+    public List<Map<String, String>> list(@RequestParam(required = false) String role) {
+        if ("analyst".equals(role)) {
+            return mockData.getAnalysts();
+        }
         return mockData.getUsers();
     }
 }
