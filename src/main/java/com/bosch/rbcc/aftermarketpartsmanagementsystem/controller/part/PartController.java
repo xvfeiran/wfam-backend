@@ -1,6 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.part;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisReportDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageResponse;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReportTemplateDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.mock.MockDataProvider;
@@ -24,16 +25,21 @@ public class PartController {
     private final PartService partService;
     private final MockDataProvider mockData;
 
-    @Operation(summary = "查询售后件列表", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入筛选")
+    @Operation(summary = "查询售后件列表（分页）", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入、分析员筛选，page从0开始")
     @GetMapping
-    public List<PartDTO> list(
+    public PageResponse<PartDTO> list(
             @Parameter(description = "退货单号（模糊匹配）") @RequestParam(required = false) String orderNumber,
             @Parameter(description = "零件码（模糊匹配）") @RequestParam(required = false) String partCode,
             @Parameter(description = "事业部") @RequestParam(required = false) String businessUnit,
             @Parameter(description = "产品平台") @RequestParam(required = false) String productPlatform,
             @Parameter(description = "售后件状态") @RequestParam(required = false) String status,
-            @Parameter(description = "QC录入：yes=已录，no=未录") @RequestParam(required = false) String qcCreated) {
-        return partService.list(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated);
+            @Parameter(description = "QC录入：yes=已录，no=未录") @RequestParam(required = false) String qcCreated,
+            @Parameter(description = "分析员（模糊匹配）") @RequestParam(required = false) String analyst,
+            @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
+        return PageResponse.of(
+                partService.list(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst, page, size)
+        );
     }
 
     @Operation(summary = "获取售后件详情")

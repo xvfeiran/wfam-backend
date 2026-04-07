@@ -25,10 +25,12 @@ public class CommonHeadersInterceptor implements HandlerInterceptor {
         if (HttpMethod.OPTIONS.name().equals(request.getMethod())) {
             return true;
         }
+        log.info("[Interceptor] {} {}", request.getMethod(), request.getRequestURI());
         String token = request.getHeader("x-authentication-header");
         ObjectMapper mapper = new ObjectMapper();
         CommonHeaders commonHeaders = mapper.readValue(token, CommonHeaders.class);
         CommonHeaderManager.setCommonHeaders(commonHeaders);
+        log.info("[Interceptor] preHandle done, user={}", commonHeaders.getNtAccount());
         return true;
     }
 

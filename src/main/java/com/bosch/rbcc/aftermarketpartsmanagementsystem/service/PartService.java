@@ -2,11 +2,17 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PartService {
@@ -39,74 +46,63 @@ public class PartService {
     private final ReturnOrderRepository returnOrderRepository;
     private final AnalysisOrderService analysisOrderService;
 
-    public List<PartDTO> list(String orderNumber, String partCode, String businessUnit,
-                               String productPlatform, String status, String qcCreated) {
-        List<Part> parts;
+    public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
+                              String productPlatform, String status, String qcCreated,
+                              String analyst, int page, int size) {
+        log.info("[PartService] list() start, page={}, size={}, orderNumber={}, status={}", page, size, orderNumber, status);
 
-        // 如果有 orderNumber 过滤条件，使用 JOIN 查询
-        if (orderNumber != null && !orderNumber.isBlank()) {
-            parts = partRepo.findByOrderNumber("%" + orderNumber.toUpperCase() + "%");
+        Page<Part> partPage = partRepo.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
 
-            // 应用其他过滤条件（在内存中过滤）
+            if (orderNumber != null && !orderNumber.isBlank()) {
+                // 子查询匹配退货单号
+                Subquery<String> subquery = query.subquery(String.class);
+                Root<ReturnOrder> roRoot = subquery.from(ReturnOrder.class);
+                subquery.select(roRoot.get("id"));
+                subquery.where(cb.like(cb.upper(roRoot.get("orderNumber")), "%" + orderNumber.toUpperCase() + "%"));
+                predicates.add(root.get("orderId").in(subquery));
+            }
             if (partCode != null && !partCode.isBlank()) {
-                parts = parts.stream()
-                        .filter(p -> p.getPartCode() != null && p.getPartCode().toUpperCase().contains(partCode.toUpperCase()))
-                        .collect(Collectors.toList());
+                predicates.add(cb.like(cb.upper(root.get("partCode")), "%" + partCode.toUpperCase() + "%"));
             }
             if (businessUnit != null && !businessUnit.isBlank()) {
-                parts = parts.stream()
-                        .filter(p -> businessUnit.equals(p.getBusinessUnit()))
-                        .collect(Collectors.toList());
+                predicates.add(cb.equal(root.get("businessUnit"), businessUnit));
             }
             if (productPlatform != null && !productPlatform.isBlank()) {
-                parts = parts.stream()
-                        .filter(p -> productPlatform.equals(p.getProductPlatform()))
-                        .collect(Collectors.toList());
+                predicates.add(cb.equal(root.get("productPlatform"), productPlatform));
             }
             if (status != null && !status.isBlank()) {
-                parts = parts.stream()
-                        .filter(p -> status.equals(p.getStatus()))
-                        .collect(Collectors.toList());
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (analyst != null && !analyst.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("analyst")), "%" + analyst.toLowerCase() + "%"));
             }
             if ("yes".equals(qcCreated)) {
-                parts = parts.stream()
-                        .filter(p -> p.getQcNo() != null && !p.getQcNo().isBlank())
-                        .collect(Collectors.toList());
+                predicates.add(cb.isNotNull(root.get("qcNo")));
+                predicates.add(cb.notEqual(root.get("qcNo"), ""));
             } else if ("no".equals(qcCreated)) {
-                parts = parts.stream()
-                        .filter(p -> p.getQcNo() == null || p.getQcNo().isBlank())
-                        .collect(Collectors.toList());
+                predicates.add(cb.or(
+                        cb.isNull(root.get("qcNo")),
+                        cb.equal(root.get("qcNo"), "")
+                ));
             }
-        } else {
-            // 没有 orderNumber 过滤，使用标准查询
-            parts = partRepo.findAll((root, query, cb) -> {
-                List<Predicate> predicates = new ArrayList<>();
-                if (partCode != null && !partCode.isBlank()) {
-                    predicates.add(cb.like(cb.upper(root.get("partCode")), "%" + partCode.toUpperCase() + "%"));
-                }
-                if (businessUnit != null && !businessUnit.isBlank()) {
-                    predicates.add(cb.equal(root.get("businessUnit"), businessUnit));
-                }
-                if (productPlatform != null && !productPlatform.isBlank()) {
-                    predicates.add(cb.equal(root.get("productPlatform"), productPlatform));
-                }
-                if (status != null && !status.isBlank()) {
-                    predicates.add(cb.equal(root.get("status"), status));
-                }
-                if ("yes".equals(qcCreated)) {
-                    predicates.add(cb.isNotNull(root.get("qcNo")));
-                    predicates.add(cb.notEqual(root.get("qcNo"), ""));
-                } else if ("no".equals(qcCreated)) {
-                    predicates.add(cb.or(
-                            cb.isNull(root.get("qcNo")),
-                            cb.equal(root.get("qcNo"), "")
-                    ));
-                }
-                return cb.and(predicates.toArray(new Predicate[0]));
-            });
-        }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        }, PageRequest.of(page, size));
 
-        return parts.stream().map(this::toDTO).collect(Collectors.toList());
+        log.info("[PartService] list() page {}/{}, {} records this page", page, partPage.getTotalPages(), partPage.getNumberOfElements());
+
+        // 仅对当前页批量查询退货单号
+        Set<String> orderIds = partPage.getContent().stream()
+                .map(Part::getOrderId).collect(Collectors.toSet());
+        Map<String, String> orderIdToNumber = orderIds.isEmpty()
+                ? Collections.emptyMap()
+                : returnOrderRepository.findAllById(orderIds).stream()
+                        .collect(Collectors.toMap(
+                                o -> o.getId(),
+                                o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""
+                        ));
+
+        return partPage.map(p -> buildDTO(p, orderIdToNumber.get(p.getOrderId())));
     }
 
     public PartDTO getById(String id) {
@@ -265,12 +261,20 @@ public class PartService {
         return headers.getRoleNames().contains(roleName);
     }
 
+    private PartDTO toDTO(Part part, Map<String, String> orderIdToNumber) {
+        String orderNumber = orderIdToNumber.get(part.getOrderId());
+        return buildDTO(part, orderNumber);
+    }
+
     private PartDTO toDTO(Part part) {
-        // 从退货单表中查询关联的退货单编号
+        // 从退货单表中查询关联的退货单编号（单条查询场景）
         String orderNumber = returnOrderRepository.findById(part.getOrderId())
                 .map(order -> order.getOrderNumber())
                 .orElse(null);
+        return buildDTO(part, orderNumber);
+    }
 
+    private PartDTO buildDTO(Part part, String orderNumber) {
         return PartDTO.builder()
                 .id(part.getId())
                 .partNumber(part.getPartNumber())
