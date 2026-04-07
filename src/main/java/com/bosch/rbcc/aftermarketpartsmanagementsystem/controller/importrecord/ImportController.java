@@ -49,6 +49,25 @@ public class ImportController {
         return record;
     }
 
+    @Operation(
+        summary = "导入售后件（异步）",
+        description = "立即返回 status=processing 的记录；后台异步处理文件；通过 GET /imports/{id} 轮询结果"
+    )
+    @PostMapping("/parts")
+    public ImportRecordDTO importParts(@RequestParam("file") MultipartFile file) throws IOException {
+        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown.xlsx";
+        log.info("[ImportController] 收到售后件导入请求: fileName={}, size={} bytes", fileName, file.getSize());
+
+        byte[] fileBytes = file.getBytes();
+
+        ImportRecordDTO record = importService.createPendingPartRecord(fileName);
+        log.info("[ImportController] 返回售后件导入 processing 记录: id={}", record.getId());
+
+        importService.processPartsAsync(record.getId(), fileBytes);
+
+        return record;
+    }
+
     @Operation(summary = "查询单条导入记录（用于轮询状态）")
     @GetMapping("/{id}")
     public ImportRecordDTO getById(@PathVariable String id) {

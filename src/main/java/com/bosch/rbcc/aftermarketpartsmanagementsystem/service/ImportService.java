@@ -1,9 +1,11 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImportRecordDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ImportRecord;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ImportRecordRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.PartImportParser;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.ReturnOrderImportParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,9 +37,12 @@ public class ImportService {
     public static final String STATUS_FAILED     = "failed";
 
     private static final String TYPE_RETURN_ORDER = "return_order";
+    private static final String TYPE_PART = "part";
 
     private final ReturnOrderImportParser returnOrderImportParser;
+    private final PartImportParser partImportParser;
     private final ReturnOrderService returnOrderService;
+    private final PartService partService;
     private final ImportRecordRepository importRecordRepo;
     private final ObjectMapper objectMapper;
 
@@ -115,6 +120,103 @@ public class ImportService {
                 entry.put("orderNumber",   created.getOrderNumber());
                 entry.put("receiveDate",   created.getReceiveDate());
                 entry.put("trackingNumber", created.getTrackingNumber());
+                importLogEntries.add(entry);
+
+            } catch (Exception e) {
+                String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                log.warn("[Import] [{}] 第{}行写入失败: {}", recordId, result.getRowNum(), errMsg, e);
+
+                Map<String, Object> failEntry = new java.util.LinkedHashMap<>();
+                failEntry.put("row",     result.getRowNum());
+                failEntry.put("status",  "failed");
+                failEntry.put("error",   errMsg);
+                failEntry.put("rawData", result.getRawData());
+                failLogEntries.add(failEntry);
+                importLogEntries.add(failEntry);
+            }
+        }
+
+        int failCount = totalCount - successCount;
+        String failLogs   = serialize(failLogEntries);
+        String importLogs = serialize(importLogEntries);
+
+        log.info("[Import] [{}] 处理完成 — 总计: {}, 成功: {}, 失败: {}",
+                recordId, totalCount, successCount, failCount);
+
+        // 3. 更新记录为 completed
+        markCompleted(recordId, totalCount, successCount, failCount, failLogs, importLogs);
+    }
+
+    // ─────────────────────────────────────────────
+    // 售后件导入
+    // ─────────────────────────────────────────────
+
+    @Transactional
+    public ImportRecordDTO createPendingPartRecord(String fileName) {
+        log.info("[Import] 创建售后件导入记录: fileName={}", fileName);
+        ImportRecord record = ImportRecord.builder()
+                .id(UUID.randomUUID().toString())
+                .importType(TYPE_PART)
+                .fileName(fileName)
+                .status(STATUS_PROCESSING)
+                .totalCount(0)
+                .successCount(0)
+                .failCount(0)
+                .failLogs("[]")
+                .build();
+        importRecordRepo.save(record);
+        log.info("[Import] 售后件导入记录已创建: id={}, status=processing", record.getId());
+        return toDTO(record);
+    }
+
+    @Async("importTaskExecutor")
+    public void processPartsAsync(String recordId, byte[] fileBytes) {
+        log.info("[Import] [{}] 售后件异步任务启动，线程: {}", recordId, Thread.currentThread().getName());
+
+        // 1. 解析 Excel
+        List<PartImportParser.ParseResult> parseResults;
+        try {
+            parseResults = partImportParser.parseBytes(fileBytes);
+        } catch (Exception e) {
+            log.error("[Import] [{}] 文件解析异常: {}", recordId, e.getMessage(), e);
+            markFailed(recordId, "文件解析失败: " + e.getMessage());
+            return;
+        }
+
+        int totalCount = parseResults.size();
+        log.info("[Import] [{}] 解析到 {} 行数据，开始逐行写入", recordId, totalCount);
+
+        // 2. 逐行创建售后件
+        int successCount = 0;
+        List<Map<String, Object>> failLogEntries   = new ArrayList<>();
+        List<Map<String, Object>> importLogEntries = new ArrayList<>();
+
+        for (PartImportParser.ParseResult result : parseResults) {
+            if (!result.isSuccess()) {
+                log.warn("[Import] [{}] 第{}行解析失败: {}", recordId, result.getRowNum(), result.getError());
+                Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("row",     result.getRowNum());
+                entry.put("status",  "failed");
+                entry.put("error",   result.getError());
+                entry.put("rawData", result.getRawData());
+                failLogEntries.add(entry);
+                importLogEntries.add(entry);
+                continue;
+            }
+
+            try {
+                PartDTO created = partService.create(result.getDto());
+                successCount++;
+                log.debug("[Import] [{}] 第{}行写入成功: orderNumber={}, partCode={}",
+                        recordId, result.getRowNum(), created.getOrderNumber(), created.getPartCode());
+
+                Map<String, Object> entry = new java.util.LinkedHashMap<>();
+                entry.put("row",         result.getRowNum());
+                entry.put("status",      "success");
+                entry.put("orderId",     created.getId());
+                entry.put("orderNumber", created.getOrderNumber());
+                entry.put("partCode",    created.getPartCode());
+                entry.put("partNumber",  created.getPartNumber());
                 importLogEntries.add(entry);
 
             } catch (Exception e) {
