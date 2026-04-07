@@ -1,6 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.lookup;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.mock.MockDataProvider;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.PartCodeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,14 +22,15 @@ import java.util.Map;
 public class LookupController {
 
     private final MockDataProvider mockData;
+    private final PartCodeService partCodeService;
 
     @Operation(summary = "获取所有下拉选项数据")
     @GetMapping
     public Map<String, List<String>> getAllLookups() {
         Map<String, List<String>> result = new LinkedHashMap<>();
         result.put("customers", mockData.getCustomers());
-        result.put("businessUnits", mockData.getBusinessUnits());
-        result.put("productPlatforms", mockData.getProductPlatforms());
+        result.put("businessUnits", partCodeService.getDistinctBusinessUnits());
+        result.put("productPlatforms", partCodeService.getDistinctProductPlatforms());
         result.put("productCategories", mockData.getProductCategories());
         result.put("failureTypes", mockData.getFailureTypes());
         return result;
@@ -39,8 +41,8 @@ public class LookupController {
     public List<String> getLookup(@Parameter(description = "数据类型") @PathVariable String type) {
         return switch (type) {
             case "customers" -> mockData.getCustomers();
-            case "business-units" -> mockData.getBusinessUnits();
-            case "product-platforms" -> mockData.getProductPlatforms();
+            case "business-units" -> partCodeService.getDistinctBusinessUnits();
+            case "product-platforms" -> partCodeService.getDistinctProductPlatforms();
             case "product-categories" -> mockData.getProductCategories();
             case "failure-types" -> mockData.getFailureTypes();
             default -> List.of();

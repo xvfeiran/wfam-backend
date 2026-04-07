@@ -49,7 +49,6 @@ public class PartService {
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
                               String productPlatform, String status, String qcCreated,
                               String analyst, int page, int size) {
-        log.info("[PartService] list() start, page={}, size={}, orderNumber={}, status={}", page, size, orderNumber, status);
 
         Page<Part> partPage = partRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -88,8 +87,6 @@ public class PartService {
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         }, PageRequest.of(page, size));
-
-        log.info("[PartService] list() page {}/{}, {} records this page", page, partPage.getTotalPages(), partPage.getNumberOfElements());
 
         // 仅对当前页批量查询退货单号
         Set<String> orderIds = partPage.getContent().stream()

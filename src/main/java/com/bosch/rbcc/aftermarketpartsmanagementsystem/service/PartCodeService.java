@@ -59,6 +59,14 @@ public class PartCodeService {
         return partCodeRepository.findByPartCode(partCode).orElse(null);
     }
 
+    public List<String> getDistinctBusinessUnits() {
+        return partCodeRepository.findDistinctBusinessUnits();
+    }
+
+    public List<String> getDistinctProductPlatforms() {
+        return partCodeRepository.findDistinctProductPlatforms();
+    }
+
     @Transactional
     public PartCode create(PartCode partCode) {
         if (partCodeRepository.existsByPartCode(partCode.getPartCode())) {
