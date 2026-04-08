@@ -45,6 +45,7 @@ public class PartService {
     private final PartRepository partRepo;
     private final ReturnOrderRepository returnOrderRepository;
     private final AnalysisOrderService analysisOrderService;
+    private final OcrService ocrService;
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
                               String productPlatform, String status, String qcCreated,
@@ -109,7 +110,7 @@ public class PartService {
     }
 
     @Transactional
-    public PartDTO create(PartDTO dto) {
+    public PartDTO create(PartDTO dto, String ocrTaskId) {
         // Check if the associated return order allows adding new parts
         var returnOrder = returnOrderRepository.findById(dto.getOrderId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId()));
@@ -153,6 +154,11 @@ public class PartService {
 
         // 触发分析单自动创建（幂等）
         analysisOrderService.getOrCreate(dto.getOrderId(), dto.getAnalyst());
+
+        // 绑定 OCR 任务（新建模式下在此时才有 partId）
+        if (ocrTaskId != null && !ocrTaskId.isBlank()) {
+            ocrService.bindTaskToPart(ocrTaskId, part.getId());
+        }
 
         return toDTO(part);
     }

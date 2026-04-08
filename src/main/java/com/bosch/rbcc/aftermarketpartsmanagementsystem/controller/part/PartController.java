@@ -51,8 +51,11 @@ public class PartController {
     @Operation(summary = "新建售后件")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PartDTO create(@RequestBody PartDTO dto) {
-        return partService.create(dto);
+    public PartDTO create(
+            @RequestBody PartDTO dto,
+            @Parameter(description = "关联的 OCR 任务 ID（新建模式下由前端传入以完成绑定）")
+            @RequestParam(value = "ocrTaskId", required = false) String ocrTaskId) {
+        return partService.create(dto, ocrTaskId);
     }
 
     @Operation(summary = "更新售后件")
