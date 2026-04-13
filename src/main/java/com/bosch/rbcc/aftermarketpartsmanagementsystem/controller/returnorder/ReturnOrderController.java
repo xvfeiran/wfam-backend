@@ -40,11 +40,16 @@ public class ReturnOrderController {
     public PageResponse<ReturnOrderDTO> list(
             @Parameter(description = "退货单号（模糊匹配）") @RequestParam(required = false) String orderNumber,
             @Parameter(description = "客户名称") @RequestParam(required = false) String customer,
-            @Parameter(description = "退货单状态") @RequestParam(required = false) String status,
+            @Parameter(description = "退货单状态（单个）") @RequestParam(required = false) String status,
+            @Parameter(description = "退货单状态列表（多选）") @RequestParam(required = false) List<String> statuses,
             @Parameter(description = "收件日期开始") @RequestParam(required = false) String receiveDateStart,
             @Parameter(description = "收件日期结束") @RequestParam(required = false) String receiveDateEnd,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        Page<ReturnOrderDTO> page = returnOrderService.list(orderNumber, customer, status, receiveDateStart, receiveDateEnd, pageable);
+        // 合并 status 和 statuses 参数
+        List<String> mergedStatuses = new java.util.ArrayList<>();
+        if (status != null && !status.isBlank()) mergedStatuses.add(status);
+        if (statuses != null) mergedStatuses.addAll(statuses);
+        Page<ReturnOrderDTO> page = returnOrderService.list(orderNumber, customer, mergedStatuses.isEmpty() ? null : mergedStatuses, receiveDateStart, receiveDateEnd, pageable);
         return PageResponse.of(page);
     }
 

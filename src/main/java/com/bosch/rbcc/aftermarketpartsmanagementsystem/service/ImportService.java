@@ -205,7 +205,7 @@ public class ImportService {
             }
 
             try {
-                PartDTO created = partService.create(result.getDto());
+                PartDTO created = partService.create(result.getDto(), null);
                 successCount++;
                 log.debug("[Import] [{}] 第{}行写入成功: orderNumber={}, partCode={}",
                         recordId, result.getRowNum(), created.getOrderNumber(), created.getPartCode());

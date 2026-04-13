@@ -37,7 +37,7 @@ public class ReturnOrderService {
     private final PartRepository partRepo;
     private final ReturnOrderExcelHandler excelHandler;
 
-    public Page<ReturnOrderDTO> list(String orderNumber, String customer, String status,
+    public Page<ReturnOrderDTO> list(String orderNumber, String customer, List<String> statuses,
                                       String receiveDateStart, String receiveDateEnd, Pageable pageable) {
         Page<ReturnOrder> page = orderRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -51,8 +51,8 @@ public class ReturnOrderService {
                     cb.equal(root.get("customer"), customer)
                 ));
             }
-            if (status != null && !status.isBlank()) {
-                predicates.add(cb.equal(root.get("status"), status));
+            if (statuses != null && !statuses.isEmpty()) {
+                predicates.add(root.get("status").in(statuses));
             }
             if (receiveDateStart != null && !receiveDateStart.isBlank()) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("receiveDate"), LocalDate.parse(receiveDateStart)));
