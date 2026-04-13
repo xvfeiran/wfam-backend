@@ -3,6 +3,7 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReportTemplateDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReportTemplateFieldDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReportTemplate;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisReportRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReportTemplateRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -14,6 +15,8 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -34,6 +37,7 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 public class ReportTemplateService {
 
     private final ReportTemplateRepository repository;
+    private final AnalysisReportRepository analysisReportRepository;
     private final ExcelTemplateParserService parserService;
     private final ObjectMapper objectMapper;
 
@@ -149,6 +153,12 @@ public class ReportTemplateService {
         if (!repository.existsById(id)) {
             throw new IllegalArgumentException("Template not found: " + id);
         }
+
+        long usageCount = analysisReportRepository.countByTemplateId(id);
+        if (usageCount > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "该模板已被使用，不能删除");
+        }
+
         repository.deleteById(id);
         log.info("Template deleted: id={}", id);
     }
