@@ -5,7 +5,6 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaders;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
@@ -13,7 +12,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import tools.jackson.databind.ObjectMapper;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class CommonHeadersInterceptor implements HandlerInterceptor {
@@ -25,12 +23,10 @@ public class CommonHeadersInterceptor implements HandlerInterceptor {
         if (HttpMethod.OPTIONS.name().equals(request.getMethod())) {
             return true;
         }
-        log.info("[Interceptor] {} {}", request.getMethod(), request.getRequestURI());
         String token = request.getHeader("x-authentication-header");
         ObjectMapper mapper = new ObjectMapper();
         CommonHeaders commonHeaders = mapper.readValue(token, CommonHeaders.class);
         CommonHeaderManager.setCommonHeaders(commonHeaders);
-        log.info("[Interceptor] preHandle done, user={}", commonHeaders.getNtAccount());
         return true;
     }
 

@@ -29,11 +29,13 @@ $env:Path = "$MavenBin;$env:JAVA_HOME\bin;$env:Path"
 Write-Host ">>> Launching Spring Boot with 'local' profile..." -ForegroundColor Cyan
 try {
     # Quoting -D parameters is mandatory in PowerShell
-    mvn clean spring-boot:run -Plocal "-Dspring-boot.run.profiles=local" -DskipTests "-Dspring-boot.run.fork=true"
+    mvn --no-transfer-progress clean spring-boot:run -Plocal "-Dspring-boot.run.profiles=local" -DskipTests "-Dspring-boot.run.fork=true"
 }
 finally {
     Write-Host "`n>>> Stopping Watcher Job..." -ForegroundColor Red
-    Stop-Job $job
-    Remove-Job $job
+    if ($job) {
+        Stop-Job $job
+        Remove-Job $job
+    }
     Write-Host ">>> Dev Mode Closed Safely." -ForegroundColor Red
 }

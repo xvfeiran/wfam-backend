@@ -6,6 +6,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.OcrTaskReposit
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -24,7 +25,15 @@ public class OcrAsyncProcessor {
 
     private static final Random RANDOM = new Random();
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final double TASK_FAIL_RATE = 0.3;
+
+    @Value("${ocr.mock.fail-enabled:false}")
+    private boolean failEnabled;
+
+    @Value("${ocr.mock.fail-message:OCR 服务暂时不可用，请手动填写}")
+    private String failMessage;
+
+    @Value("${ocr.mock.processing-delay-ms:30000}")
+    private long processingDelayMs;
 
     private final OcrTaskRepository ocrTaskRepo;
     private final ObjectMapper objectMapper;
@@ -44,17 +53,17 @@ public class OcrAsyncProcessor {
         markProcessing(taskId);
 
         try {
-            log.info("OCR 识别开始: taskId={}, 延迟 30s", taskId);
-            Thread.sleep(30_000L);
+            log.info("OCR 识别开始: taskId={}, 延迟 {} ms", taskId, processingDelayMs);
+            Thread.sleep(processingDelayMs);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             markFailed(taskId, "识别被中断");
             return;
         }
 
-        if (RANDOM.nextDouble() < TASK_FAIL_RATE) {
-            log.warn("OCR 识别随机失败（降级）: taskId={}", taskId);
-            markFailed(taskId, "OCR 服务暂时不可用，请手动填写");
+        if (failEnabled) {
+            log.warn("OCR 识别按配置失败: taskId={}, reason={}", taskId, failMessage);
+            markFailed(taskId, failMessage);
             return;
         }
 

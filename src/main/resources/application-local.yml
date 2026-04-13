@@ -1,4 +1,7 @@
 spring:
+  main:
+    banner-mode: off
+    log-startup-info: false
   datasource:
     driverClassName: oracle.jdbc.OracleDriver
     url: jdbc:oracle:thin:@cngorarac01.apac.bosch.com:38000/aepqual_app.apac.bosch.com?currentSchema=SUPER_LINE_LEADER
@@ -28,3 +31,18 @@ springdoc:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.springdoc: ERROR
+    com.zaxxer.hikari: WARN
+    org.apache.catalina: WARN
+
+ocr:
+  mock:
+    fail-enabled: true
+    fail-message: OCR mock识别失败，请手动补全必填字段后保存
+    processing-delay-ms: 3000

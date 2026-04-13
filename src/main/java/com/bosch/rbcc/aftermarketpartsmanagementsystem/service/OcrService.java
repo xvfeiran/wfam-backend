@@ -21,12 +21,15 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OcrService {
+
+    public record OcrImagePayload(byte[] content, String contentType) {}
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -79,6 +82,75 @@ public class OcrService {
             }
         }
         return toDTO(task, result);
+    }
+
+    @Transactional(readOnly = true)
+    public OcrTaskDTO getLatestTaskByPartId(String partId) {
+        OcrTask task = ocrTaskRepo.findFirstByPartIdAndFilePathIsNotNullOrderByCreatedAtDesc(partId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到 OCR 图片: partId=" + partId));
+
+        OcrResultDTO result = null;
+        if (OcrTask.STATUS_SUCCESS.equals(task.getStatus()) && task.getResultJson() != null) {
+            try {
+                result = objectMapper.readValue(task.getResultJson(), OcrResultDTO.class);
+            } catch (Exception e) {
+                log.error("解析 OCR 结果 JSON 失败: taskId={}", task.getId(), e);
+            }
+        }
+        return toDTO(task, result);
+    }
+
+    @Transactional(readOnly = true)
+    public OcrImagePayload getTaskImage(String taskId) {
+        OcrTask task = ocrTaskRepo.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 任务不存在: " + taskId));
+
+        if (task.getFilePath() == null || task.getFilePath().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 图片不存在: taskId=" + taskId);
+        }
+
+        try {
+            Path imagePath = Path.of(task.getFilePath());
+            if (!Files.exists(imagePath)) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 图片文件不存在: taskId=" + taskId);
+            }
+
+            byte[] bytes = Files.readAllBytes(imagePath);
+            String contentType = Files.probeContentType(imagePath);
+            if (contentType == null || contentType.isBlank()) {
+                contentType = inferContentTypeFromPath(imagePath);
+            }
+            return new OcrImagePayload(bytes, contentType);
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "读取 OCR 图片失败", e);
+        }
+    }
+
+    @Transactional
+    public OcrTaskDTO retryTask(String taskId) {
+        OcrTask task = ocrTaskRepo.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 任务不存在: " + taskId));
+
+        if (task.getFilePath() == null || task.getFilePath().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OCR 任务缺少原图，无法重试");
+        }
+
+        Path imagePath = Path.of(task.getFilePath());
+        if (!Files.exists(imagePath)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 原图不存在，无法重试");
+        }
+
+        if (OcrTask.STATUS_PROCESSING.equals(task.getStatus()) || OcrTask.STATUS_CREATED.equals(task.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "OCR 任务正在处理中，请稍后重试");
+        }
+
+        task.setStatus(OcrTask.STATUS_CREATED);
+        task.setResultJson(null);
+        task.setErrorMessage(null);
+        ocrTaskRepo.save(task);
+
+        asyncProcessor.process(taskId);
+        return toDTO(task, null);
     }
 
     /**
@@ -189,5 +261,16 @@ public class OcrService {
                 .errorMessage(task.getErrorMessage())
                 .createdAt(task.getCreatedAt())
                 .build();
+    }
+
+    private String inferContentTypeFromPath(Path imagePath) {
+        String fileName = imagePath.getFileName() != null ? imagePath.getFileName().toString().toLowerCase(Locale.ROOT) : "";
+        if (fileName.endsWith(".png")) {
+            return "image/png";
+        }
+        if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        return "application/octet-stream";
     }
 }

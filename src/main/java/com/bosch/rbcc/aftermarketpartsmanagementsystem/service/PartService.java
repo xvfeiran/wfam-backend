@@ -250,7 +250,9 @@ public class PartService {
     }
 
     private String generatePartNumber(String bu, String productPlatform) {
-        String prefix = bu + "-" + productPlatform + "-";
+        String safeBu = (bu == null || bu.isBlank()) ? "NA" : bu;
+        String safePlatform = (productPlatform == null || productPlatform.isBlank()) ? "NA" : productPlatform;
+        String prefix = safeBu + "-" + safePlatform + "-";
         // startPos: 1-based index after the prefix (e.g. "RBCA-BS-" = 8 chars, seq starts at pos 9)
         int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
         return prefix + String.format("%04d", maxSeq + 1);
