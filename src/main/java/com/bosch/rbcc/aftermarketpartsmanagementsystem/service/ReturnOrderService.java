@@ -215,8 +215,9 @@ public class ReturnOrderService {
 
     public byte[] exportToExcel(String orderNumber, String customer, String status,
                                  String receiveDateStart, String receiveDateEnd) {
+        List<String> statuses = (status != null && !status.isBlank()) ? List.of(status) : null;
         // 先计算总量，超限则拒绝，避免生成超大文件
-        long total = list(orderNumber, customer, status, receiveDateStart, receiveDateEnd,
+        long total = list(orderNumber, customer, statuses, receiveDateStart, receiveDateEnd,
                 org.springframework.data.domain.PageRequest.of(0, 1)).getTotalElements();
 
         if (total > EXPORT_MAX_ROWS) {
@@ -224,7 +225,7 @@ public class ReturnOrderService {
                     "导出数量（" + total + " 条）超过上限 " + EXPORT_MAX_ROWS + " 条，请添加筛选条件缩小范围后重试");
         }
 
-        List<ReturnOrderDTO> orders = list(orderNumber, customer, status, receiveDateStart, receiveDateEnd,
+        List<ReturnOrderDTO> orders = list(orderNumber, customer, statuses, receiveDateStart, receiveDateEnd,
                 org.springframework.data.domain.PageRequest.of(0, EXPORT_MAX_ROWS)).getContent();
         return excelHandler.exportToExcel(orders);
     }
