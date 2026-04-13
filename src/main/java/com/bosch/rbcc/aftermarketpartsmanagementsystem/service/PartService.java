@@ -132,24 +132,25 @@ public class PartService {
 
         Part part = Part.builder()
                 .id(UUID.randomUUID().toString())
-                .orderId(dto.getOrderId())
-                .partCode(dto.getPartCode())
-                .businessUnit(dto.getBusinessUnit())
-                .productPlatform(dto.getProductPlatform())
-                .productionShift(dto.getProductionShift())
-                .failureType(dto.getFailureType())
-                .boschFailureType(dto.getBoschFailureType())
+            .orderId(trimText(dto.getOrderId()))
+            .partCode(trimText(dto.getPartCode()))
+            .businessUnit(trimText(dto.getBusinessUnit()))
+            .productPlatform(trimText(dto.getProductPlatform()))
+            .productionShift(trimText(dto.getProductionShift()))
+            .failureType(trimText(dto.getFailureType()))
+            .boschFailureType(trimText(dto.getBoschFailureType()))
                 .vehicleProductionDate(parseDate(dto.getVehicleProductionDate()))
                 .vehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()))
                 .vehicleFailureDate(parseDate(dto.getVehicleFailureDate()))
-                .vehicleVin(dto.getVehicleVIN())
+            .vehicleVin(trimText(dto.getVehicleVIN()))
                 .vehicleMileage(dto.getVehicleMileage())
-                .customerDescription(dto.getCustomerDescription())
-                .otherDescription(dto.getOtherDescription())
-                .repairStation(dto.getRepairStation())
-                .complaintLocation(dto.getComplaintLocation())
-                .responsibleEngineer(dto.getResponsibleEngineer())
-                .analyst(dto.getAnalyst())
+            .customerDescription(trimText(dto.getCustomerDescription()))
+            .otherDescription(trimText(dto.getOtherDescription()))
+            .repairStation(trimText(dto.getRepairStation()))
+            .complaintLocation(trimText(dto.getComplaintLocation()))
+            .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
+            .analyst(trimText(dto.getAnalyst()))
+            .qcNo(trimText(dto.getQcNo()))
                 .status(STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
@@ -179,23 +180,23 @@ public class PartService {
             }
         }
 
-        part.setPartCode(dto.getPartCode());
-        part.setBusinessUnit(dto.getBusinessUnit());
-        part.setProductPlatform(dto.getProductPlatform());
-        part.setProductionShift(dto.getProductionShift());
-        part.setFailureType(dto.getFailureType());
-        part.setBoschFailureType(dto.getBoschFailureType());
+        part.setPartCode(trimText(dto.getPartCode()));
+        part.setBusinessUnit(trimText(dto.getBusinessUnit()));
+        part.setProductPlatform(trimText(dto.getProductPlatform()));
+        part.setProductionShift(trimText(dto.getProductionShift()));
+        part.setFailureType(trimText(dto.getFailureType()));
+        part.setBoschFailureType(trimText(dto.getBoschFailureType()));
         part.setVehicleProductionDate(parseDate(dto.getVehicleProductionDate()));
         part.setVehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()));
         part.setVehicleFailureDate(parseDate(dto.getVehicleFailureDate()));
-        part.setVehicleVin(dto.getVehicleVIN());
+        part.setVehicleVin(trimText(dto.getVehicleVIN()));
         part.setVehicleMileage(dto.getVehicleMileage());
-        part.setCustomerDescription(dto.getCustomerDescription());
-        part.setOtherDescription(dto.getOtherDescription());
-        part.setRepairStation(dto.getRepairStation());
-        part.setComplaintLocation(dto.getComplaintLocation());
-        part.setResponsibleEngineer(dto.getResponsibleEngineer());
-        part.setAnalyst(dto.getAnalyst());
+        part.setCustomerDescription(trimText(dto.getCustomerDescription()));
+        part.setOtherDescription(trimText(dto.getOtherDescription()));
+        part.setRepairStation(trimText(dto.getRepairStation()));
+        part.setComplaintLocation(trimText(dto.getComplaintLocation()));
+        part.setResponsibleEngineer(trimText(dto.getResponsibleEngineer()));
+        part.setAnalyst(trimText(dto.getAnalyst()));
         partRepo.save(part);
         return toDTO(part);
     }
@@ -262,8 +263,8 @@ public class PartService {
     }
 
     private String generatePartNumber(String bu, String productPlatform) {
-        String safeBu = (bu == null || bu.isBlank()) ? "NA" : bu;
-        String safePlatform = (productPlatform == null || productPlatform.isBlank()) ? "NA" : productPlatform;
+        String safeBu = (bu == null || bu.isBlank()) ? "Null" : bu;
+        String safePlatform = (productPlatform == null || productPlatform.isBlank()) ? "Null" : productPlatform;
         String prefix = safeBu + "-" + safePlatform + "-";
         // startPos: 1-based index after the prefix (e.g. "RBCA-BS-" = 8 chars, seq starts at pos 9)
         int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
@@ -327,5 +328,9 @@ public class PartService {
     private LocalDate parseDate(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+    }
+
+    private String trimText(String value) {
+        return value == null ? null : value.trim();
     }
 }

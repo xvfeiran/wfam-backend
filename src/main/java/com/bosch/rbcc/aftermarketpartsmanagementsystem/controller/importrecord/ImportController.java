@@ -1,5 +1,6 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.importrecord;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImportFileSummaryDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImportRecordDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageResponse;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ImportService;
@@ -12,10 +13,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Tag(name = "导入管理", description = "Excel 导入及导入记录查询")
@@ -68,11 +73,52 @@ public class ImportController {
         return record;
     }
 
+    @Operation(
+        summary = "按文件夹导入售后件（递归，异步）",
+        description = "传入后端可访问的目录路径；递归扫描子文件夹内的 .xls/.xlsx；通过 GET /imports/{id} 轮询结果"
+    )
+    @PostMapping("/parts/folder")
+    public ImportRecordDTO importPartsFromFolder(@RequestBody PartFolderImportRequest request) {
+        if (request == null || request.getFolderPath() == null || request.getFolderPath().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "folderPath is required");
+        }
+
+        String folderPath = request.getFolderPath().trim();
+        log.info("[ImportController] 收到售后件目录导入请求: folderPath={}", folderPath);
+
+        ImportRecordDTO record = importService.createPendingPartRecord("[FOLDER] " + folderPath);
+        log.info("[ImportController] 返回售后件目录导入 processing 记录: id={}", record.getId());
+
+        importService.processPartsFolderAsync(record.getId(), folderPath);
+        return record;
+    }
+
     @Operation(summary = "查询单条导入记录（用于轮询状态）")
     @GetMapping("/{id}")
     public ImportRecordDTO getById(@PathVariable String id) {
         log.debug("[ImportController] 查询导入记录: id={}", id);
         return importService.getById(id);
+    }
+
+    @Operation(summary = "查询导入详情中的文件汇总列表")
+    @GetMapping("/{id}/files")
+    public List<ImportFileSummaryDTO> listFiles(@PathVariable String id) {
+        return importService.listImportFiles(id);
+    }
+
+    @Operation(summary = "按文件名分页查询导入日志")
+    @GetMapping("/{id}/logs")
+    public PageResponse<Map<String, Object>> listLogsByFile(
+            @PathVariable String id,
+            @RequestParam String fileName,
+            @PageableDefault(size = 200) Pageable pageable) {
+        return PageResponse.of(importService.listImportLogsByFile(id, fileName, pageable));
+    }
+
+    @Operation(summary = "删除本次导入产生的数据")
+    @DeleteMapping("/{id}/records")
+    public ImportRecordDTO deleteImportedData(@PathVariable String id) {
+        return importService.requestDeleteImportedData(id);
     }
 
     @Operation(summary = "查询导入记录列表")

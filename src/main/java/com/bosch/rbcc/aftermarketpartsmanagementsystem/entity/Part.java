@@ -58,7 +58,7 @@ public class Part {
     @Column(name = "VEHICLE_FAILURE_DATE")
     private LocalDate vehicleFailureDate;
 
-    @Column(name = "VEHICLE_VIN", length = 17)
+    @Column(name = "VEHICLE_VIN", length = 255)
     private String vehicleVin;
 
     @Column(name = "VEHICLE_MILEAGE")

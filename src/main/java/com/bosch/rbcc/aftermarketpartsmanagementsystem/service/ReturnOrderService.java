@@ -261,8 +261,8 @@ public class ReturnOrderService {
     }
 
     /**
-     * 导入专用：创建退货单并直接提交（状态为 in_initial_analysis）。
-     * 退货单号年份取自收货时间，而非当前系统年份。
+     * 导入专用：创建退货单并直接提交。
+     * 若 DTO 已带退货单号，则优先使用 Excel 中的退货单号；否则按年份规则生成。
      * 返回包含 orderId 和 orderNumber 的 DTO。
      */
     @Transactional
@@ -270,8 +270,17 @@ public class ReturnOrderService {
         LocalDate receiveDate   = parseDate(dto.getReceiveDate());
         LocalDate complaintDate = parseDate(dto.getComplaintDate());
 
-        int year = (receiveDate != null) ? receiveDate.getYear() : LocalDate.now().getYear();
-        String orderNumber = generateOrderNumberForYear(year);
+        String orderNumber = dto.getOrderNumber();
+        if (orderNumber != null) {
+            orderNumber = orderNumber.trim();
+        }
+        if (orderNumber == null || orderNumber.isBlank()) {
+            int year = (receiveDate != null) ? receiveDate.getYear() : LocalDate.now().getYear();
+            orderNumber = generateOrderNumberForYear(year);
+        }
+        if (orderRepo.findByOrderNumber(orderNumber).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "退货单号已存在: " + orderNumber);
+        }
 
         ReturnOrder order = ReturnOrder.builder()
                 .id(UUID.randomUUID().toString())
