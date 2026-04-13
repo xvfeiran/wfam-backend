@@ -4,8 +4,9 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisReportDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageResponse;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReportTemplateDTO;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.mock.MockDataProvider;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.AnalysisReportService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.PartService;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ReportTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +24,8 @@ import java.util.Map;
 public class PartController {
 
     private final PartService partService;
-    private final MockDataProvider mockData;
+    private final AnalysisReportService analysisReportService;
+    private final ReportTemplateService reportTemplateService;
 
     @Operation(summary = "查询售后件列表（分页）", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入、分析员筛选，page从0开始")
     @GetMapping
@@ -83,27 +85,16 @@ public class PartController {
         return partService.updateQcNo(id, body.get("qcNo"));
     }
 
-    @Operation(summary = "获取售后件的分析报告", description = "暂用 Mock 数据")
+    @Operation(summary = "获取售后件的分析报告")
     @GetMapping("/{id}/reports")
     public List<AnalysisReportDTO> getReports(@PathVariable String id) {
-        return mockData.getReports().stream()
-                .filter(r -> r.getPartId().equals(id))
-                .toList();
+        return analysisReportService.getByPartId(id);
     }
 
     @Operation(summary = "获取售后件匹配的分析模板", description = "根据产品类别和失效类型匹配模板，无匹配则返回默认模板")
     @GetMapping("/{id}/templates")
     public ReportTemplateDTO getMatchedTemplate(@PathVariable String id) {
         PartDTO part = partService.getById(id);
-        return mockData.getTemplates().stream()
-                .filter(t -> t.getProductPlatform() != null
-                        && t.getProductPlatform().equals(part.getProductPlatform())
-                        && t.getFailureType() != null
-                        && t.getFailureType().equals(part.getFailureType()))
-                .findFirst()
-                .orElse(mockData.getTemplates().stream()
-                        .filter(t -> t.getId().equals("template-default"))
-                        .findFirst()
-                        .orElse(null));
+        return reportTemplateService.matchTemplate(part.getProductPlatform(), part.getFailureType());
     }
 }

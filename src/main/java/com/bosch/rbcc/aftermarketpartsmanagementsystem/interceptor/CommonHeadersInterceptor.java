@@ -5,6 +5,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaders;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
@@ -13,8 +14,11 @@ import org.springframework.web.servlet.ModelAndView;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class CommonHeadersInterceptor implements HandlerInterceptor {
+
+    private static final String AUTH_HEADER = "x-authentication-header";
 
     @Override
     public boolean preHandle(HttpServletRequest request, @NonNull HttpServletResponse response,
@@ -23,11 +27,31 @@ public class CommonHeadersInterceptor implements HandlerInterceptor {
         if (HttpMethod.OPTIONS.name().equals(request.getMethod())) {
             return true;
         }
-        String token = request.getHeader("x-authentication-header");
-        ObjectMapper mapper = new ObjectMapper();
-        CommonHeaders commonHeaders = mapper.readValue(token, CommonHeaders.class);
+        String token = request.getHeader(AUTH_HEADER);
+        CommonHeaders commonHeaders = parseCommonHeaders(token);
         CommonHeaderManager.setCommonHeaders(commonHeaders);
         return true;
+    }
+
+    private CommonHeaders parseCommonHeaders(String token) {
+        if (token == null || token.isBlank()) {
+            return buildAnonymousHeaders();
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            CommonHeaders parsed = mapper.readValue(token, CommonHeaders.class);
+            return parsed != null ? parsed : buildAnonymousHeaders();
+        } catch (Exception ex) {
+            log.warn("Failed to parse x-authentication-header, fallback to anonymous user", ex);
+            return buildAnonymousHeaders();
+        }
+    }
+
+    private CommonHeaders buildAnonymousHeaders() {
+        CommonHeaders headers = new CommonHeaders();
+        headers.setUsername("anonymous");
+        headers.setRoleNames("");
+        return headers;
     }
 
     @Override

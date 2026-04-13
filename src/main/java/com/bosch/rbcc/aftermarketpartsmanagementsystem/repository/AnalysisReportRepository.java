@@ -19,4 +19,6 @@ public interface AnalysisReportRepository extends JpaRepository<AnalysisReport, 
     List<AnalysisReport> findByPartIdAndStatus(String partId, String status);
 
     List<AnalysisReport> findBySubmittedBy(String username);
+
+    long countByStatus(String status);
 }
