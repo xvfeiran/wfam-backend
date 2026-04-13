@@ -2,8 +2,10 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.OcrTask;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.OcrTaskRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import jakarta.persistence.criteria.Predicate;
@@ -43,6 +45,7 @@ public class PartService {
             STATUS_PENDING_APPROVAL, STATUS_ANALYSIS_COMPLETED, STATUS_SCRAP_IN_PROGRESS, STATUS_SCRAPPED);
 
     private final PartRepository partRepo;
+    private final OcrTaskRepository ocrTaskRepo;
     private final ReturnOrderRepository returnOrderRepository;
     private final AnalysisOrderService analysisOrderService;
     private final OcrService ocrService;
@@ -217,6 +220,15 @@ public class PartService {
     public PartDTO submit(String id) {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
+
+        // OCR 识别处理中仅允许暂存，不允许提交
+        ocrTaskRepo.findByPartIdOrderByCreatedAtDesc(part.getId()).stream().findFirst().ifPresent(task -> {
+            if (OcrTask.STATUS_CREATED.equals(task.getStatus()) || OcrTask.STATUS_PROCESSING.equals(task.getStatus())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "OCR is still processing. Save draft first and submit after recognition completes.");
+            }
+        });
+
         // 如果尚未生成零件编号，则生成新编号
         if (part.getPartNumber() == null) {
             part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform()));

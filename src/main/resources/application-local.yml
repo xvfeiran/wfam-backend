@@ -43,6 +43,6 @@ logging:
 
 ocr:
   mock:
-    fail-enabled: true
+    fail-enabled: false
     fail-message: OCR mock识别失败，请手动补全必填字段后保存
     processing-delay-ms: 3000
