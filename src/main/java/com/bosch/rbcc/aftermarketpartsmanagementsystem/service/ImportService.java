@@ -36,9 +36,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -64,6 +68,7 @@ public class ImportService {
     public static final String STATUS_PROCESSING = "processing";
     public static final String STATUS_COMPLETED  = "completed";
     public static final String STATUS_DELETING = "deleting";
+    public static final String STATUS_TIMEOUT = "timeout";
     public static final String STATUS_ROLLED_BACK = "rolled_back";
 
     private static final String TYPE_RETURN_ORDER = "return_order";
@@ -71,7 +76,28 @@ public class ImportService {
     private static final String IMPORT_RETURN_METHOD = "express";
     private static final String IMPORT_COMPLAINT_TYPE = "BA40";
     private static final int DELETE_BATCH_SIZE = 500;
+    private static final int IMPORT_TIMEOUT_MINUTES = 60;
+    private static final int PROGRESS_FLUSH_INTERVAL = 20;
     private static final Pattern CUSTOMER_NAME_PATTERN = Pattern.compile("(?i)DATA_(.+?)_Amount");
+        private static final Pattern YEAR_PATTERN = Pattern.compile("(20\\d{2})");
+        private static final Pattern MONTH_TEXT_PATTERN = Pattern.compile("(?<!\\d)(1[0-2]|0?[1-9])\\s*月");
+
+        private static final List<String> MONTH_FIELD_KEYS = List.of(
+            "month", "Month", "月份", "月",
+            "收货时间", "vehicleFailureDate", "失效日期", "车辆故障日期", "vehicleProductionDate", "购车日期"
+        );
+
+        private static final List<DateTimeFormatter> MONTH_DATE_FORMATTERS = List.of(
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+            DateTimeFormatter.ofPattern("yyyy.M.d"),
+            DateTimeFormatter.ofPattern("yyyy.M.dd"),
+            DateTimeFormatter.ofPattern("yyyy.MM.d"),
+            DateTimeFormatter.ofPattern("yyyy.MM.dd"),
+            DateTimeFormatter.ofPattern("MM/dd/yyyy"),
+            DateTimeFormatter.ofPattern("dd-MM-yyyy"),
+            DateTimeFormatter.ofPattern("yyyyMMdd")
+        );
 
     private final ReturnOrderImportParser returnOrderImportParser;
     private final PartImportParser partImportParser;
@@ -117,6 +143,10 @@ public class ImportService {
     public void processReturnOrdersAsync(String recordId, byte[] fileBytes) {
         log.info("[Import] [{}] 异步任务启动，线程: {}", recordId, Thread.currentThread().getName());
 
+        String sourceFileName = importRecordRepo.findById(recordId)
+            .map(ImportRecord::getFileName)
+            .orElse("uploaded-file.xlsx");
+
         // 1. 解析 Excel
         List<ReturnOrderImportParser.ParseResult> parseResults;
         try {
@@ -134,6 +164,7 @@ public class ImportService {
         int successCount = 0;
         List<Map<String, Object>> failLogEntries   = new ArrayList<>();
         List<Map<String, Object>> importLogEntries = new ArrayList<>();
+        int processedCount = 0;
 
         for (ReturnOrderImportParser.ParseResult result : parseResults) {
             if (!result.isSuccess()) {
@@ -145,11 +176,15 @@ public class ImportService {
                 entry.put("rawData", result.getRawData());
                 failLogEntries.add(entry);
                 importLogEntries.add(entry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
                 continue;
             }
 
             try {
                 // createAndSubmitForImport：直接生成单号并置为 in_initial_analysis
+                LocalDateTime importCreatedAt = resolveImportCreatedAt(sourceFileName, result.getRawData());
+                result.getDto().setCreatedAt(importCreatedAt != null ? importCreatedAt.toString() : null);
                 ReturnOrderDTO created = returnOrderService.createAndSubmitForImport(result.getDto());
                 successCount++;
                 log.debug("[Import] [{}] 第{}行写入成功: orderNumber={}, orderId={}",
@@ -163,6 +198,8 @@ public class ImportService {
                 entry.put("receiveDate",   created.getReceiveDate());
                 entry.put("trackingNumber", created.getTrackingNumber());
                 importLogEntries.add(entry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
 
             } catch (Exception e) {
                 String errMsg = resolveImportErrorMessage(e);
@@ -175,6 +212,8 @@ public class ImportService {
                 failEntry.put("rawData", result.getRawData());
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
             }
         }
 
@@ -238,6 +277,7 @@ public class ImportService {
         int successCount = 0;
         List<Map<String, Object>> failLogEntries   = new ArrayList<>();
         List<Map<String, Object>> importLogEntries = new ArrayList<>();
+        int processedCount = 0;
 
         for (PartImportParser.ParseResult result : parseResults) {
             if (!result.isSuccess()) {
@@ -251,6 +291,8 @@ public class ImportService {
                 entry.put("rawData", result.getRawData());
                 failLogEntries.add(entry);
                 importLogEntries.add(entry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
                 continue;
             }
 
@@ -262,6 +304,8 @@ public class ImportService {
                 }
                 result.getDto().setOrderId(createdOrder.getId());
                 result.getDto().setOrderNumber(createdOrder.getOrderNumber());
+                LocalDateTime importCreatedAt = resolveImportCreatedAt(sourceFileName, result.getRawData());
+                result.getDto().setCreatedAt(importCreatedAt != null ? importCreatedAt.toString() : null);
                 PartDTO created = partService.createForImport(result.getDto());
                 successCount++;
                 log.debug("[Import] [{}] 第{}行写入成功: orderNumber={}, partCode={}",
@@ -279,6 +323,8 @@ public class ImportService {
                 entry.put("partNumber",  created.getPartNumber());
                 entry.put("qcNo",        created.getQcNo());
                 importLogEntries.add(entry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
 
             } catch (Exception e) {
                 String errMsg = resolveImportErrorMessage(e);
@@ -293,6 +339,8 @@ public class ImportService {
                 failEntry.put("rawData", result.getRawData());
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
             }
         }
 
@@ -311,7 +359,19 @@ public class ImportService {
     public void processPartsFolderAsync(String recordId, String folderPath) {
         log.info("[Import] [{}] 售后件目录导入异步任务启动，线程: {}", recordId, Thread.currentThread().getName());
 
-        Path root = Paths.get(folderPath);
+        Path root;
+        try {
+            root = Paths.get(folderPath);
+        } catch (InvalidPathException ex) {
+            markFailed(recordId, "目录路径无效: " + ex.getInput());
+            log.warn("[Import] [{}] 目录路径无效: {}", recordId, ex.getInput());
+            return;
+        } catch (Exception ex) {
+            markFailed(recordId, "目录路径解析失败: " + ex.getMessage());
+            log.warn("[Import] [{}] 目录路径解析失败: {}", recordId, ex.getMessage(), ex);
+            return;
+        }
+
         if (!Files.exists(root) || !Files.isDirectory(root)) {
             markFailed(recordId, "目录不存在或不是文件夹: " + folderPath);
             return;
@@ -337,6 +397,7 @@ public class ImportService {
 
         int totalCount = 0;
         int successCount = 0;
+        int processedCount = 0;
         List<Map<String, Object>> failLogEntries = new ArrayList<>();
         List<Map<String, Object>> importLogEntries = new ArrayList<>();
 
@@ -354,6 +415,8 @@ public class ImportService {
                 failEntry.put("error", "读取文件失败: " + e.getMessage());
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, processedCount, successCount, processedCount, failLogEntries, importLogEntries);
                 continue;
             }
 
@@ -369,6 +432,8 @@ public class ImportService {
                 failEntry.put("error", "文件解析失败: " + e.getMessage());
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
+                processedCount++;
+                flushProgressIfNeeded(recordId, processedCount, successCount, processedCount, failLogEntries, importLogEntries);
                 continue;
             }
 
@@ -397,6 +462,8 @@ public class ImportService {
                     }
                     result.getDto().setOrderId(createdOrder.getId());
                     result.getDto().setOrderNumber(createdOrder.getOrderNumber());
+                    LocalDateTime importCreatedAt = resolveImportCreatedAt(relativeFileName, result.getRawData());
+                    result.getDto().setCreatedAt(importCreatedAt != null ? importCreatedAt.toString() : null);
                     PartDTO created = partService.createForImport(result.getDto());
                     successCount++;
 
@@ -412,6 +479,8 @@ public class ImportService {
                     entry.put("partNumber", created.getPartNumber());
                     entry.put("qcNo", created.getQcNo());
                     importLogEntries.add(entry);
+                    processedCount++;
+                    flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
                 } catch (Exception e) {
                     String errMsg = resolveImportErrorMessage(e);
                     Map<String, Object> failEntry = new java.util.LinkedHashMap<>();
@@ -423,6 +492,8 @@ public class ImportService {
                     failEntry.put("rawData", result.getRawData());
                     failLogEntries.add(failEntry);
                     importLogEntries.add(failEntry);
+                    processedCount++;
+                    flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
                 }
             }
         }
@@ -440,12 +511,15 @@ public class ImportService {
     // 3. 查询单条（前端轮询用）
     // ─────────────────────────────────────────────
     public ImportRecordDTO getById(String id) {
+        transitionProcessingToTimeoutIfNeeded();
         return importRecordRepo.findById(id)
                 .map(record -> toDTO(record, false))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Import record not found: " + id));
     }
 
     public List<ImportFileSummaryDTO> listImportFiles(String id) {
+        transitionProcessingToTimeoutIfNeeded();
+
         ImportRecord record = importRecordRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Import record not found: " + id));
 
@@ -473,6 +547,8 @@ public class ImportService {
     }
 
     public PageImpl<Map<String, Object>> listImportLogsByFile(String id, String fileName, Pageable pageable) {
+        transitionProcessingToTimeoutIfNeeded();
+
         ImportRecord record = importRecordRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Import record not found: " + id));
 
@@ -492,6 +568,7 @@ public class ImportService {
     // 4. 列表查询
     // ─────────────────────────────────────────────
     public Page<ImportRecordDTO> listImports(String type, Pageable pageable) {
+        transitionProcessingToTimeoutIfNeeded();
         Page<ImportRecordListView> page = importRecordRepo.findListViewByType(type, pageable);
 
         List<ImportRecordDTO> dtos = page.getContent().stream()
@@ -505,32 +582,110 @@ public class ImportService {
     // 私有工具方法
     // ─────────────────────────────────────────────
 
+    @Transactional
+    protected void transitionProcessingToTimeoutIfNeeded() {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(IMPORT_TIMEOUT_MINUTES);
+        List<ImportRecord> records = importRecordRepo.findByStatusAndCreatedAtBefore(STATUS_PROCESSING, threshold);
+        if (records.isEmpty()) {
+            return;
+        }
+
+        for (ImportRecord record : records) {
+            record.setStatus(STATUS_TIMEOUT);
+        }
+        importRecordRepo.saveAll(records);
+        log.warn("[Import] 按请求触发超时处理: {} 条导入记录超过 {} 分钟，状态置为 timeout",
+                records.size(), IMPORT_TIMEOUT_MINUTES);
+    }
+
     private void markCompleted(String recordId, int total, int success, int fail,
                                String failLogs, String importLogs) {
         importRecordRepo.findById(recordId).ifPresentOrElse(record -> {
-            record.setStatus(STATUS_COMPLETED);
+            if (STATUS_TIMEOUT.equals(record.getStatus())) {
+                record.setTotalCount(total);
+                record.setSuccessCount(success);
+                record.setFailCount(fail);
+                record.setFailLogs(failLogs);
+                record.setImportLogs(importLogs);
+                importRecordRepo.save(record);
+                log.warn("[Import] [{}] 记录处于 timeout，已同步最终统计和日志", recordId);
+            } else {
+                record.setStatus(STATUS_COMPLETED);
+                record.setTotalCount(total);
+                record.setSuccessCount(success);
+                record.setFailCount(fail);
+                record.setFailLogs(failLogs);
+                record.setImportLogs(importLogs);
+                importRecordRepo.save(record);
+                log.info("[Import] [{}] 记录已更新为 completed", recordId);
+            }
+        }, () -> log.error("[Import] [{}] 找不到记录，无法更新状态", recordId));
+    }
+
+    private void markFailed(String recordId, String errorMessage) {
+        importRecordRepo.findById(recordId).ifPresentOrElse(record -> {
+            if (STATUS_TIMEOUT.equals(record.getStatus())) {
+                record.setTotalCount(Math.max(record.getTotalCount() != null ? record.getTotalCount() : 0, 1));
+                record.setSuccessCount(record.getSuccessCount() != null ? record.getSuccessCount() : 0);
+                record.setFailCount(Math.max(record.getFailCount() != null ? record.getFailCount() : 0, 1));
+                if (record.getFailLogs() == null || record.getFailLogs().isBlank() || "[]".equals(record.getFailLogs())) {
+                    record.setFailLogs(serialize(List.of(Map.of("row", 0, "error", errorMessage))));
+                }
+                if (record.getImportLogs() == null || record.getImportLogs().isBlank() || "[]".equals(record.getImportLogs())) {
+                    record.setImportLogs(serialize(List.of(Map.of("row", 0, "status", "failed", "error", errorMessage))));
+                }
+                importRecordRepo.save(record);
+                log.warn("[Import] [{}] 记录处于 timeout，已补充失败信息", recordId);
+            } else {
+                // Keep lifecycle status as "completed" and express failure in counts/logs.
+                record.setStatus(STATUS_COMPLETED);
+                record.setTotalCount(1);
+                record.setSuccessCount(0);
+                record.setFailCount(1);
+                record.setFailLogs(serialize(List.of(Map.of("row", 0, "error", errorMessage))));
+                record.setImportLogs(serialize(List.of(Map.of("row", 0, "status", "failed", "error", errorMessage))));
+                importRecordRepo.save(record);
+                log.info("[Import] [{}] 记录已更新为 completed(with failure)", recordId);
+            }
+        }, () -> log.error("[Import] [{}] 找不到记录，无法标记为 failed", recordId));
+    }
+
+    private void flushProgressIfNeeded(String recordId,
+                                       int total,
+                                       int success,
+                                       int processed,
+                                       List<Map<String, Object>> failLogEntries,
+                                       List<Map<String, Object>> importLogEntries) {
+        if (processed <= 0 || processed % PROGRESS_FLUSH_INTERVAL != 0) {
+            return;
+        }
+
+        updateProgressSnapshot(recordId,
+                Math.max(total, processed),
+                success,
+                Math.max(0, processed - success),
+                serialize(failLogEntries),
+                serialize(importLogEntries));
+    }
+
+    @Transactional
+    protected void updateProgressSnapshot(String recordId,
+                                          int total,
+                                          int success,
+                                          int fail,
+                                          String failLogs,
+                                          String importLogs) {
+        importRecordRepo.findById(recordId).ifPresent(record -> {
+            if (STATUS_DELETING.equals(record.getStatus()) || STATUS_ROLLED_BACK.equals(record.getStatus())) {
+                return;
+            }
             record.setTotalCount(total);
             record.setSuccessCount(success);
             record.setFailCount(fail);
             record.setFailLogs(failLogs);
             record.setImportLogs(importLogs);
             importRecordRepo.save(record);
-            log.info("[Import] [{}] 记录已更新为 completed", recordId);
-        }, () -> log.error("[Import] [{}] 找不到记录，无法更新状态", recordId));
-    }
-
-    private void markFailed(String recordId, String errorMessage) {
-        importRecordRepo.findById(recordId).ifPresentOrElse(record -> {
-            // Keep lifecycle status as "completed" and express failure in counts/logs.
-            record.setStatus(STATUS_COMPLETED);
-            record.setTotalCount(1);
-            record.setSuccessCount(0);
-            record.setFailCount(1);
-            record.setFailLogs(serialize(List.of(Map.of("row", 0, "error", errorMessage))));
-            record.setImportLogs(serialize(List.of(Map.of("row", 0, "status", "failed", "error", errorMessage))));
-            importRecordRepo.save(record);
-            log.info("[Import] [{}] 记录已更新为 completed(with failure)", recordId);
-        }, () -> log.error("[Import] [{}] 找不到记录，无法标记为 failed", recordId));
+        });
     }
 
     private ImportRecordDTO toDTO(ImportRecord record, boolean includeLogs) {
@@ -624,6 +779,8 @@ public class ImportService {
 
     @Transactional
     public ImportRecordDTO requestDeleteImportedData(String importId) {
+        transitionProcessingToTimeoutIfNeeded();
+
         ImportRecord record = importRecordRepo.findById(importId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Import record not found: " + importId));
 
@@ -635,8 +792,8 @@ public class ImportService {
             selfProvider.getObject().processDeleteImportedDataAsync(importId);
             return toDTO(record, false);
         }
-        if (!STATUS_COMPLETED.equals(record.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "仅已结束的导入记录可执行删除");
+        if (!STATUS_COMPLETED.equals(record.getStatus()) && !STATUS_TIMEOUT.equals(record.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "仅已结束或已超时的导入记录可执行删除");
         }
 
         record.setStatus(STATUS_DELETING);
@@ -839,6 +996,88 @@ public class ImportService {
             return DEFAULT_FILE_ORDER_KEY;
         }
         return orderNumber.trim();
+    }
+
+    private LocalDateTime resolveImportCreatedAt(String sourceFileName, Map<String, String> rawData) {
+        Integer year = extractYearFromFileName(sourceFileName);
+        Integer month = extractMonth(rawData);
+        if (year == null || month == null) {
+            return null;
+        }
+        return LocalDate.of(year, month, 1).atStartOfDay();
+    }
+
+    private Integer extractYearFromFileName(String sourceFileName) {
+        if (sourceFileName == null || sourceFileName.isBlank()) {
+            return null;
+        }
+        Matcher matcher = YEAR_PATTERN.matcher(sourceFileName);
+        Integer year = null;
+        while (matcher.find()) {
+            year = Integer.parseInt(matcher.group(1));
+        }
+        return year;
+    }
+
+    private Integer extractMonth(Map<String, String> rawData) {
+        if (rawData == null || rawData.isEmpty()) {
+            return null;
+        }
+
+        for (String key : MONTH_FIELD_KEYS) {
+            Integer parsed = parseMonth(rawData.get(key));
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+
+        for (String value : rawData.values()) {
+            Integer parsed = parseMonth(value);
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+
+        return null;
+    }
+
+    private Integer parseMonth(String rawValue) {
+        if (rawValue == null) {
+            return null;
+        }
+        String value = rawValue.trim();
+        if (value.isBlank() || isPlaceholderValue(value)) {
+            return null;
+        }
+
+        Matcher monthTextMatcher = MONTH_TEXT_PATTERN.matcher(value);
+        if (monthTextMatcher.find()) {
+            return normalizeMonth(Integer.parseInt(monthTextMatcher.group(1)));
+        }
+
+        if (value.matches("\\d{1,2}")) {
+            return normalizeMonth(Integer.parseInt(value));
+        }
+
+        if (value.matches("\\d{1,2}\\.0")) {
+            return normalizeMonth((int) Double.parseDouble(value));
+        }
+
+        for (DateTimeFormatter formatter : MONTH_DATE_FORMATTERS) {
+            try {
+                return normalizeMonth(LocalDate.parse(value, formatter).getMonthValue());
+            } catch (DateTimeParseException ignored) {
+            }
+        }
+
+        return null;
+    }
+
+    private Integer normalizeMonth(Integer month) {
+        if (month == null || month < 1 || month > 12) {
+            return null;
+        }
+        return month;
     }
 
     private String classifyErrorCode(String errorMessage) {

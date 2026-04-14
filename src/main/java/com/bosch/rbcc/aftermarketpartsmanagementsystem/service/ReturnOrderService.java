@@ -21,6 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -269,6 +270,7 @@ public class ReturnOrderService {
     public ReturnOrderDTO createAndSubmitForImport(ReturnOrderDTO dto) {
         LocalDate receiveDate   = parseDate(dto.getReceiveDate());
         LocalDate complaintDate = parseDate(dto.getComplaintDate());
+        LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
 
         String orderNumber = dto.getOrderNumber();
         if (orderNumber != null) {
@@ -297,7 +299,20 @@ public class ReturnOrderService {
                 .status(STATUS_SUBMITTED)
                 .build();
         orderRepo.save(order);
+
+        if (importCreatedAt != null) {
+            orderRepo.updateCreatedAt(order.getId(), importCreatedAt);
+            order.setCreatedAt(importCreatedAt);
+        }
+
         return toDTO(order);
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return LocalDateTime.parse(value.trim());
     }
 
     private ReturnOrderDTO toDTO(ReturnOrder order) {

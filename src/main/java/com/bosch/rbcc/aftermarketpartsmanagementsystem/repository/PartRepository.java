@@ -3,6 +3,7 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.repository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -44,4 +45,8 @@ public interface PartRepository extends JpaRepository<Part, String>,
 
     @Query("SELECT DISTINCT TRIM(p.failureType) FROM Part p WHERE p.failureType IS NOT NULL AND TRIM(p.failureType) <> '' ORDER BY TRIM(p.failureType)")
     List<String> findDistinctFailureTypes();
+
+    @Modifying
+    @Query(value = "UPDATE APMS_PART SET CREATED_AT = :createdAt WHERE ID = :id", nativeQuery = true)
+    int updateCreatedAt(@Param("id") String id, @Param("createdAt") LocalDateTime createdAt);
 }

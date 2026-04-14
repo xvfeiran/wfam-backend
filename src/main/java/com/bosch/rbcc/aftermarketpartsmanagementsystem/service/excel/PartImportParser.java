@@ -136,7 +136,7 @@ public class PartImportParser {
                             displayRowNum, dto.getOrderNumber(), dto.getPartCode());
                     results.add(ParseResult.success(displayRowNum, dto, rawData));
                 } catch (Exception e) {
-                    log.warn("[PartParser] 第{}行解析失败: {}", displayRowNum, e.getMessage());
+                    log.debug("[PartParser] 第{}行解析失败: {}", displayRowNum, e.getMessage());
                     results.add(ParseResult.failure(displayRowNum, e.getMessage(), rawData));
                 }
             }
@@ -203,8 +203,9 @@ public class PartImportParser {
         if (normalized == null) return null;
         try {
             return Integer.parseInt(normalized);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("无法解析数字: " + rawValue);
+        } catch (NumberFormatException ignored) {
+            // For import compatibility, treat non-integer mileage as empty instead of failing the row.
+            return null;
         }
     }
 

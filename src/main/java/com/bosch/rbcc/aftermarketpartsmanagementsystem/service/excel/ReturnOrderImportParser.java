@@ -89,13 +89,13 @@ public class ReturnOrderImportParser {
 
     /** 从 MultipartFile 解析（同步上传时使用） */
     public List<ParseResult> parse(MultipartFile file) throws IOException {
-        log.info("[Parser] 开始解析文件: {}, 大小: {} bytes", file.getOriginalFilename(), file.getSize());
+        log.debug("[Parser] 开始解析文件: {}, 大小: {} bytes", file.getOriginalFilename(), file.getSize());
         return parseStream(file.getInputStream());
     }
 
     /** 从 byte[] 解析（异步任务中使用，避免请求结束后流失效） */
     public List<ParseResult> parseBytes(byte[] bytes) throws IOException {
-        log.info("[Parser] 开始从字节数组解析，大小: {} bytes", bytes.length);
+        log.debug("[Parser] 开始从字节数组解析，大小: {} bytes", bytes.length);
         return parseStream(new ByteArrayInputStream(bytes));
     }
 
@@ -105,7 +105,7 @@ public class ReturnOrderImportParser {
         try (Workbook wb = WorkbookFactory.create(inputStream)) {
             Sheet sheet = wb.getSheetAt(0);
             int lastRow = sheet.getLastRowNum();
-            log.info("[Parser] 工作表总行数: {}，数据起始行索引: 2", lastRow);
+            log.debug("[Parser] 工作表总行数: {}，数据起始行索引: 2", lastRow);
 
             // Data starts at row index 2 (skip title row 0 and header row 1)
             for (int i = 2; i <= lastRow; i++) {
@@ -129,7 +129,7 @@ public class ReturnOrderImportParser {
             }
         }
 
-        log.info("[Parser] 解析完成，有效行数: {}", results.size());
+        log.debug("[Parser] 解析完成，有效行数: {}", results.size());
         return results;
     }
 

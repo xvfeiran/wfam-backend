@@ -3,10 +3,12 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.repository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,4 +27,8 @@ public interface ReturnOrderRepository extends JpaRepository<ReturnOrder, String
 
     @Query("SELECT DISTINCT TRIM(r.complaintType) FROM ReturnOrder r WHERE r.complaintType IS NOT NULL AND TRIM(r.complaintType) <> '' ORDER BY TRIM(r.complaintType)")
     List<String> findDistinctComplaintTypes();
+
+    @Modifying
+    @Query(value = "UPDATE APMS_RETURN_ORDER SET CREATED_AT = :createdAt WHERE ID = :id", nativeQuery = true)
+    int updateCreatedAt(@Param("id") String id, @Param("createdAt") LocalDateTime createdAt);
 }

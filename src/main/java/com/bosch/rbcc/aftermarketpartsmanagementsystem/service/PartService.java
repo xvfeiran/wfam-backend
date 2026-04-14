@@ -172,6 +172,8 @@ public class PartService {
         var returnOrder = returnOrderRepository.findById(dto.getOrderId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId()));
 
+        LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
+
         String orderStatus = returnOrder.getStatus();
         if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -208,7 +210,19 @@ public class PartService {
                 .build();
         partRepo.save(part);
 
+        if (importCreatedAt != null) {
+            partRepo.updateCreatedAt(part.getId(), importCreatedAt);
+            part.setCreatedAt(importCreatedAt);
+        }
+
         return toDTO(part);
+    }
+
+    private LocalDateTime parseDateTime(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return LocalDateTime.parse(value.trim());
     }
 
     @Transactional
