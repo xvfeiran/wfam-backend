@@ -23,4 +23,6 @@ public interface AnalysisReportRepository extends JpaRepository<AnalysisReport, 
     long countByTemplateId(String templateId);
 
     long countByStatus(String status);
+
+    void deleteByPartIdIn(List<String> partIds);
 }

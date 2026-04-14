@@ -15,4 +15,6 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
     List<AnalysisOrder> findByAnalyst(String analyst);
 
     long countByStatus(String status);
+
+    void deleteByOrderIdIn(List<String> orderIds);
 }

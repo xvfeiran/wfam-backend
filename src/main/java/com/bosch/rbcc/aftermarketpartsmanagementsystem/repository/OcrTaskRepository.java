@@ -11,4 +11,6 @@ public interface OcrTaskRepository extends JpaRepository<OcrTask, String> {
     List<OcrTask> findByPartIdOrderByCreatedAtDesc(String partId);
 
     Optional<OcrTask> findFirstByPartIdAndFilePathIsNotNullOrderByCreatedAtDesc(String partId);
+
+    void deleteByPartIdIn(List<String> partIds);
 }

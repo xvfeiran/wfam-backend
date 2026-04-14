@@ -11,6 +11,9 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ImportRecordListView;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ImportRecordRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.CustomerRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisReportRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.OcrTaskRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.PartImportParser;
@@ -42,6 +45,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -66,6 +70,7 @@ public class ImportService {
     private static final String TYPE_PART = "part";
     private static final String IMPORT_RETURN_METHOD = "express";
     private static final String IMPORT_COMPLAINT_TYPE = "BA40";
+    private static final int DELETE_BATCH_SIZE = 500;
     private static final Pattern CUSTOMER_NAME_PATTERN = Pattern.compile("(?i)DATA_(.+?)_Amount");
 
     private final ReturnOrderImportParser returnOrderImportParser;
@@ -76,6 +81,9 @@ public class ImportService {
     private final ImportRecordRepository importRecordRepo;
     private final CustomerRepository customerRepository;
     private final ReturnOrderRepository returnOrderRepository;
+    private final AnalysisOrderRepository analysisOrderRepository;
+    private final AnalysisReportRepository analysisReportRepository;
+    private final OcrTaskRepository ocrTaskRepository;
     private final ObjectMapper objectMapper;
     private final ObjectProvider<ImportService> selfProvider;
     private final EntityManager entityManager;
@@ -157,7 +165,7 @@ public class ImportService {
                 importLogEntries.add(entry);
 
             } catch (Exception e) {
-                String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                String errMsg = resolveImportErrorMessage(e);
                 log.warn("[Import] [{}] 第{}行写入失败: {}", recordId, result.getRowNum(), errMsg, e);
 
                 Map<String, Object> failEntry = new java.util.LinkedHashMap<>();
@@ -254,7 +262,7 @@ public class ImportService {
                 }
                 result.getDto().setOrderId(createdOrder.getId());
                 result.getDto().setOrderNumber(createdOrder.getOrderNumber());
-                PartDTO created = partService.create(result.getDto(), null);
+                PartDTO created = partService.createForImport(result.getDto());
                 successCount++;
                 log.debug("[Import] [{}] 第{}行写入成功: orderNumber={}, partCode={}",
                         recordId, result.getRowNum(), created.getOrderNumber(), created.getPartCode());
@@ -273,7 +281,7 @@ public class ImportService {
                 importLogEntries.add(entry);
 
             } catch (Exception e) {
-                String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                String errMsg = resolveImportErrorMessage(e);
                 log.warn("[Import] [{}] 第{}行写入失败: {}", recordId, result.getRowNum(), errMsg, e);
 
                 Map<String, Object> failEntry = new java.util.LinkedHashMap<>();
@@ -389,7 +397,7 @@ public class ImportService {
                     }
                     result.getDto().setOrderId(createdOrder.getId());
                     result.getDto().setOrderNumber(createdOrder.getOrderNumber());
-                    PartDTO created = partService.create(result.getDto(), null);
+                    PartDTO created = partService.createForImport(result.getDto());
                     successCount++;
 
                     Map<String, Object> entry = new java.util.LinkedHashMap<>();
@@ -405,7 +413,7 @@ public class ImportService {
                     entry.put("qcNo", created.getQcNo());
                     importLogEntries.add(entry);
                 } catch (Exception e) {
-                    String errMsg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    String errMsg = resolveImportErrorMessage(e);
                     Map<String, Object> failEntry = new java.util.LinkedHashMap<>();
                     failEntry.put("fileName", relativeFileName);
                     failEntry.put("row", result.getRowNum());
@@ -623,7 +631,9 @@ public class ImportService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "本次导入数据已删除，无需重复操作");
         }
         if (STATUS_DELETING.equals(record.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "本次导入数据正在删除中，请稍后刷新");
+            // Retry dispatch in case previous async worker was interrupted.
+            selfProvider.getObject().processDeleteImportedDataAsync(importId);
+            return toDTO(record, false);
         }
         if (!STATUS_COMPLETED.equals(record.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "仅已结束的导入记录可执行删除");
@@ -689,18 +699,34 @@ public class ImportService {
 
         int deletedPartCount = 0;
         if (!partIdsToDelete.isEmpty()) {
-            List<String> existingPartIds = partRepository.findAllById(partIdsToDelete).stream()
-                    .map(part -> part.getId())
-                    .collect(Collectors.toList());
-            if (!existingPartIds.isEmpty()) {
-                partRepository.deleteAllByIdInBatch(existingPartIds);
-                entityManager.flush();
-                deletedPartCount = existingPartIds.size();
+            List<String> allPartIds = new ArrayList<>(partIdsToDelete);
+
+            // Remove child rows first to avoid FK violations on APMS_PART delete.
+            for (List<String> batch : partitionList(allPartIds, DELETE_BATCH_SIZE)) {
+                analysisReportRepository.deleteByPartIdIn(batch);
+                ocrTaskRepository.deleteByPartIdIn(batch);
             }
+            entityManager.flush();
+
+            List<String> existingPartIds = partRepository.findAllById(partIdsToDelete).stream()
+                    .map(Part::getId)
+                    .collect(Collectors.toList());
+            for (List<String> batch : partitionList(existingPartIds, DELETE_BATCH_SIZE)) {
+                partRepository.deleteAllByIdInBatch(batch);
+                deletedPartCount += batch.size();
+            }
+            entityManager.flush();
         }
 
         int deletedOrderCount = 0;
         int skippedOrderCount = 0;
+        if (!orderIdsToDelete.isEmpty()) {
+            // APMS_ANALYSIS_ORDER has FK to APMS_RETURN_ORDER.ORDER_ID.
+            for (List<String> batch : partitionList(new ArrayList<>(orderIdsToDelete), DELETE_BATCH_SIZE)) {
+                analysisOrderRepository.deleteByOrderIdIn(batch);
+            }
+            entityManager.flush();
+        }
         for (String orderId : orderIdsToDelete) {
             if (partRepository.countByOrderId(orderId) > 0) {
                 skippedOrderCount++;
@@ -716,6 +742,18 @@ public class ImportService {
                 importId, deletedPartCount, deletedOrderCount, skippedOrderCount);
         record.setStatus(STATUS_ROLLED_BACK);
         importRecordRepo.save(record);
+    }
+
+    private <T> List<List<T>> partitionList(List<T> source, int batchSize) {
+        if (source == null || source.isEmpty()) {
+            return List.of();
+        }
+        List<List<T>> partitions = new ArrayList<>();
+        for (int start = 0; start < source.size(); start += batchSize) {
+            int end = Math.min(start + batchSize, source.size());
+            partitions.add(source.subList(start, end));
+        }
+        return partitions;
     }
 
     @Transactional
@@ -735,8 +773,21 @@ public class ImportService {
                 .map(raw -> raw.get(key))
                 .filter(value -> value != null && !value.isBlank())
                 .map(String::trim)
+                .filter(value -> !isPlaceholderValue(value))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private boolean isPlaceholderValue(String value) {
+        if (value == null) {
+            return true;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return normalized.isEmpty()
+                || "N/A".equals(normalized)
+                || "NA".equals(normalized)
+                || "NULL".equals(normalized)
+                || "-".equals(normalized);
     }
 
     private String extractCustomerName(String sourceFileName) {
@@ -805,6 +856,142 @@ public class ImportService {
         if (msg.contains("文件解析失败")) return "FILE_PARSE_FAILED";
         if (msg.contains("读取文件失败")) return "FILE_READ_FAILED";
         return "IMPORT_ROW_FAILED";
+    }
+
+    private String resolveImportErrorMessage(Throwable throwable) {
+        if (throwable == null) {
+            return "未知错误";
+        }
+
+        if (throwable instanceof ResponseStatusException responseStatusException) {
+            String reason = responseStatusException.getReason();
+            if (reason != null && !reason.isBlank()) {
+                return enhanceRequiredFieldMessage(reason);
+            }
+        }
+
+        String directMessage = throwable.getMessage();
+        if (directMessage != null && !directMessage.isBlank()) {
+            String enhanced = enhanceRequiredFieldMessage(directMessage);
+            if (enhanced != null) {
+                return enhanced;
+            }
+        }
+
+        Throwable root = throwable;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+
+        String rootMessage = root.getMessage();
+        if (rootMessage != null && !rootMessage.isBlank()) {
+            String enhanced = enhanceRequiredFieldMessage(rootMessage);
+            if (enhanced != null) {
+                return enhanced;
+            }
+            return rootMessage;
+        }
+
+        return throwable.getClass().getSimpleName();
+    }
+
+    private String enhanceRequiredFieldMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return null;
+        }
+
+        String fieldKey = extractMissingFieldKey(message);
+        if (fieldKey != null) {
+            return "必填字段缺失: " + toFieldDisplayName(fieldKey);
+        }
+
+        String msgLower = message.toLowerCase(Locale.ROOT);
+        if (message.contains("不能为空") || msgLower.contains("required")) {
+            return message;
+        }
+        return null;
+    }
+
+    private String extractMissingFieldKey(String message) {
+        if (message == null || message.isBlank()) {
+            return null;
+        }
+
+        Matcher hibernateMatcher = Pattern.compile("not-null property references a null or transient value\\s*:\\s*[\\w.$]+\\.([\\w$]+)", Pattern.CASE_INSENSITIVE)
+                .matcher(message);
+        if (hibernateMatcher.find()) {
+            return normalizeFieldKey(hibernateMatcher.group(1));
+        }
+
+        Matcher oracleMatcher = Pattern.compile("ORA-01400:.*?\\(.*?\\.\\\"([A-Z0-9_]+)\\\"\\)", Pattern.CASE_INSENSITIVE)
+                .matcher(message);
+        if (oracleMatcher.find()) {
+            return normalizeFieldKey(oracleMatcher.group(1));
+        }
+
+        Matcher cannotInsertMatcher = Pattern.compile("cannot insert null into\\s*\\(.*?\\.\\\"([A-Z0-9_]+)\\\"\\)", Pattern.CASE_INSENSITIVE)
+                .matcher(message);
+        if (cannotInsertMatcher.find()) {
+            return normalizeFieldKey(cannotInsertMatcher.group(1));
+        }
+
+        Matcher chineseRequiredMatcher = Pattern.compile("([\\u4e00-\\u9fa5A-Za-z0-9_/-]+)不能为空")
+                .matcher(message);
+        if (chineseRequiredMatcher.find()) {
+            return normalizeFieldKey(chineseRequiredMatcher.group(1));
+        }
+
+        Matcher englishRequiredMatcher = Pattern.compile("([A-Za-z][A-Za-z0-9_ ]+) is required", Pattern.CASE_INSENSITIVE)
+                .matcher(message);
+        if (englishRequiredMatcher.find()) {
+            return normalizeFieldKey(englishRequiredMatcher.group(1));
+        }
+
+        return null;
+    }
+
+    private String normalizeFieldKey(String rawField) {
+        if (rawField == null || rawField.isBlank()) {
+            return null;
+        }
+
+        String trimmed = rawField.trim();
+        String upper = trimmed.toUpperCase(Locale.ROOT);
+        return switch (upper) {
+            case "ORDER_NUMBER", "退货单号", "ORDERNUMBER" -> "orderNumber";
+            case "PART_CODE", "博世零件号", "PARTCODE" -> "partCode";
+            case "ANALYST" -> "analyst";
+            case "VEHICLE_VIN", "VIN", "VIN码", "车架号", "底盘号" -> "vehicleVIN";
+            case "RECEIVE_DATE", "收货时间" -> "receiveDate";
+            case "COMPLAINT_DATE" -> "complaintDate";
+            case "TRACKING_NUMBER", "快递单号" -> "trackingNumber";
+            case "CUSTOMER_ID", "客户", "CUSTOMER" -> "customerId";
+            default -> {
+                if (trimmed.contains(".")) {
+                    String suffix = trimmed.substring(trimmed.lastIndexOf('.') + 1);
+                    yield normalizeFieldKey(suffix);
+                }
+                String compact = trimmed.replace(" ", "");
+                if ("Analyst".equalsIgnoreCase(compact)) {
+                    yield "analyst";
+                }
+                yield compact;
+            }
+        };
+    }
+
+    private String toFieldDisplayName(String fieldKey) {
+        return switch (fieldKey) {
+            case "orderNumber" -> "退货单号(orderNumber)";
+            case "partCode" -> "博世零件号(partCode)";
+            case "analyst" -> "分析人员(analyst)";
+            case "vehicleVIN" -> "VIN码(vehicleVIN)";
+            case "receiveDate" -> "收货时间(receiveDate)";
+            case "complaintDate" -> "客诉日期(complaintDate)";
+            case "trackingNumber" -> "快递单号(trackingNumber)";
+            case "customerId" -> "客户(customerId)";
+            default -> fieldKey;
+        };
     }
 
     private ImportRecordDTO toListDTO(ImportRecordListView row) {

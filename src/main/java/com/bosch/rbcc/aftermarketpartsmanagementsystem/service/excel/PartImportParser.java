@@ -108,7 +108,7 @@ public class PartImportParser {
 
     /** 从 byte[] 解析（异步任务中使用，避免请求结束后流失效） */
     public List<ParseResult> parseBytes(byte[] bytes) throws IOException {
-        log.info("[PartParser] 开始从字节数组解析，大小: {} bytes", bytes.length);
+        log.debug("[PartParser] 开始从字节数组解析，大小: {} bytes", bytes.length);
         return parseStream(new ByteArrayInputStream(bytes));
     }
 
@@ -118,7 +118,7 @@ public class PartImportParser {
         try (Workbook wb = WorkbookFactory.create(inputStream)) {
             Sheet sheet = wb.getSheetAt(0);
             int lastRow = sheet.getLastRowNum();
-            log.info("[PartParser] 工作表总行数: {}，数据起始行索引: {}", lastRow, DATA_START_ROW_INDEX);
+            log.debug("[PartParser] 工作表总行数: {}，数据起始行索引: {}", lastRow, DATA_START_ROW_INDEX);
 
             ColumnMapping mapping = resolveColumnMapping(sheet);
             for (int i = DATA_START_ROW_INDEX; i <= lastRow; i++) {
@@ -142,7 +142,7 @@ public class PartImportParser {
             }
         }
 
-        log.info("[PartParser] 解析完成，有效行数: {}", results.size());
+        log.debug("[PartParser] 解析完成，有效行数: {}", results.size());
         return results;
     }
 

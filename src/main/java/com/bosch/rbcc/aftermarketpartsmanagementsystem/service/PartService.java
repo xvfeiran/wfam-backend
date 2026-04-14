@@ -168,6 +168,50 @@ public class PartService {
     }
 
     @Transactional
+    public PartDTO createForImport(PartDTO dto) {
+        var returnOrder = returnOrderRepository.findById(dto.getOrderId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId()));
+
+        String orderStatus = returnOrder.getStatus();
+        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: " + orderStatus);
+        }
+
+        if (dto.getAnalyst() == null || dto.getAnalyst().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Analyst is required");
+        }
+
+        Part part = Part.builder()
+                .id(UUID.randomUUID().toString())
+                .orderId(trimText(dto.getOrderId()))
+                .partCode(trimText(dto.getPartCode()))
+                .businessUnit(trimText(dto.getBusinessUnit()))
+                .productPlatform(trimText(dto.getProductPlatform()))
+                .productionShift(trimText(dto.getProductionShift()))
+                .failureType(trimText(dto.getFailureType()))
+                .boschFailureType(trimText(dto.getBoschFailureType()))
+                .vehicleProductionDate(parseDate(dto.getVehicleProductionDate()))
+                .vehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()))
+                .vehicleFailureDate(parseDate(dto.getVehicleFailureDate()))
+                .vehicleVin(trimText(dto.getVehicleVIN()))
+                .vehicleMileage(dto.getVehicleMileage())
+                .customerDescription(trimText(dto.getCustomerDescription()))
+                .otherDescription(trimText(dto.getOtherDescription()))
+                .repairStation(trimText(dto.getRepairStation()))
+                .complaintLocation(trimText(dto.getComplaintLocation()))
+                .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
+                .analyst(trimText(dto.getAnalyst()))
+                .qcNo(trimText(dto.getQcNo()))
+                .status(STATUS_SCRAPPED)
+                .statusChangedAt(LocalDateTime.now())
+                .build();
+        partRepo.save(part);
+
+        return toDTO(part);
+    }
+
+    @Transactional
     public PartDTO update(String id, PartDTO dto) {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
