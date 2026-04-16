@@ -53,6 +53,6 @@ public class ImportRecord {
     private String createdBy;
 
     @CreatedDate
-    @Column(name = "CREATED_AT", nullable = false, updatable = false)
+    @Column(name = "CREATED_AT", nullable = false)
     private LocalDateTime createdAt;
 }

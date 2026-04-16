@@ -8,6 +8,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManage
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.OcrTaskRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,10 +51,11 @@ public class PartService {
     private final ReturnOrderRepository returnOrderRepository;
     private final AnalysisOrderService analysisOrderService;
     private final OcrService ocrService;
+    private final EntityManager entityManager;
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
                               String productPlatform, String status, String qcCreated,
-                              String analyst, int page, int size) {
+                              String analyst, int page, int size, String sortBy, String sortOrder) {
 
         Page<Part> partPage = partRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -90,7 +93,7 @@ public class PartService {
                 ));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
-        }, PageRequest.of(page, size));
+        }, buildPageRequest(page, size, sortBy, sortOrder));
 
         // 仅对当前页批量查询退货单号
         Set<String> orderIds = partPage.getContent().stream()
@@ -104,6 +107,32 @@ public class PartService {
                         ));
 
         return partPage.map(p -> buildDTO(p, orderIdToNumber.get(p.getOrderId())));
+    }
+
+    private PageRequest buildPageRequest(int page, int size, String sortBy, String sortOrder) {
+        Sort.Direction direction = "ascend".equalsIgnoreCase(sortOrder) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        String sortField = resolveSortField(sortBy);
+        return PageRequest.of(page, size, Sort.by(direction, sortField));
+    }
+
+    private String resolveSortField(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "createdAt";
+        }
+
+        return switch (sortBy) {
+            case "partNumber" -> "partNumber";
+            case "partCode" -> "partCode";
+            case "businessUnit" -> "businessUnit";
+            case "productPlatform" -> "productPlatform";
+            case "analyst" -> "analyst";
+            case "status" -> "status";
+            case "createdAt" -> "createdAt";
+            case "updatedAt" -> "updatedAt";
+            // orderNumber is not a Part column; use orderId for deterministic DB-side ordering.
+            case "orderNumber" -> "orderId";
+            default -> "createdAt";
+        };
     }
 
     public PartDTO getById(String id) {
@@ -190,6 +219,7 @@ public class PartService {
                 .partCode(trimText(dto.getPartCode()))
                 .businessUnit(trimText(dto.getBusinessUnit()))
                 .productPlatform(trimText(dto.getProductPlatform()))
+            .partNumber(generatePartNumber(dto.getBusinessUnit(), dto.getProductPlatform()))
                 .productionShift(trimText(dto.getProductionShift()))
                 .failureType(trimText(dto.getFailureType()))
                 .boschFailureType(trimText(dto.getBoschFailureType()))
@@ -216,6 +246,140 @@ public class PartService {
         }
 
         return toDTO(part);
+    }
+
+    /**
+     * 批量导入专用：批量创建售后件。
+     * 使用 Hibernate 批量插入优化性能，每批最多200条。
+     *
+     * @param dtos 售后件DTO列表
+     * @return 成功创建的售后件DTO列表
+     */
+    @Transactional
+    public List<PartDTO> createForImportBatch(List<PartDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            return List.of();
+        }
+
+        // 验证所有退货单存在且状态正确
+        Set<String> orderIds = dtos.stream()
+            .map(PartDTO::getOrderId)
+            .collect(Collectors.toSet());
+
+        Map<String, ReturnOrder> ordersMap = returnOrderRepository.findAllById(orderIds).stream()
+            .collect(Collectors.toMap(ReturnOrder::getId, o -> o));
+
+        // 检查退货单状态和analyst
+        for (PartDTO dto : dtos) {
+            ReturnOrder returnOrder = ordersMap.get(dto.getOrderId());
+            if (returnOrder == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId());
+            }
+
+            String orderStatus = returnOrder.getStatus();
+            if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: " + orderStatus);
+            }
+
+            if (dto.getAnalyst() == null || dto.getAnalyst().isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Analyst is required");
+            }
+        }
+
+        // 预先批量生成 partNumber：循环调用 generatePartNumber 会在 saveAll 前多次查询同一 DB max，
+        // 导致同批次内所有相同 (bu, platform) 的 part 拿到同一序号。改为 per-prefix 内存计数器，
+        // 首次遇到前缀时读一次 DB max，后续在内存递增。
+        List<String> batchPartNumbers = generatePartNumbersForBatch(dtos);
+
+        // 构建实体列表
+        List<Part> parts = new ArrayList<>(dtos.size());
+        for (int idx = 0; idx < dtos.size(); idx++) {
+            PartDTO dto = dtos.get(idx);
+            Part part = Part.builder()
+                    .id(UUID.randomUUID().toString())
+                    .orderId(trimText(dto.getOrderId()))
+                    .partCode(trimText(dto.getPartCode()))
+                    .businessUnit(trimText(dto.getBusinessUnit()))
+                    .productPlatform(trimText(dto.getProductPlatform()))
+                    .partNumber(batchPartNumbers.get(idx))
+                    .productionShift(trimText(dto.getProductionShift()))
+                    .failureType(trimText(dto.getFailureType()))
+                    .boschFailureType(trimText(dto.getBoschFailureType()))
+                    .vehicleProductionDate(parseDate(dto.getVehicleProductionDate()))
+                    .vehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()))
+                    .vehicleFailureDate(parseDate(dto.getVehicleFailureDate()))
+                    .vehicleVin(trimText(dto.getVehicleVIN()))
+                    .vehicleMileage(dto.getVehicleMileage())
+                    .customerDescription(trimText(dto.getCustomerDescription()))
+                    .otherDescription(trimText(dto.getOtherDescription()))
+                    .repairStation(trimText(dto.getRepairStation()))
+                    .complaintLocation(trimText(dto.getComplaintLocation()))
+                    .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
+                    .analyst(trimText(dto.getAnalyst()))
+                    .qcNo(trimText(dto.getQcNo()))
+                    .status(STATUS_SCRAPPED)
+                    .statusChangedAt(LocalDateTime.now())
+                    .build();
+            parts.add(part);
+        }
+
+        // 批量保存
+        List<Part> savedParts = partRepo.saveAll(parts);
+
+        // 批量更新导入时间（如果有）
+        Map<String, LocalDateTime> idToCreatedAt = new HashMap<>();
+        for (int i = 0; i < dtos.size(); i++) {
+            PartDTO dto = dtos.get(i);
+            LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
+            if (importCreatedAt != null && i < savedParts.size()) {
+                idToCreatedAt.put(savedParts.get(i).getId(), importCreatedAt);
+            }
+        }
+
+        if (!idToCreatedAt.isEmpty()) {
+            for (Map.Entry<String, LocalDateTime> entry : idToCreatedAt.entrySet()) {
+                partRepo.updateCreatedAt(entry.getKey(), entry.getValue());
+            }
+        }
+
+        // 刷新并清理一级缓存，避免内存占用过大
+        entityManager.flush();
+        entityManager.clear();
+
+        // 批量创建分析单
+        Set<String> uniqueOrderIds = dtos.stream()
+            .map(PartDTO::getOrderId)
+            .collect(Collectors.toSet());
+        for (String orderId : uniqueOrderIds) {
+            String analyst = dtos.stream()
+                .filter(dto -> orderId.equals(dto.getOrderId()))
+                .map(PartDTO::getAnalyst)
+                .findFirst()
+                .orElse(null);
+            if (analyst != null) {
+                try {
+                    analysisOrderService.getOrCreate(orderId, analyst);
+                } catch (Exception e) {
+                    // 分析单创建失败不影响零件创建
+                    log.warn("[PartImport] Failed to create analysis order for orderId={}: {}", orderId, e.getMessage());
+                }
+            }
+        }
+
+        // 批量查询退货单号用于DTO构建
+        Set<String> savedOrderIds = savedParts.stream()
+            .map(Part::getOrderId)
+            .collect(Collectors.toSet());
+        Map<String, String> orderIdToNumber = returnOrderRepository.findAllById(savedOrderIds).stream()
+            .collect(Collectors.toMap(
+                o -> o.getId(),
+                o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""
+            ));
+
+        return savedParts.stream()
+            .map(part -> buildDTO(part, orderIdToNumber.get(part.getOrderId())))
+            .collect(Collectors.toList());
     }
 
     private LocalDateTime parseDateTime(String value) {
@@ -320,13 +484,70 @@ public class PartService {
         return toDTO(part);
     }
 
+    /**
+     * 为整个批次预生成 partNumber，避免循环内逐个调用 generatePartNumber 导致同前缀零件拿到相同序号。
+     * 按前缀 (BU-PLATFORM-) 分组，首次遇到某前缀时从 DB 读取 max 序号，后续在内存递增。
+     */
+    private List<String> generatePartNumbersForBatch(List<PartDTO> dtos) {
+        Map<String, Integer> prefixNextSeq = new LinkedHashMap<>();
+        List<String> result = new ArrayList<>(dtos.size());
+
+        for (PartDTO dto : dtos) {
+            String safeBu = (dto.getBusinessUnit() == null || dto.getBusinessUnit().isBlank()) ? "BLANK" : dto.getBusinessUnit();
+            String safePlatform = (dto.getProductPlatform() == null || dto.getProductPlatform().isBlank()) ? "BLANK" : dto.getProductPlatform();
+            String prefix = safeBu + "-" + safePlatform + "-";
+
+            if (!prefixNextSeq.containsKey(prefix)) {
+                int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
+                prefixNextSeq.put(prefix, maxSeq + 1);
+            }
+
+            int seq = prefixNextSeq.get(prefix);
+            result.add(prefix + String.format("%04d", seq));
+            prefixNextSeq.put(prefix, seq + 1);
+        }
+
+        return result;
+    }
+
     private String generatePartNumber(String bu, String productPlatform) {
-        String safeBu = (bu == null || bu.isBlank()) ? "Null" : bu;
-        String safePlatform = (productPlatform == null || productPlatform.isBlank()) ? "Null" : productPlatform;
+        String safeBu = (bu == null || bu.isBlank()) ? "BLANK" : bu;
+        String safePlatform = (productPlatform == null || productPlatform.isBlank()) ? "BLANK" : productPlatform;
         String prefix = safeBu + "-" + safePlatform + "-";
-        // startPos: 1-based index after the prefix (e.g. "RBCA-BS-" = 8 chars, seq starts at pos 9)
-        int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
-        return prefix + String.format("%04d", maxSeq + 1);
+
+        // 添加重试机制处理数据库连接重置等临时性错误
+        int maxRetries = 3;
+        int retryDelay = 100; // milliseconds
+        int attempt = 0;
+        Exception lastException = null;
+
+        while (attempt < maxRetries) {
+            try {
+                // startPos: 1-based index after the prefix (e.g. "RBCA-BS-" = 8 chars, seq starts at pos 9)
+                int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
+                return prefix + String.format("%04d", maxSeq + 1);
+            } catch (Exception e) {
+                lastException = e;
+                attempt++;
+                if (attempt < maxRetries) {
+                    log.warn("[PartService] generatePartNumber failed (attempt {}/{}), retrying: {}",
+                            attempt, maxRetries, e.getMessage());
+                    try {
+                        Thread.sleep(retryDelay);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                                "Part number generation interrupted", ie);
+                    }
+                    retryDelay *= 2; // 指数退避
+                }
+            }
+        }
+
+        throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Failed to generate part number after " + maxRetries + " attempts: " +
+                        (lastException != null ? lastException.getMessage() : "Unknown error"),
+                lastException);
     }
 
     private boolean hasRole(String roleName) {

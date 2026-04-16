@@ -6,7 +6,11 @@ spring:
   jpa:
     open-in-view: false
     properties:
+      hibernate.jdbc.batch_size: 200
       hibernate.jdbc.fetch_size: 100
+      hibernate.order_inserts: true        # 强制排序插入以启用批处理
+      hibernate.order_updates: true        # 强制排序更新
+      hibernate.batch_versioned_data: true # 批量更新版本化实体
   datasource:
     hikari:
       max-lifetime: 1200000   # 20 分钟（毫秒）

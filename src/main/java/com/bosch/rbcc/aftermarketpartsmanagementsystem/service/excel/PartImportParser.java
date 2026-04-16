@@ -128,6 +128,12 @@ public class PartImportParser {
                     continue;
                 }
 
+                String partCodeRaw = getCellString(row, mapping.partCodeCol());
+                if (partCodeRaw == null || partCodeRaw.isBlank()) {
+                    log.debug("[PartParser] 第{}行零件号为空，按空行跳过", i + 1);
+                    continue;
+                }
+
                 int displayRowNum = i + 1; // 1-based for user display
                 Map<String, String> rawData = captureRawData(row, mapping);
                 try {

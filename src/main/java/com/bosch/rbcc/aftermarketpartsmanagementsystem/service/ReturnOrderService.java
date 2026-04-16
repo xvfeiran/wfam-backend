@@ -8,6 +8,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManage
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.ReturnOrderExcelHandler;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -37,6 +38,7 @@ public class ReturnOrderService {
     private final ReturnOrderRepository orderRepo;
     private final PartRepository partRepo;
     private final ReturnOrderExcelHandler excelHandler;
+    private final EntityManager entityManager;
 
     public Page<ReturnOrderDTO> list(String orderNumber, String customer, List<String> statuses,
                                       String receiveDateStart, String receiveDateEnd, Pageable pageable) {
@@ -306,6 +308,126 @@ public class ReturnOrderService {
         }
 
         return toDTO(order);
+    }
+
+    /**
+     * 批量导入专用：批量创建退货单并直接提交。
+     * 使用 Hibernate 批量插入优化性能，每批最多200条。
+     *
+     * @param dtos 退货单DTO列表
+     * @return 成功创建的退货单DTO列表
+     */
+    @Transactional
+    public List<ReturnOrderDTO> createAndSubmitBatchForImport(List<ReturnOrderDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            return List.of();
+        }
+
+        // 收集所有需要生成的单号的年份
+        Map<Integer, List<ReturnOrderDTO>> ordersByYear = dtos.stream()
+            .collect(Collectors.groupingBy(dto -> {
+                LocalDate receiveDate = parseDate(dto.getReceiveDate());
+                return (receiveDate != null) ? receiveDate.getYear() : LocalDate.now().getYear();
+            }));
+
+        // 为每个年份预生成单号范围
+        Map<Integer, List<String>> orderNumbersByYear = new HashMap<>();
+        for (Map.Entry<Integer, List<ReturnOrderDTO>> entry : ordersByYear.entrySet()) {
+            int year = entry.getKey();
+            List<String> orderNumbers = new ArrayList<>();
+            for (ReturnOrderDTO dto : entry.getValue()) {
+                String orderNumber = dto.getOrderNumber();
+                if (orderNumber != null) {
+                    orderNumber = orderNumber.trim();
+                }
+                if (orderNumber == null || orderNumber.isBlank()) {
+                    // 按年份规则生成单号
+                    orderNumber = generateOrderNumberForYear(year);
+                } else {
+                    // 使用Excel中的单号，需要检查是否存在
+                    if (orderRepo.findByOrderNumber(orderNumber).isPresent()) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "退货单号已存在: " + orderNumber);
+                    }
+                }
+                orderNumbers.add(orderNumber);
+            }
+            orderNumbersByYear.put(year, orderNumbers);
+        }
+
+        // 构建实体列表
+        List<ReturnOrder> orders = new ArrayList<>(dtos.size());
+        Iterator<ReturnOrderDTO> dtoIterator = dtos.iterator();
+        Iterator<String> numberIterator = orderNumbersByYear.values().stream()
+            .flatMap(List::stream)
+            .iterator();
+
+        while (dtoIterator.hasNext() && numberIterator.hasNext()) {
+            ReturnOrderDTO dto = dtoIterator.next();
+            String orderNumber = numberIterator.next();
+
+            LocalDate receiveDate   = parseDate(dto.getReceiveDate());
+            LocalDate complaintDate = parseDate(dto.getComplaintDate());
+            LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
+
+            ReturnOrder order = ReturnOrder.builder()
+                    .id(UUID.randomUUID().toString())
+                    .orderNumber(orderNumber)
+                    .customerId(dto.getCustomerId())
+                    .customer(dto.getCustomer())
+                    .receiveDate(receiveDate)
+                    .complaintDate(complaintDate)
+                    .returnMethod(dto.getReturnMethod())
+                    .trackingNumber(dto.getTrackingNumber())
+                    .returnQuantity(dto.getReturnQuantity())
+                    .complaintType(dto.getComplaintType())
+                    .status(STATUS_SUBMITTED)
+                    .build();
+            orders.add(order);
+        }
+
+        // 批量保存
+        List<ReturnOrder> savedOrders = orderRepo.saveAll(orders);
+
+        // 批量更新导入时间（如果有）
+        List<String> idsToUpdate = savedOrders.stream()
+            .filter(order -> {
+                ReturnOrderDTO dto = findDtoByOrderNumber(dtos, order.getOrderNumber());
+                LocalDateTime importCreatedAt = parseDateTime(dto != null ? dto.getCreatedAt() : null);
+                return importCreatedAt != null;
+            })
+            .map(ReturnOrder::getId)
+            .collect(Collectors.toList());
+
+        if (!idsToUpdate.isEmpty()) {
+            for (String id : idsToUpdate) {
+                ReturnOrderDTO dto = findDtoByOrderNumber(dtos,
+                    savedOrders.stream()
+                        .filter(o -> o.getId().equals(id))
+                        .findFirst()
+                        .map(ReturnOrder::getOrderNumber)
+                        .orElse(null));
+                if (dto != null) {
+                    LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
+                    orderRepo.updateCreatedAt(id, importCreatedAt);
+                }
+            }
+        }
+
+        // 刷新并清理一级缓存，避免内存占用过大
+        entityManager.flush();
+        entityManager.clear();
+
+        return savedOrders.stream()
+            .map(this::toDTO)
+            .collect(Collectors.toList());
+    }
+
+    private ReturnOrderDTO findDtoByOrderNumber(List<ReturnOrderDTO> dtos, String orderNumber) {
+        if (orderNumber == null) return null;
+        return dtos.stream()
+            .filter(dto -> orderNumber.equals(dto.getOrderNumber()) || (dto.getOrderNumber() != null && orderNumber.equals(dto.getOrderNumber().trim())))
+            .findFirst()
+            .orElse(null);
     }
 
     private LocalDateTime parseDateTime(String value) {

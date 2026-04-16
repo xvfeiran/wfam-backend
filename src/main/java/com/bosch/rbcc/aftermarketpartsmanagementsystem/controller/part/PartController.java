@@ -38,9 +38,14 @@ public class PartController {
             @Parameter(description = "QC录入：yes=已录，no=未录") @RequestParam(required = false) String qcCreated,
             @Parameter(description = "分析员（模糊匹配）") @RequestParam(required = false) String analyst,
             @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "排序字段（如 partNumber、partCode、businessUnit、productPlatform、analyst、status、createdAt）")
+            @RequestParam(required = false) String sortBy,
+            @Parameter(description = "排序方向：ascend/descend")
+            @RequestParam(required = false) String sortOrder) {
         return PageResponse.of(
-                partService.list(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst, page, size)
+                partService.list(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst,
+                        page, size, sortBy, sortOrder)
         );
     }
 

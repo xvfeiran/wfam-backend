@@ -84,13 +84,29 @@ public class ImportController {
         }
 
         String folderPath = request.getFolderPath().trim();
-        log.info("[ImportController] 收到售后件目录导入请求: folderPath={}", folderPath);
+        log.info("[ImportController] Received part folder import request: folderPath={}", escapeForLog(folderPath));
 
         ImportRecordDTO record = importService.createPendingPartRecord("[FOLDER] " + folderPath);
-        log.info("[ImportController] 返回售后件目录导入 processing 记录: id={}", record.getId());
+        log.info("[ImportController] Created processing import record: id={}", record.getId());
 
         importService.processPartsFolderAsync(record.getId(), folderPath);
         return record;
+    }
+
+    private String escapeForLog(String value) {
+        if (value == null) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch >= 32 && ch <= 126) {
+                sb.append(ch);
+            } else {
+                sb.append(String.format("\\u%04x", (int) ch));
+            }
+        }
+        return sb.toString();
     }
 
     @Operation(summary = "查询单条导入记录（用于轮询状态）")
@@ -113,6 +129,14 @@ public class ImportController {
             @RequestParam String fileName,
             @PageableDefault(size = 200) Pageable pageable) {
         return PageResponse.of(importService.listImportLogsByFile(id, fileName, pageable));
+    }
+
+    @Operation(summary = "分页查询本次导入的全部错误日志")
+    @GetMapping("/{id}/errors")
+    public PageResponse<Map<String, Object>> listErrors(
+            @PathVariable String id,
+            @PageableDefault(size = 50) Pageable pageable) {
+        return PageResponse.of(importService.listImportErrors(id, pageable));
     }
 
     @Operation(summary = "删除本次导入产生的数据")
