@@ -225,12 +225,14 @@ public class OcrAsyncProcessor {
         String vin            = textOrNull(node, "车辆VIN码");
         String mileageStr     = textOrNull(node, "车辆行驶里程");
         String description    = textOrNull(node, "客户失效描述");
+        String repairStation  = textOrNull(node, "维修站号/投诉地");
 
         builder.vehicleProductionDate(productionDate);
         builder.vehiclePurchaseDate(purchaseDate);
         builder.vehicleFailureDate(failureDate);
         builder.vehicleVIN(vin);
         builder.customerDescription(description);
+        builder.repairStationLocation(repairStation);
 
         if (mileageStr != null) {
             try {

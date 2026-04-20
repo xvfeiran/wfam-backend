@@ -212,6 +212,9 @@ public class OcrService {
         if (result.getCustomerDescription() != null) {
             part.setCustomerDescription(result.getCustomerDescription());
         }
+        if (result.getRepairStationLocation() != null) {
+            part.setRepairStationLocation(result.getRepairStationLocation());
+        }
     }
 
     // ── 私有方法 ──────────────────────────────────────────────────
