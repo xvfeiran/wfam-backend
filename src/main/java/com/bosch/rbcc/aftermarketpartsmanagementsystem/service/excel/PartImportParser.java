@@ -189,7 +189,7 @@ public class PartImportParser {
                 .vehicleMileage(parseInteger(getCellString(row, mapping.vehicleMileageCol())))
                 .customerDescription(normalizeText(getCellString(row, mapping.customerDescriptionCol())))
                 .otherDescription(normalizeText(getCellString(row, mapping.otherDescriptionCol())))
-                .repairStation(normalizeText(getCellString(row, mapping.repairStationCol())))
+                .repairStationLocation(normalizeText(getCellString(row, mapping.repairStationCol())))
                 .analyst(DEFAULT_IMPORTED_ANALYST)
                 .qcNo(normalizeQcNo(getCellString(row, mapping.qcNoCol())))
                 .build();
@@ -267,7 +267,7 @@ public class PartImportParser {
         raw.put("orderNumber", getCellString(row, mapping.orderNumberCol()));
         raw.put("partCode", getCellString(row, mapping.partCodeCol()));
         raw.put("vehicleFailureDate", getCellString(row, mapping.vehicleFailureDateCol()));
-        raw.put("repairStation", getCellString(row, mapping.repairStationCol()));
+        raw.put("repairStationLocation", getCellString(row, mapping.repairStationCol()));
         raw.put("customerDescription", getCellString(row, mapping.customerDescriptionCol()));
         raw.put("qcNo", getCellString(row, mapping.qcNoCol()));
         return raw;

@@ -32,8 +32,7 @@ public class PartDTO {
     private String failureType;
     @Schema(description = "博世失效类型", example = "BA40")
     private String boschFailureType;
-    private String repairStation;
-    private String complaintLocation;
+    private String repairStationLocation;
     private String responsibleEngineer;
     private String analyst;
     private String qcNo;
