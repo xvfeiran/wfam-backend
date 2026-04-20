@@ -32,3 +32,8 @@ logging:
   charset:
     console: UTF-8
     file: UTF-8
+
+spring:
+  devtools:
+    restart:
+      enabled: false  # 禁用 DevTools 热重载，避免 Lombok Builder 类加载问题

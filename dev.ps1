@@ -29,8 +29,15 @@ $env:Path = "$MavenBin;$env:JAVA_HOME\bin;$env:Path"
 # SPRING_PROFILES_ACTIVE env var is the highest-priority profile source and survives any
 # DevTools restart classloader split; spring-boot.run.profiles is unreliable in 4.x without fork.
 $env:SPRING_PROFILES_ACTIVE = "local"
-# spring.devtools.restart.enabled=false: prevents the restart classloader from shadowing
-# target/classes config files (which caused port 8080 / datasource-not-found symptoms).
+
+# Clean compile before starting to avoid Lombok Builder class loading issues
+Write-Host ">>> Compiling project..." -ForegroundColor Cyan
+mvn clean compile -q -DskipTests
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ">>> Compilation failed!" -ForegroundColor Red
+    exit $LASTEXITCODE
+}
+
 Write-Host ">>> Launching Spring Boot with 'local' profile..." -ForegroundColor Cyan
 try {
     mvn --no-transfer-progress spring-boot:run -Plocal -DskipTests
