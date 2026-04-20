@@ -26,21 +26,11 @@ $env:Path = "$MavenBin;$env:JAVA_HOME\bin;$env:Path"
 # $job = Start-Job -ScriptBlock $WatchScript
 
 # 4. Run Spring Boot
-# SPRING_PROFILES_ACTIVE env var is the highest-priority profile source and survives any
-# DevTools restart classloader split; spring-boot.run.profiles is unreliable in 4.x without fork.
-$env:SPRING_PROFILES_ACTIVE = "local"
-
-# Clean compile before starting to avoid Lombok Builder class loading issues
-Write-Host ">>> Compiling project..." -ForegroundColor Cyan
-mvn clean compile -q -DskipTests
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ">>> Compilation failed!" -ForegroundColor Red
-    exit $LASTEXITCODE
-}
-
 Write-Host ">>> Launching Spring Boot with 'local' profile..." -ForegroundColor Cyan
 try {
-    mvn --no-transfer-progress spring-boot:run -Plocal -DskipTests
+    # Quoting -D parameters is mandatory in PowerShell
+    # clean + fork=true prevents Lombok Builder class loading issues
+    mvn --no-transfer-progress clean spring-boot:run -Plocal "-Dspring-boot.run.profiles=local" -DskipTests "-Dspring-boot.run.fork=true"
 }
 finally {
     Write-Host "`n>>> Stopping Watcher Job..." -ForegroundColor Red
