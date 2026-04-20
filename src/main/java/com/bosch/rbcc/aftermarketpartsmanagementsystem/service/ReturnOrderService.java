@@ -2,9 +2,11 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Customer;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.CustomerRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.ReturnOrderExcelHandler;
@@ -37,6 +39,7 @@ public class ReturnOrderService {
 
     private final ReturnOrderRepository orderRepo;
     private final PartRepository partRepo;
+    private final CustomerRepository customerRepo;
     private final ReturnOrderExcelHandler excelHandler;
     private final EntityManager entityManager;
 
@@ -81,11 +84,15 @@ public class ReturnOrderService {
 
     @Transactional
     public ReturnOrderDTO create(ReturnOrderDTO dto) {
-        // failureType is required
+        String customerName = dto.getCustomer();
+        if (customerName == null || customerName.isBlank()) {
+            customerName = getCustomerName(dto.getCustomerId());
+        }
+
         ReturnOrder order = ReturnOrder.builder()
                 .id(UUID.randomUUID().toString())
                 .customerId(dto.getCustomerId())
-                .customer(dto.getCustomer()) // 保留客户名称用于显示
+                .customer(customerName)
                 .receiveDate(parseDate(dto.getReceiveDate()))
                 .complaintDate(parseDate(dto.getComplaintDate()))
                 .returnMethod(dto.getReturnMethod())
@@ -113,7 +120,13 @@ public class ReturnOrderService {
         }
 
         order.setCustomerId(dto.getCustomerId());
-        order.setCustomer(dto.getCustomer()); // 保留客户名称用于显示
+
+        String customerName = dto.getCustomer();
+        if (customerName == null || customerName.isBlank()) {
+            customerName = getCustomerName(dto.getCustomerId());
+        }
+        order.setCustomer(customerName);
+
         order.setReceiveDate(parseDate(dto.getReceiveDate()));
         order.setComplaintDate(parseDate(dto.getComplaintDate()));
         order.setReturnMethod(dto.getReturnMethod());
@@ -505,6 +518,18 @@ public class ReturnOrderService {
     private LocalDate parseDate(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) return null;
         return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+    }
+
+    /**
+     * 根据客户ID获取客户名称
+     */
+    private String getCustomerName(String customerId) {
+        if (customerId == null || customerId.isBlank()) {
+            return null;
+        }
+        return customerRepo.findById(customerId)
+                .map(Customer::getName)
+                .orElse(null);
     }
 
     /**
