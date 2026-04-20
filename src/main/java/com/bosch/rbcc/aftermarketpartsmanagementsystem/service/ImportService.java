@@ -1399,19 +1399,8 @@ public class ImportService {
     }
 
     private String escapeForLog(String value) {
-        if (value == null) {
-            return null;
-        }
-        StringBuilder sb = new StringBuilder(value.length());
-        for (int i = 0; i < value.length(); i++) {
-            char ch = value.charAt(i);
-            if (ch >= 32 && ch <= 126) {
-                sb.append(ch);
-            } else {
-                sb.append(String.format("\\u%04x", (int) ch));
-            }
-        }
-        return sb.toString();
+        // 日志框架已处理转义，直接返回原值支持中文
+        return value;
     }
 
     private LocalDateTime resolveImportCreatedAt(String sourceFileName, Map<String, String> rawData) {

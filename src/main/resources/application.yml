@@ -27,3 +27,8 @@ ocr:
     api-key: ${OCR_DIFY_API_KEY:app-Ie53sAIxrvQx68kyvvb3a9Fo}
     input-variable: photo
     user: wfam-ocr
+
+logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
