@@ -39,14 +39,11 @@ public class PartController {
             @Parameter(description = "分析员（模糊匹配）") @RequestParam(required = false) String analyst,
             @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size,
-            @Parameter(description = "排序字段（如 partNumber、partCode、businessUnit、productPlatform、analyst、status、createdAt）")
-            @RequestParam(required = false) String sortBy,
-            @Parameter(description = "排序方向：ascend/descend")
-            @RequestParam(required = false) String sortOrder) {
+            @Parameter(description = "排序字段（如 partNumber、partCode、businessUnit、productPlatform、analyst、status、createdAt）") @RequestParam(required = false) String sortBy,
+            @Parameter(description = "排序方向：ascend/descend") @RequestParam(required = false) String sortOrder) {
         return PageResponse.of(
                 partService.list(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst,
-                        page, size, sortBy, sortOrder)
-        );
+                        page, size, sortBy, sortOrder));
     }
 
     @Operation(summary = "获取售后件详情")
@@ -60,8 +57,7 @@ public class PartController {
     @ResponseStatus(HttpStatus.CREATED)
     public PartDTO create(
             @RequestBody PartDTO dto,
-            @Parameter(description = "关联的 OCR 任务 ID（新建模式下由前端传入以完成绑定）")
-            @RequestParam(value = "ocrTaskId", required = false) String ocrTaskId) {
+            @Parameter(description = "关联的 OCR 任务 ID（新建模式下由前端传入以完成绑定）") @RequestParam(value = "ocrTaskId", required = false) String ocrTaskId) {
         return partService.create(dto, ocrTaskId);
     }
 

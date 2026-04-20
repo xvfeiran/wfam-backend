@@ -26,10 +26,14 @@ $env:Path = "$MavenBin;$env:JAVA_HOME\bin;$env:Path"
 # $job = Start-Job -ScriptBlock $WatchScript
 
 # 4. Run Spring Boot
+# SPRING_PROFILES_ACTIVE env var is the highest-priority profile source and survives any
+# DevTools restart classloader split; spring-boot.run.profiles is unreliable in 4.x without fork.
+$env:SPRING_PROFILES_ACTIVE = "local"
+# spring.devtools.restart.enabled=false: prevents the restart classloader from shadowing
+# target/classes config files (which caused port 8080 / datasource-not-found symptoms).
 Write-Host ">>> Launching Spring Boot with 'local' profile..." -ForegroundColor Cyan
 try {
-    # Quoting -D parameters is mandatory in PowerShell
-    mvn --no-transfer-progress clean spring-boot:run -Plocal "-Dspring-boot.run.profiles=local" -DskipTests "-Dspring-boot.run.fork=true"
+    mvn --no-transfer-progress spring-boot:run -Plocal -DskipTests
 }
 finally {
     Write-Host "`n>>> Stopping Watcher Job..." -ForegroundColor Red

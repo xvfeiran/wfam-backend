@@ -20,8 +20,8 @@ public interface PartRepository extends JpaRepository<Part, String>,
 
     Optional<Part> findByPartNumber(String partNumber);
 
-    @Query(value = "SELECT MAX(TO_NUMBER(SUBSTR(PART_NUMBER, :startPos))) FROM APMS_PART WHERE PART_NUMBER LIKE :pattern", nativeQuery = true)
-    Optional<Integer> findMaxSeqByPrefix(@Param("startPos") int startPos, @Param("pattern") String pattern);
+    @Query(value = "SELECT MAX(TO_NUMBER(SUBSTR(PART_NUMBER, :startPos))) FROM APMS_PART WHERE PART_NUMBER LIKE :pattern AND ORDER_ID = :orderId", nativeQuery = true)
+    Optional<Integer> findMaxSeqByPrefixAndOrderId(@Param("startPos") int startPos, @Param("pattern") String pattern, @Param("orderId") String orderId);
 
     long countByOrderIdAndIsSample(String orderId, int isSample);
 

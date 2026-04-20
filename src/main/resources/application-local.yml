@@ -1,7 +1,5 @@
 spring:
-  main:
-    banner-mode: off
-    log-startup-info: false
+
   datasource:
     driverClassName: oracle.jdbc.OracleDriver
     url: jdbc:oracle:thin:@cngorarac01.apac.bosch.com:38000/aepqual_app.apac.bosch.com?currentSchema=SUPER_LINE_LEADER

@@ -1,8 +1,6 @@
 spring:
   application:
     name: aftermarket-parts-service
-  profiles:
-      active: @spring.profiles.active@
   jpa:
     open-in-view: false
     properties:
@@ -22,3 +20,10 @@ server:
   servlet:
     context-path: /aftermarket-parts-management-system
   port: 8102
+
+ocr:
+  dify:
+    base-url: ${OCR_DIFY_BASE_URL:http://10.8.157.24:8089/v1}
+    api-key: ${OCR_DIFY_API_KEY:app-Ie53sAIxrvQx68kyvvb3a9Fo}
+    input-variable: photo
+    user: wfam-ocr

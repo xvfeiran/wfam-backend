@@ -19,26 +19,26 @@ import java.util.*;
 
 /**
  * 解析 2025 售后件 Excel：
- *   第0行：文件信息
- *   第1行：中文表头
- *   第2行：英文表头
- *   第3行起：数据行
+ * 第0行：文件信息
+ * 第1行：中文表头
+ * 第2行：英文表头
+ * 第3行起：数据行
  *
  * 关键映射：
- *   Excel第2列  博世零件号        -> partCode
- *   Excel第6列  班次             -> productionShift
- *   Excel第7列  车辆生产日期       -> vehicleProductionDate
- *   Excel第8列  失效日期          -> vehicleFailureDate
- *   Excel第9列  维修站号/...      -> repairStation
- *   Excel第11列 VIN码/...         -> vehicleVIN
- *   Excel第12列 购车日期          -> vehiclePurchaseDate
- *   Excel第13列 行驶里程          -> vehicleMileage
- *   Excel第14列 客户失效描述       -> customerDescription
- *   Excel第15列 故障模式          -> failureType
- *   Excel第21列 其他             -> otherDescription
- *   Excel第23列 博世失效描述       -> boschFailureType
- *   Excel第32列 QC号             -> qcNo（仅12位纯数字时生效）
- *   Excel第33列 退货单号          -> orderNumber
+ * Excel第2列 博世零件号 -> partCode
+ * Excel第6列 班次 -> productionShift
+ * Excel第7列 车辆生产日期 -> vehicleProductionDate
+ * Excel第8列 失效日期 -> vehicleFailureDate
+ * Excel第9列 维修站号/... -> repairStation
+ * Excel第11列 VIN码/... -> vehicleVIN
+ * Excel第12列 购车日期 -> vehiclePurchaseDate
+ * Excel第13列 行驶里程 -> vehicleMileage
+ * Excel第14列 客户失效描述 -> customerDescription
+ * Excel第15列 故障模式 -> failureType
+ * Excel第21列 其他 -> otherDescription
+ * Excel第23列 博世失效描述 -> boschFailureType
+ * Excel第32列 QC号 -> qcNo（仅12位纯数字时生效）
+ * Excel第33列 退货单号 -> orderNumber
  *
  * 事业部/产品平台通过零件号主数据映射，不再直接读取 Excel 列。
  */
@@ -51,16 +51,23 @@ public class PartImportParser {
     private static final int HEADER_ROW_EN_INDEX = 2;
     private static final int DATA_START_ROW_INDEX = 3;
 
-    private static final List<String> ORDER_NUMBER_HEADERS = List.of("退货单号", "return form", "return order", "return no");
-    private static final List<String> PART_CODE_HEADERS = List.of("博世零件号", "bosch p/n", "bosch part", "part code", "零件号");
+    private static final List<String> ORDER_NUMBER_HEADERS = List.of("退货单号", "return form", "return order",
+            "return no");
+    private static final List<String> PART_CODE_HEADERS = List.of("博世零件号", "bosch p/n", "bosch part", "part code",
+            "零件号");
     private static final List<String> PRODUCTION_SHIFT_HEADERS = List.of("班次", "shift");
-    private static final List<String> VEHICLE_PRODUCTION_DATE_HEADERS = List.of("车辆生产日期", "vehicle prod date", "vehicle production date");
-    private static final List<String> VEHICLE_FAILURE_DATE_HEADERS = List.of("失效日期", "failure date", "车辆故障日期", "vehicle failure date");
-    private static final List<String> REPAIR_STATION_HEADERS = List.of("维修站号", "维修站", "maintain station", "repair station");
+    private static final List<String> VEHICLE_PRODUCTION_DATE_HEADERS = List.of("车辆生产日期", "vehicle prod date",
+            "vehicle production date");
+    private static final List<String> VEHICLE_FAILURE_DATE_HEADERS = List.of("失效日期", "failure date", "车辆故障日期",
+            "vehicle failure date");
+    private static final List<String> REPAIR_STATION_HEADERS = List.of("维修站号", "维修站", "maintain station",
+            "repair station");
     private static final List<String> VEHICLE_VIN_HEADERS = List.of("vin码", "vin/chassis", "vin", "底盘号", "车架号");
-    private static final List<String> VEHICLE_PURCHASE_DATE_HEADERS = List.of("购车日期", "vehicle purch", "vehicle purchase date");
+    private static final List<String> VEHICLE_PURCHASE_DATE_HEADERS = List.of("购车日期", "vehicle purch",
+            "vehicle purchase date");
     private static final List<String> VEHICLE_MILEAGE_HEADERS = List.of("行驶里程", "mileage");
-    private static final List<String> CUSTOMER_DESCRIPTION_HEADERS = List.of("客户失效描述", "cuco description", "customer description");
+    private static final List<String> CUSTOMER_DESCRIPTION_HEADERS = List.of("客户失效描述", "cuco description",
+            "customer description");
     private static final List<String> FAILURE_TYPE_HEADERS = List.of("故障模式", "failure mode");
     private static final List<String> OTHER_DESCRIPTION_HEADERS = List.of("其他", "others");
     private static final List<String> BOSCH_FAILURE_TYPE_HEADERS = List.of("博世失效", "failure desc", "bosch failure");
@@ -76,14 +83,13 @@ public class PartImportParser {
             DateTimeFormatter.ofPattern("yyyy/MM/dd"),
             DateTimeFormatter.ofPattern("MM/dd/yyyy"),
             DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-            DateTimeFormatter.ofPattern("yyyyMMdd")
-    );
+            DateTimeFormatter.ofPattern("yyyyMMdd"));
 
     @Getter
     public static class ParseResult {
-        private final int rowNum;              // 1-based display row number
-        private final PartDTO dto;             // non-null if success
-        private final String error;            // non-null if failure
+        private final int rowNum; // 1-based display row number
+        private final PartDTO dto; // non-null if success
+        private final String error; // non-null if failure
         private final Map<String, String> rawData; // raw cell values captured from the row
 
         private ParseResult(int rowNum, PartDTO dto, String error, Map<String, String> rawData) {
@@ -191,7 +197,8 @@ public class PartImportParser {
 
     private String parseDate(String rawDate) {
         String trimmed = normalizeText(rawDate);
-        if (trimmed == null) return null;
+        if (trimmed == null)
+            return null;
 
         for (DateTimeFormatter fmt : DATE_FORMATTERS) {
             try {
@@ -206,19 +213,23 @@ public class PartImportParser {
 
     private Integer parseInteger(String rawValue) {
         String normalized = normalizeText(rawValue);
-        if (normalized == null) return null;
+        if (normalized == null)
+            return null;
         try {
             return Integer.parseInt(normalized);
         } catch (NumberFormatException ignored) {
-            // For import compatibility, treat non-integer mileage as empty instead of failing the row.
+            // For import compatibility, treat non-integer mileage as empty instead of
+            // failing the row.
             return null;
         }
     }
 
     private String getCellString(Row row, int col) {
-        if (row == null || col < 0) return null;
+        if (row == null || col < 0)
+            return null;
         Cell cell = row.getCell(col);
-        if (cell == null) return null;
+        if (cell == null)
+            return null;
 
         return switch (cell.getCellType()) {
             case STRING -> {
@@ -243,7 +254,8 @@ public class PartImportParser {
             Cell cell = row.getCell(c);
             if (cell != null && cell.getCellType() != CellType.BLANK) {
                 String val = getCellString(row, c);
-                if (val != null && !val.isBlank()) return false;
+                if (val != null && !val.isBlank())
+                    return false;
             }
         }
         return true;
@@ -268,8 +280,7 @@ public class PartImportParser {
         Map<Integer, String> headers = new HashMap<>();
         int maxCol = Math.max(
                 cnHeader != null ? cnHeader.getLastCellNum() : 0,
-                enHeader != null ? enHeader.getLastCellNum() : 0
-        );
+                enHeader != null ? enHeader.getLastCellNum() : 0);
 
         for (int col = 0; col < maxCol; col++) {
             String cn = normalizeHeader(getCellString(cnHeader, col));
@@ -291,8 +302,7 @@ public class PartImportParser {
                 resolveOptionalColumn(headers, FAILURE_TYPE_HEADERS),
                 resolveOptionalColumn(headers, OTHER_DESCRIPTION_HEADERS),
                 resolveOptionalColumn(headers, BOSCH_FAILURE_TYPE_HEADERS),
-                resolveOptionalColumn(headers, QC_NO_HEADERS)
-        );
+                resolveOptionalColumn(headers, QC_NO_HEADERS));
     }
 
     private int resolveRequiredColumn(Map<Integer, String> headers, List<String> aliases, String displayName) {
@@ -365,7 +375,6 @@ public class PartImportParser {
             int failureTypeCol,
             int otherDescriptionCol,
             int boschFailureTypeCol,
-            int qcNoCol
-    ) {
+            int qcNoCol) {
     }
 }

@@ -54,8 +54,8 @@ public class PartService {
     private final EntityManager entityManager;
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
-                              String productPlatform, String status, String qcCreated,
-                              String analyst, int page, int size, String sortBy, String sortOrder) {
+            String productPlatform, String status, String qcCreated,
+            String analyst, int page, int size, String sortBy, String sortOrder) {
 
         Page<Part> partPage = partRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -89,8 +89,7 @@ public class PartService {
             } else if ("no".equals(qcCreated)) {
                 predicates.add(cb.or(
                         cb.isNull(root.get("qcNo")),
-                        cb.equal(root.get("qcNo"), "")
-                ));
+                        cb.equal(root.get("qcNo"), "")));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         }, buildPageRequest(page, size, sortBy, sortOrder));
@@ -103,8 +102,7 @@ public class PartService {
                 : returnOrderRepository.findAllById(orderIds).stream()
                         .collect(Collectors.toMap(
                                 o -> o.getId(),
-                                o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""
-                        ));
+                                o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""));
 
         return partPage.map(p -> buildDTO(p, orderIdToNumber.get(p.getOrderId())));
     }
@@ -129,7 +127,8 @@ public class PartService {
             case "status" -> "status";
             case "createdAt" -> "createdAt";
             case "updatedAt" -> "updatedAt";
-            // orderNumber is not a Part column; use orderId for deterministic DB-side ordering.
+            // orderNumber is not a Part column; use orderId for deterministic DB-side
+            // ordering.
             case "orderNumber" -> "orderId";
             default -> "createdAt";
         };
@@ -145,13 +144,15 @@ public class PartService {
     public PartDTO create(PartDTO dto, String ocrTaskId) {
         // Check if the associated return order allows adding new parts
         var returnOrder = returnOrderRepository.findById(dto.getOrderId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId()));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Return order not found: " + dto.getOrderId()));
 
         String orderStatus = returnOrder.getStatus();
         // Only draft and submitted status can add parts
         if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                "Parts can only be added to return orders in 'draft' or 'submitted' status. Current status: " + orderStatus);
+                    "Parts can only be added to return orders in 'draft' or 'submitted' status. Current status: "
+                            + orderStatus);
         }
 
         // Analyst is required
@@ -161,25 +162,25 @@ public class PartService {
 
         Part part = Part.builder()
                 .id(UUID.randomUUID().toString())
-            .orderId(trimText(dto.getOrderId()))
-            .partCode(trimText(dto.getPartCode()))
-            .businessUnit(trimText(dto.getBusinessUnit()))
-            .productPlatform(trimText(dto.getProductPlatform()))
-            .productionShift(trimText(dto.getProductionShift()))
-            .failureType(trimText(dto.getFailureType()))
-            .boschFailureType(trimText(dto.getBoschFailureType()))
+                .orderId(trimText(dto.getOrderId()))
+                .partCode(trimText(dto.getPartCode()))
+                .businessUnit(trimText(dto.getBusinessUnit()))
+                .productPlatform(trimText(dto.getProductPlatform()))
+                .productionShift(trimText(dto.getProductionShift()))
+                .failureType(trimText(dto.getFailureType()))
+                .boschFailureType(trimText(dto.getBoschFailureType()))
                 .vehicleProductionDate(parseDate(dto.getVehicleProductionDate()))
                 .vehiclePurchaseDate(parseDate(dto.getVehiclePurchaseDate()))
                 .vehicleFailureDate(parseDate(dto.getVehicleFailureDate()))
-            .vehicleVin(trimText(dto.getVehicleVIN()))
+                .vehicleVin(trimText(dto.getVehicleVIN()))
                 .vehicleMileage(dto.getVehicleMileage())
-            .customerDescription(trimText(dto.getCustomerDescription()))
-            .otherDescription(trimText(dto.getOtherDescription()))
-            .repairStation(trimText(dto.getRepairStation()))
-            .complaintLocation(trimText(dto.getComplaintLocation()))
-            .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
-            .analyst(trimText(dto.getAnalyst()))
-            .qcNo(trimText(dto.getQcNo()))
+                .customerDescription(trimText(dto.getCustomerDescription()))
+                .otherDescription(trimText(dto.getOtherDescription()))
+                .repairStation(trimText(dto.getRepairStation()))
+                .complaintLocation(trimText(dto.getComplaintLocation()))
+                .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
+                .analyst(trimText(dto.getAnalyst()))
+                .qcNo(trimText(dto.getQcNo()))
                 .status(STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
@@ -199,14 +200,16 @@ public class PartService {
     @Transactional
     public PartDTO createForImport(PartDTO dto) {
         var returnOrder = returnOrderRepository.findById(dto.getOrderId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + dto.getOrderId()));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Return order not found: " + dto.getOrderId()));
 
         LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
 
         String orderStatus = returnOrder.getStatus();
         if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: " + orderStatus);
+                    "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: "
+                            + orderStatus);
         }
 
         if (dto.getAnalyst() == null || dto.getAnalyst().isBlank()) {
@@ -219,7 +222,7 @@ public class PartService {
                 .partCode(trimText(dto.getPartCode()))
                 .businessUnit(trimText(dto.getBusinessUnit()))
                 .productPlatform(trimText(dto.getProductPlatform()))
-            .partNumber(generatePartNumber(dto.getBusinessUnit(), dto.getProductPlatform()))
+                .partNumber(generatePartNumber(dto.getBusinessUnit(), dto.getProductPlatform(), dto.getOrderId()))
                 .productionShift(trimText(dto.getProductionShift()))
                 .failureType(trimText(dto.getFailureType()))
                 .boschFailureType(trimText(dto.getBoschFailureType()))
@@ -263,11 +266,11 @@ public class PartService {
 
         // 验证所有退货单存在且状态正确
         Set<String> orderIds = dtos.stream()
-            .map(PartDTO::getOrderId)
-            .collect(Collectors.toSet());
+                .map(PartDTO::getOrderId)
+                .collect(Collectors.toSet());
 
         Map<String, ReturnOrder> ordersMap = returnOrderRepository.findAllById(orderIds).stream()
-            .collect(Collectors.toMap(ReturnOrder::getId, o -> o));
+                .collect(Collectors.toMap(ReturnOrder::getId, o -> o));
 
         // 检查退货单状态和analyst
         for (PartDTO dto : dtos) {
@@ -279,7 +282,8 @@ public class PartService {
             String orderStatus = returnOrder.getStatus();
             if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: " + orderStatus);
+                        "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: "
+                                + orderStatus);
             }
 
             if (dto.getAnalyst() == null || dto.getAnalyst().isBlank()) {
@@ -349,37 +353,37 @@ public class PartService {
 
         // 批量创建分析单
         Set<String> uniqueOrderIds = dtos.stream()
-            .map(PartDTO::getOrderId)
-            .collect(Collectors.toSet());
+                .map(PartDTO::getOrderId)
+                .collect(Collectors.toSet());
         for (String orderId : uniqueOrderIds) {
             String analyst = dtos.stream()
-                .filter(dto -> orderId.equals(dto.getOrderId()))
-                .map(PartDTO::getAnalyst)
-                .findFirst()
-                .orElse(null);
+                    .filter(dto -> orderId.equals(dto.getOrderId()))
+                    .map(PartDTO::getAnalyst)
+                    .findFirst()
+                    .orElse(null);
             if (analyst != null) {
                 try {
                     analysisOrderService.getOrCreate(orderId, analyst);
                 } catch (Exception e) {
                     // 分析单创建失败不影响零件创建
-                    log.warn("[PartImport] Failed to create analysis order for orderId={}: {}", orderId, e.getMessage());
+                    log.warn("[PartImport] Failed to create analysis order for orderId={}: {}", orderId,
+                            e.getMessage());
                 }
             }
         }
 
         // 批量查询退货单号用于DTO构建
         Set<String> savedOrderIds = savedParts.stream()
-            .map(Part::getOrderId)
-            .collect(Collectors.toSet());
+                .map(Part::getOrderId)
+                .collect(Collectors.toSet());
         Map<String, String> orderIdToNumber = returnOrderRepository.findAllById(savedOrderIds).stream()
-            .collect(Collectors.toMap(
-                o -> o.getId(),
-                o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""
-            ));
+                .collect(Collectors.toMap(
+                        o -> o.getId(),
+                        o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""));
 
         return savedParts.stream()
-            .map(part -> buildDTO(part, orderIdToNumber.get(part.getOrderId())))
-            .collect(Collectors.toList());
+                .map(part -> buildDTO(part, orderIdToNumber.get(part.getOrderId())))
+                .collect(Collectors.toList());
     }
 
     private LocalDateTime parseDateTime(String value) {
@@ -394,7 +398,8 @@ public class PartService {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
 
-        // Check permission: submitted parts (with partNumber) can only be edited by QMC Leader
+        // Check permission: submitted parts (with partNumber) can only be edited by QMC
+        // Leader
         if (part.getPartNumber() != null) {
             boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
             if (!isQMCLeader) {
@@ -428,7 +433,8 @@ public class PartService {
         Part part = partRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
 
-        // Check permission: submitted parts (with partNumber) can only be deleted by QMC Leader
+        // Check permission: submitted parts (with partNumber) can only be deleted by
+        // QMC Leader
         if (part.getPartNumber() != null) {
             boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
             if (!isQMCLeader) {
@@ -454,7 +460,7 @@ public class PartService {
 
         // 如果尚未生成零件编号，则生成新编号
         if (part.getPartNumber() == null) {
-            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform()));
+            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform(), part.getOrderId()));
         }
         // 已提交的单据也可以再次提交（用于更新数据），只保存更新
         partRepo.save(part);
@@ -489,42 +495,45 @@ public class PartService {
      * 按前缀 (BU-PLATFORM-) 分组，首次遇到某前缀时从 DB 读取 max 序号，后续在内存递增。
      */
     private List<String> generatePartNumbersForBatch(List<PartDTO> dtos) {
-        Map<String, Integer> prefixNextSeq = new LinkedHashMap<>();
+        // key = orderId + ":" + prefix，序号按退货单隔离
+        Map<String, Integer> orderPrefixNextSeq = new LinkedHashMap<>();
         List<String> result = new ArrayList<>(dtos.size());
 
         for (PartDTO dto : dtos) {
-            String safeBu = (dto.getBusinessUnit() == null || dto.getBusinessUnit().isBlank()) ? "BLANK" : dto.getBusinessUnit();
-            String safePlatform = (dto.getProductPlatform() == null || dto.getProductPlatform().isBlank()) ? "BLANK" : dto.getProductPlatform();
+            String safeBu = (dto.getBusinessUnit() == null || dto.getBusinessUnit().isBlank()) ? "BLANK"
+                    : dto.getBusinessUnit();
+            String safePlatform = (dto.getProductPlatform() == null || dto.getProductPlatform().isBlank()) ? "BLANK"
+                    : dto.getProductPlatform();
             String prefix = safeBu + "-" + safePlatform + "-";
+            String orderId = dto.getOrderId();
+            String key = orderId + ":" + prefix;
 
-            if (!prefixNextSeq.containsKey(prefix)) {
-                int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
-                prefixNextSeq.put(prefix, maxSeq + 1);
+            if (!orderPrefixNextSeq.containsKey(key)) {
+                int maxSeq = partRepo.findMaxSeqByPrefixAndOrderId(prefix.length() + 1, prefix + "%", orderId).orElse(0);
+                orderPrefixNextSeq.put(key, maxSeq + 1);
             }
 
-            int seq = prefixNextSeq.get(prefix);
+            int seq = orderPrefixNextSeq.get(key);
             result.add(prefix + String.format("%04d", seq));
-            prefixNextSeq.put(prefix, seq + 1);
+            orderPrefixNextSeq.put(key, seq + 1);
         }
 
         return result;
     }
 
-    private String generatePartNumber(String bu, String productPlatform) {
+    private String generatePartNumber(String bu, String productPlatform, String orderId) {
         String safeBu = (bu == null || bu.isBlank()) ? "BLANK" : bu;
         String safePlatform = (productPlatform == null || productPlatform.isBlank()) ? "BLANK" : productPlatform;
         String prefix = safeBu + "-" + safePlatform + "-";
 
-        // 添加重试机制处理数据库连接重置等临时性错误
         int maxRetries = 3;
-        int retryDelay = 100; // milliseconds
+        int retryDelay = 100;
         int attempt = 0;
         Exception lastException = null;
 
         while (attempt < maxRetries) {
             try {
-                // startPos: 1-based index after the prefix (e.g. "RBCA-BS-" = 8 chars, seq starts at pos 9)
-                int maxSeq = partRepo.findMaxSeqByPrefix(prefix.length() + 1, prefix + "%").orElse(0);
+                int maxSeq = partRepo.findMaxSeqByPrefixAndOrderId(prefix.length() + 1, prefix + "%", orderId).orElse(0);
                 return prefix + String.format("%04d", maxSeq + 1);
             } catch (Exception e) {
                 lastException = e;
@@ -588,9 +597,12 @@ public class PartService {
                 .responsibleEngineer(part.getResponsibleEngineer())
                 .analyst(part.getAnalyst())
                 .qcNo(part.getQcNo())
-                .vehicleProductionDate(part.getVehicleProductionDate() != null ? part.getVehicleProductionDate().toString() : null)
-                .vehiclePurchaseDate(part.getVehiclePurchaseDate() != null ? part.getVehiclePurchaseDate().toString() : null)
-                .vehicleFailureDate(part.getVehicleFailureDate() != null ? part.getVehicleFailureDate().toString() : null)
+                .vehicleProductionDate(
+                        part.getVehicleProductionDate() != null ? part.getVehicleProductionDate().toString() : null)
+                .vehiclePurchaseDate(
+                        part.getVehiclePurchaseDate() != null ? part.getVehiclePurchaseDate().toString() : null)
+                .vehicleFailureDate(
+                        part.getVehicleFailureDate() != null ? part.getVehicleFailureDate().toString() : null)
                 .vehicleVIN(part.getVehicleVin())
                 .vehicleMileage(part.getVehicleMileage())
                 .customerDescription(part.getCustomerDescription())
@@ -605,7 +617,8 @@ public class PartService {
     }
 
     private LocalDate parseDate(String dateStr) {
-        if (dateStr == null || dateStr.isBlank()) return null;
+        if (dateStr == null || dateStr.isBlank())
+            return null;
         return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
     }
 

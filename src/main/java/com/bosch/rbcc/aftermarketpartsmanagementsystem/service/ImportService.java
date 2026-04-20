@@ -69,7 +69,7 @@ public class ImportService {
     private static final String DEFAULT_FILE_ORDER_KEY = "__MISSING_ORDER_NUMBER__";
 
     public static final String STATUS_PROCESSING = "processing";
-    public static final String STATUS_COMPLETED  = "completed";
+    public static final String STATUS_COMPLETED = "completed";
     public static final String STATUS_DELETING = "deleting";
     public static final String STATUS_TIMEOUT = "timeout";
     public static final String STATUS_ROLLED_BACK = "rolled_back";
@@ -81,17 +81,16 @@ public class ImportService {
     private static final int DELETE_BATCH_SIZE = 500;
     private static final int IMPORT_TIMEOUT_MINUTES = 60;
     private static final int PROGRESS_FLUSH_INTERVAL = 20;
-    private static final int BATCH_SAVE_SIZE = 200;  // 批量保存大小，与 hibernate.jdbc.batch_size 对齐
+    private static final int BATCH_SAVE_SIZE = 200; // 批量保存大小，与 hibernate.jdbc.batch_size 对齐
     private static final Pattern CUSTOMER_NAME_PATTERN = Pattern.compile("(?i)DATA_(.+?)_Amount");
-        private static final Pattern YEAR_PATTERN = Pattern.compile("(20\\d{2})");
-        private static final Pattern MONTH_TEXT_PATTERN = Pattern.compile("(?<!\\d)(1[0-2]|0?[1-9])\\s*月");
+    private static final Pattern YEAR_PATTERN = Pattern.compile("(20\\d{2})");
+    private static final Pattern MONTH_TEXT_PATTERN = Pattern.compile("(?<!\\d)(1[0-2]|0?[1-9])\\s*月");
 
-        private static final List<String> MONTH_FIELD_KEYS = List.of(
+    private static final List<String> MONTH_FIELD_KEYS = List.of(
             "month", "Month", "月份", "月",
-            "收货时间", "vehicleFailureDate", "失效日期", "车辆故障日期", "vehicleProductionDate", "购车日期"
-        );
+            "收货时间", "vehicleFailureDate", "失效日期", "车辆故障日期", "vehicleProductionDate", "购车日期");
 
-        private static final List<DateTimeFormatter> MONTH_DATE_FORMATTERS = List.of(
+    private static final List<DateTimeFormatter> MONTH_DATE_FORMATTERS = List.of(
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
             DateTimeFormatter.ofPattern("yyyy/MM/dd"),
             DateTimeFormatter.ofPattern("yyyy.M.d"),
@@ -100,8 +99,7 @@ public class ImportService {
             DateTimeFormatter.ofPattern("yyyy.MM.dd"),
             DateTimeFormatter.ofPattern("MM/dd/yyyy"),
             DateTimeFormatter.ofPattern("dd-MM-yyyy"),
-            DateTimeFormatter.ofPattern("yyyyMMdd")
-        );
+            DateTimeFormatter.ofPattern("yyyyMMdd"));
 
     private final ReturnOrderImportParser returnOrderImportParser;
     private final PartImportParser partImportParser;
@@ -142,15 +140,15 @@ public class ImportService {
 
     // ─────────────────────────────────────────────
     // 2. 异步：后台处理 Excel 字节
-    //    注意：此方法必须从外部 Bean（Controller）调用，Spring 代理才能拦截 @Async
+    // 注意：此方法必须从外部 Bean（Controller）调用，Spring 代理才能拦截 @Async
     // ─────────────────────────────────────────────
     @Async("importTaskExecutor")
     public void processReturnOrdersAsync(String recordId, byte[] fileBytes) {
         log.info("[Import] [{}] 异步任务启动，线程: {}", recordId, Thread.currentThread().getName());
 
         String sourceFileName = importRecordRepo.findById(recordId)
-            .map(ImportRecord::getFileName)
-            .orElse("uploaded-file.xlsx");
+                .map(ImportRecord::getFileName)
+                .orElse("uploaded-file.xlsx");
 
         // 1. 解析 Excel
         List<ReturnOrderImportParser.ParseResult> parseResults;
@@ -167,7 +165,7 @@ public class ImportService {
 
         // 2. 批量创建并提交退货单
         int successCount = 0;
-        List<Map<String, Object>> failLogEntries   = new ArrayList<>();
+        List<Map<String, Object>> failLogEntries = new ArrayList<>();
         List<Map<String, Object>> importLogEntries = new ArrayList<>();
         List<ImportLogDetail> logDetailBuffer = new ArrayList<>(BATCH_SAVE_SIZE);
 
@@ -181,27 +179,27 @@ public class ImportService {
 
                 // 记录失败日志
                 Map<String, Object> entry = new LinkedHashMap<>();
-                entry.put("row",     result.getRowNum());
-                entry.put("status",  "failed");
-                entry.put("error",   result.getError());
+                entry.put("row", result.getRowNum());
+                entry.put("status", "failed");
+                entry.put("error", result.getError());
                 entry.put("rawData", result.getRawData());
                 failLogEntries.add(entry);
                 importLogEntries.add(entry);
 
                 // 添加到日志明细缓冲区
                 logDetailBuffer.add(ImportLogDetail.builder()
-                    .id(UUID.randomUUID().toString())
-                    .importId(recordId)
-                    .rowNumber(result.getRowNum())
-                    .status("failed")
-                    .errorMessage(result.getError())
-                    .rawData(serializeRawData(result.getRawData()))
-                    .createdAt(LocalDateTime.now())
-                    .build());
+                        .id(UUID.randomUUID().toString())
+                        .importId(recordId)
+                        .rowNumber(result.getRowNum())
+                        .status("failed")
+                        .errorMessage(result.getError())
+                        .rawData(serializeRawData(result.getRawData()))
+                        .createdAt(LocalDateTime.now())
+                        .build());
 
                 processedCount++;
                 flushBatchIfNeeded(recordId, totalCount, successCount, processedCount,
-                    failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
+                        failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
                 continue;
             }
 
@@ -221,56 +219,56 @@ public class ImportService {
                     for (int i = 0; i < created.size(); i++) {
                         ReturnOrderDTO order = created.get(i);
                         Map<String, Object> entry = new LinkedHashMap<>();
-                        entry.put("row",           parseResults.get(processedCount - created.size() + i).getRowNum());
-                        entry.put("status",        "success");
-                        entry.put("orderId",       order.getId());
-                        entry.put("orderNumber",   order.getOrderNumber());
-                        entry.put("receiveDate",   order.getReceiveDate());
+                        entry.put("row", parseResults.get(processedCount - created.size() + i).getRowNum());
+                        entry.put("status", "success");
+                        entry.put("orderId", order.getId());
+                        entry.put("orderNumber", order.getOrderNumber());
+                        entry.put("receiveDate", order.getReceiveDate());
                         entry.put("trackingNumber", order.getTrackingNumber());
                         importLogEntries.add(entry);
 
                         // 添加到日志明细缓冲区
                         logDetailBuffer.add(ImportLogDetail.builder()
-                            .id(UUID.randomUUID().toString())
-                            .importId(recordId)
-                            .rowNumber(parseResults.get(processedCount - created.size() + i).getRowNum())
-                            .status("success")
-                            .orderId(order.getId())
-                            .orderNumber(order.getOrderNumber())
-                            .createdAt(LocalDateTime.now())
-                            .build());
+                                .id(UUID.randomUUID().toString())
+                                .importId(recordId)
+                                .rowNumber(parseResults.get(processedCount - created.size() + i).getRowNum())
+                                .status("success")
+                                .orderId(order.getId())
+                                .orderNumber(order.getOrderNumber())
+                                .createdAt(LocalDateTime.now())
+                                .build());
                     }
                     batchBuffer.clear();
                 }
 
                 flushBatchIfNeeded(recordId, totalCount, successCount, processedCount,
-                    failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
+                        failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
 
             } catch (Exception e) {
                 String errMsg = resolveImportErrorMessage(e);
                 log.warn("[Import] [{}] 第{}行写入失败: {}", recordId, result.getRowNum(), errMsg, e);
 
                 Map<String, Object> failEntry = new LinkedHashMap<>();
-                failEntry.put("row",     result.getRowNum());
-                failEntry.put("status",  "failed");
-                failEntry.put("error",   errMsg);
+                failEntry.put("row", result.getRowNum());
+                failEntry.put("status", "failed");
+                failEntry.put("error", errMsg);
                 failEntry.put("rawData", result.getRawData());
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
 
                 // 添加到日志明细缓冲区
                 logDetailBuffer.add(ImportLogDetail.builder()
-                    .id(UUID.randomUUID().toString())
-                    .importId(recordId)
-                    .rowNumber(result.getRowNum())
-                    .status("failed")
-                    .errorMessage(errMsg)
-                    .rawData(serializeRawData(result.getRawData()))
-                    .createdAt(LocalDateTime.now())
-                    .build());
+                        .id(UUID.randomUUID().toString())
+                        .importId(recordId)
+                        .rowNumber(result.getRowNum())
+                        .status("failed")
+                        .errorMessage(errMsg)
+                        .rawData(serializeRawData(result.getRawData()))
+                        .createdAt(LocalDateTime.now())
+                        .build());
 
                 flushBatchIfNeeded(recordId, totalCount, successCount, processedCount,
-                    failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
+                        failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
             }
         }
 
@@ -285,11 +283,11 @@ public class ImportService {
                 int resultIndex = processedCount - created.size() + i;
                 if (resultIndex >= 0 && resultIndex < parseResults.size()) {
                     Map<String, Object> entry = new LinkedHashMap<>();
-                    entry.put("row",           parseResults.get(resultIndex).getRowNum());
-                    entry.put("status",        "success");
-                    entry.put("orderId",       order.getId());
-                    entry.put("orderNumber",   order.getOrderNumber());
-                    entry.put("receiveDate",   order.getReceiveDate());
+                    entry.put("row", parseResults.get(resultIndex).getRowNum());
+                    entry.put("status", "success");
+                    entry.put("orderId", order.getId());
+                    entry.put("orderNumber", order.getOrderNumber());
+                    entry.put("receiveDate", order.getReceiveDate());
                     entry.put("trackingNumber", order.getTrackingNumber());
                     importLogEntries.add(entry);
                 }
@@ -304,7 +302,7 @@ public class ImportService {
         }
 
         int failCount = totalCount - successCount;
-        String failLogs   = serialize(failLogEntries);
+        String failLogs = serialize(failLogEntries);
         String importLogs = serialize(importLogEntries);
 
         log.info("[Import] [{}] 处理完成 — 总计: {}, 成功: {}, 失败: {}",
@@ -332,7 +330,7 @@ public class ImportService {
                 .failLogs("[]")
                 .build();
         importRecordRepo.save(record);
-            log.info("[Import] Part import record created: id={}, status=processing", record.getId());
+        log.info("[Import] Part import record created: id={}, status=processing", record.getId());
         return toDTO(record, true);
     }
 
@@ -341,8 +339,8 @@ public class ImportService {
         log.info("[Import] [{}] 售后件异步任务启动，线程: {}", recordId, Thread.currentThread().getName());
 
         String sourceFileName = importRecordRepo.findById(recordId)
-            .map(ImportRecord::getFileName)
-            .orElse("uploaded-file.xlsx");
+                .map(ImportRecord::getFileName)
+                .orElse("uploaded-file.xlsx");
 
         // 1. 解析 Excel
         List<PartImportParser.ParseResult> parseResults;
@@ -361,7 +359,7 @@ public class ImportService {
 
         // 2. 批量创建售后件
         int successCount = 0;
-        List<Map<String, Object>> failLogEntries   = new ArrayList<>();
+        List<Map<String, Object>> failLogEntries = new ArrayList<>();
         List<Map<String, Object>> importLogEntries = new ArrayList<>();
         List<ImportLogDetail> logDetailBuffer = new ArrayList<>(BATCH_SAVE_SIZE);
 
@@ -375,30 +373,30 @@ public class ImportService {
 
                 Map<String, Object> entry = new LinkedHashMap<>();
                 entry.put("fileName", sourceFileName);
-                entry.put("row",     result.getRowNum());
-                entry.put("status",  "failed");
+                entry.put("row", result.getRowNum());
+                entry.put("status", "failed");
                 entry.put("errorCode", classifyErrorCode(result.getError()));
-                entry.put("error",   result.getError());
+                entry.put("error", result.getError());
                 entry.put("rawData", result.getRawData());
                 failLogEntries.add(entry);
                 importLogEntries.add(entry);
 
                 // 添加到日志明细缓冲区
                 logDetailBuffer.add(ImportLogDetail.builder()
-                    .id(UUID.randomUUID().toString())
-                    .importId(recordId)
-                    .fileName(sourceFileName)
-                    .rowNumber(result.getRowNum())
-                    .status("failed")
-                    .errorCode(classifyErrorCode(result.getError()))
-                    .errorMessage(result.getError())
-                    .rawData(serializeRawData(result.getRawData()))
-                    .createdAt(LocalDateTime.now())
-                    .build());
+                        .id(UUID.randomUUID().toString())
+                        .importId(recordId)
+                        .fileName(sourceFileName)
+                        .rowNumber(result.getRowNum())
+                        .status("failed")
+                        .errorCode(classifyErrorCode(result.getError()))
+                        .errorMessage(result.getError())
+                        .rawData(serializeRawData(result.getRawData()))
+                        .createdAt(LocalDateTime.now())
+                        .build());
 
                 processedCount++;
                 flushPartBatchIfNeeded(recordId, totalCount, successCount, processedCount,
-                    failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
+                        failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
                 continue;
             }
 
@@ -406,7 +404,8 @@ public class ImportService {
                 String orderNumber = normalizeOrderNumber(result.getDto().getOrderNumber());
                 ReturnOrderDTO createdOrder = orderPreparation.createdOrders().get(orderNumber);
                 if (createdOrder == null) {
-                    throw new IllegalArgumentException(orderPreparation.orderErrors().getOrDefault(orderNumber, "退货单创建失败: " + orderNumber));
+                    throw new IllegalArgumentException(
+                            orderPreparation.orderErrors().getOrDefault(orderNumber, "退货单创建失败: " + orderNumber));
                 }
                 result.getDto().setOrderId(createdOrder.getId());
                 result.getDto().setOrderNumber(createdOrder.getOrderNumber());
@@ -428,38 +427,38 @@ public class ImportService {
 
                         Map<String, Object> entry = new LinkedHashMap<>();
                         entry.put("fileName", sourceFileName);
-                        entry.put("status",      "success");
-                        entry.put("orderId",     createdOrder.getId());
+                        entry.put("status", "success");
+                        entry.put("orderId", createdOrder.getId());
                         entry.put("orderNumber", orderNum);
                         entry.put("orderCreated", orderCreated);
-                        entry.put("partId",      part.getId());
-                        entry.put("partCode",    part.getPartCode());
-                        entry.put("partNumber",  part.getPartNumber());
-                        entry.put("qcNo",        part.getQcNo());
+                        entry.put("partId", part.getId());
+                        entry.put("partCode", part.getPartCode());
+                        entry.put("partNumber", part.getPartNumber());
+                        entry.put("qcNo", part.getQcNo());
                         importLogEntries.add(entry);
 
                         // 添加到日志明细缓冲区
                         logDetailBuffer.add(ImportLogDetail.builder()
-                            .id(UUID.randomUUID().toString())
-                            .importId(recordId)
-                            .fileName(sourceFileName)
-                            .rowNumber(parseResults.get(processedCount - created.size() + i).getRowNum())
-                            .status("success")
-                            .orderId(createdOrder.getId())
-                            .orderNumber(orderNum)
-                            .orderCreated(orderCreated ? "Y" : "N")
-                            .partId(part.getId())
-                            .partCode(part.getPartCode())
-                            .partNumber(part.getPartNumber())
-                            .qcNo(part.getQcNo())
-                            .createdAt(LocalDateTime.now())
-                            .build());
+                                .id(UUID.randomUUID().toString())
+                                .importId(recordId)
+                                .fileName(sourceFileName)
+                                .rowNumber(parseResults.get(processedCount - created.size() + i).getRowNum())
+                                .status("success")
+                                .orderId(createdOrder.getId())
+                                .orderNumber(orderNum)
+                                .orderCreated(orderCreated ? "Y" : "N")
+                                .partId(part.getId())
+                                .partCode(part.getPartCode())
+                                .partNumber(part.getPartNumber())
+                                .qcNo(part.getQcNo())
+                                .createdAt(LocalDateTime.now())
+                                .build());
                     }
                     batchBuffer.clear();
                 }
 
                 flushPartBatchIfNeeded(recordId, totalCount, successCount, processedCount,
-                    failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
+                        failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
 
             } catch (Exception e) {
                 String errMsg = resolveImportErrorMessage(e);
@@ -467,29 +466,29 @@ public class ImportService {
 
                 Map<String, Object> failEntry = new LinkedHashMap<>();
                 failEntry.put("fileName", sourceFileName);
-                failEntry.put("row",     result.getRowNum());
-                failEntry.put("status",  "failed");
+                failEntry.put("row", result.getRowNum());
+                failEntry.put("status", "failed");
                 failEntry.put("errorCode", classifyErrorCode(errMsg));
-                failEntry.put("error",   errMsg);
+                failEntry.put("error", errMsg);
                 failEntry.put("rawData", result.getRawData());
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
 
                 // 添加到日志明细缓冲区
                 logDetailBuffer.add(ImportLogDetail.builder()
-                    .id(UUID.randomUUID().toString())
-                    .importId(recordId)
-                    .fileName(sourceFileName)
-                    .rowNumber(result.getRowNum())
-                    .status("failed")
-                    .errorCode(classifyErrorCode(errMsg))
-                    .errorMessage(errMsg)
-                    .rawData(serializeRawData(result.getRawData()))
-                    .createdAt(LocalDateTime.now())
-                    .build());
+                        .id(UUID.randomUUID().toString())
+                        .importId(recordId)
+                        .fileName(sourceFileName)
+                        .rowNumber(result.getRowNum())
+                        .status("failed")
+                        .errorCode(classifyErrorCode(errMsg))
+                        .errorMessage(errMsg)
+                        .rawData(serializeRawData(result.getRawData()))
+                        .createdAt(LocalDateTime.now())
+                        .build());
 
                 flushPartBatchIfNeeded(recordId, totalCount, successCount, processedCount,
-                    failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
+                        failLogEntries, importLogEntries, logDetailBuffer, batchBuffer);
             }
         }
 
@@ -526,7 +525,7 @@ public class ImportService {
         }
 
         int failCount = totalCount - successCount;
-        String failLogs   = serialize(failLogEntries);
+        String failLogs = serialize(failLogEntries);
         String importLogs = serialize(importLogEntries);
 
         log.info("[Import] [{}] 处理完成 — 总计: {}, 成功: {}, 失败: {}",
@@ -541,15 +540,15 @@ public class ImportService {
      * 返回成功写入条数；保证不抛异常，失败行已记入 failLogEntries。
      */
     private int flushPendingPartBatch(List<PendingPartImport> pendingBatch,
-                                      List<Map<String, Object>> importLogEntries,
-                                      List<Map<String, Object>> failLogEntries) {
+            List<Map<String, Object>> importLogEntries,
+            List<Map<String, Object>> failLogEntries) {
         if (pendingBatch.isEmpty()) {
             return 0;
         }
 
         List<PartDTO> dtos = pendingBatch.stream()
-            .map(p -> p.result().getDto())
-            .collect(Collectors.toList());
+                .map(p -> p.result().getDto())
+                .collect(Collectors.toList());
 
         try {
             List<PartDTO> created = partService.createForImportBatch(dtos);
@@ -560,7 +559,7 @@ public class ImportService {
             return n;
         } catch (Exception batchEx) {
             log.warn("[Import] 批量写入失败，降级为逐条写入: batchSize={}, error={}",
-                pendingBatch.size(), batchEx.getMessage());
+                    pendingBatch.size(), batchEx.getMessage());
 
             int success = 0;
             for (PendingPartImport pending : pendingBatch) {
@@ -571,7 +570,7 @@ public class ImportService {
                 } catch (Exception rowEx) {
                     String errMsg = resolveImportErrorMessage(rowEx);
                     log.warn("[Import] 第{}行写入失败 (降级路径): file={}, error={}",
-                        pending.result().getRowNum(), pending.fileName(), errMsg);
+                            pending.result().getRowNum(), pending.fileName(), errMsg);
                     Map<String, Object> failEntry = new java.util.LinkedHashMap<>();
                     failEntry.put("fileName", pending.fileName());
                     failEntry.put("row", pending.result().getRowNum());
@@ -588,8 +587,8 @@ public class ImportService {
     }
 
     private void recordPartImportSuccess(List<Map<String, Object>> importLogEntries,
-                                          PendingPartImport pending,
-                                          PartDTO part) {
+            PendingPartImport pending,
+            PartDTO part) {
         Map<String, Object> entry = new java.util.LinkedHashMap<>();
         entry.put("fileName", pending.fileName());
         entry.put("row", pending.result().getRowNum());
@@ -608,13 +607,13 @@ public class ImportService {
      * 售后件批量刷新：如果达到批量大小或进度更新间隔，则批量保存日志和进度
      */
     private void flushPartBatchIfNeeded(String recordId,
-                                        int total,
-                                        int success,
-                                        int processed,
-                                        List<Map<String, Object>> failLogEntries,
-                                        List<Map<String, Object>> importLogEntries,
-                                        List<ImportLogDetail> logDetailBuffer,
-                                        List<PartDTO> batchBuffer) {
+            int total,
+            int success,
+            int processed,
+            List<Map<String, Object>> failLogEntries,
+            List<Map<String, Object>> importLogEntries,
+            List<ImportLogDetail> logDetailBuffer,
+            List<PartDTO> batchBuffer) {
         // 检查是否需要保存日志明细
         boolean shouldFlushLogs = logDetailBuffer.size() >= BATCH_SAVE_SIZE;
         if (shouldFlushLogs) {
@@ -625,13 +624,14 @@ public class ImportService {
         }
 
         // 更新进度（使用轻量级方法，通过 selfProvider 确保 @Transactional 生效）
-        selfProvider.getObject().flushProgressIfNeeded(recordId, total, success, processed, failLogEntries, importLogEntries);
+        selfProvider.getObject().flushProgressIfNeeded(recordId, total, success, processed, failLogEntries,
+                importLogEntries);
     }
 
     @Async("importTaskExecutor")
     public void processPartsFolderAsync(String recordId, String folderPath) {
         log.info("[Import] [{}] Part folder import async task started, thread={} folderPath={}",
-            recordId, Thread.currentThread().getName(), escapeForLog(folderPath));
+                recordId, Thread.currentThread().getName(), escapeForLog(folderPath));
 
         Path root;
         try {
@@ -691,7 +691,8 @@ public class ImportService {
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
                 processedCount++;
-                selfProvider.getObject().flushProgressIfNeeded(recordId, Math.max(totalCount, processedCount), successCount, processedCount, failLogEntries, importLogEntries);
+                selfProvider.getObject().flushProgressIfNeeded(recordId, Math.max(totalCount, processedCount),
+                        successCount, processedCount, failLogEntries, importLogEntries);
                 continue;
             }
 
@@ -708,7 +709,8 @@ public class ImportService {
                 failLogEntries.add(failEntry);
                 importLogEntries.add(failEntry);
                 processedCount++;
-                selfProvider.getObject().flushProgressIfNeeded(recordId, Math.max(totalCount, processedCount), successCount, processedCount, failLogEntries, importLogEntries);
+                selfProvider.getObject().flushProgressIfNeeded(recordId, Math.max(totalCount, processedCount),
+                        successCount, processedCount, failLogEntries, importLogEntries);
                 continue;
             }
 
@@ -727,7 +729,8 @@ public class ImportService {
                     failLogEntries.add(entry);
                     importLogEntries.add(entry);
                     processedCount++;
-                    selfProvider.getObject().flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
+                    selfProvider.getObject().flushProgressIfNeeded(recordId, totalCount, successCount, processedCount,
+                            failLogEntries, importLogEntries);
                     continue;
                 }
 
@@ -735,7 +738,8 @@ public class ImportService {
                     String orderNumber = normalizeOrderNumber(result.getDto().getOrderNumber());
                     ReturnOrderDTO createdOrder = orderPreparation.createdOrders().get(orderNumber);
                     if (createdOrder == null) {
-                        throw new IllegalArgumentException(orderPreparation.orderErrors().getOrDefault(orderNumber, "退货单创建失败: " + orderNumber));
+                        throw new IllegalArgumentException(
+                                orderPreparation.orderErrors().getOrDefault(orderNumber, "退货单创建失败: " + orderNumber));
                     }
                     result.getDto().setOrderId(createdOrder.getId());
                     result.getDto().setOrderNumber(createdOrder.getOrderNumber());
@@ -743,9 +747,8 @@ public class ImportService {
                     result.getDto().setCreatedAt(importCreatedAt != null ? importCreatedAt.toString() : null);
 
                     pendingBatch.add(new PendingPartImport(
-                        result, relativeFileName, createdOrder,
-                        orderPreparation.orderCreatedFlags().getOrDefault(orderNumber, false)
-                    ));
+                            result, relativeFileName, createdOrder,
+                            orderPreparation.orderCreatedFlags().getOrDefault(orderNumber, false)));
 
                     if (pendingBatch.size() >= BATCH_SAVE_SIZE) {
                         int created = flushPendingPartBatch(pendingBatch, importLogEntries, failLogEntries);
@@ -766,7 +769,8 @@ public class ImportService {
                     failLogEntries.add(failEntry);
                     importLogEntries.add(failEntry);
                     processedCount++;
-                    selfProvider.getObject().flushProgressIfNeeded(recordId, totalCount, successCount, processedCount, failLogEntries, importLogEntries);
+                    selfProvider.getObject().flushProgressIfNeeded(recordId, totalCount, successCount, processedCount,
+                            failLogEntries, importLogEntries);
                 }
             }
         }
@@ -871,7 +875,7 @@ public class ImportService {
         Page<ImportRecordListView> page = importRecordRepo.findListViewByType(type, pageable);
 
         List<ImportRecordDTO> dtos = page.getContent().stream()
-            .map(this::toListDTO)
+                .map(this::toListDTO)
                 .collect(Collectors.toList());
 
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
@@ -893,12 +897,13 @@ public class ImportService {
             record.setStatus(STATUS_TIMEOUT);
         }
         importRecordRepo.saveAll(records);
-        log.warn("[Import] Request-triggered timeout transition: {} processing records exceeded {} minutes without heartbeat; status set to timeout",
+        log.warn(
+                "[Import] Request-triggered timeout transition: {} processing records exceeded {} minutes without heartbeat; status set to timeout",
                 records.size(), IMPORT_TIMEOUT_MINUTES);
     }
 
     private void markCompleted(String recordId, int total, int success, int fail,
-                               String failLogs, String importLogs) {
+            String failLogs, String importLogs) {
         importRecordRepo.findById(recordId).ifPresentOrElse(record -> {
             if (STATUS_TIMEOUT.equals(record.getStatus())) {
                 record.setTotalCount(total);
@@ -927,11 +932,14 @@ public class ImportService {
                 record.setTotalCount(Math.max(record.getTotalCount() != null ? record.getTotalCount() : 0, 1));
                 record.setSuccessCount(record.getSuccessCount() != null ? record.getSuccessCount() : 0);
                 record.setFailCount(Math.max(record.getFailCount() != null ? record.getFailCount() : 0, 1));
-                if (record.getFailLogs() == null || record.getFailLogs().isBlank() || "[]".equals(record.getFailLogs())) {
+                if (record.getFailLogs() == null || record.getFailLogs().isBlank()
+                        || "[]".equals(record.getFailLogs())) {
                     record.setFailLogs(serialize(List.of(Map.of("row", 0, "error", errorMessage))));
                 }
-                if (record.getImportLogs() == null || record.getImportLogs().isBlank() || "[]".equals(record.getImportLogs())) {
-                    record.setImportLogs(serialize(List.of(Map.of("row", 0, "status", "failed", "error", errorMessage))));
+                if (record.getImportLogs() == null || record.getImportLogs().isBlank()
+                        || "[]".equals(record.getImportLogs())) {
+                    record.setImportLogs(
+                            serialize(List.of(Map.of("row", 0, "status", "failed", "error", errorMessage))));
                 }
                 importRecordRepo.save(record);
                 log.warn("[Import] [{}] 记录处于 timeout，已补充失败信息", recordId);
@@ -957,11 +965,11 @@ public class ImportService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void flushProgressIfNeeded(String recordId,
-                                       int total,
-                                       int success,
-                                       int processed,
-                                       List<Map<String, Object>> failLogEntries,
-                                       List<Map<String, Object>> importLogEntries) {
+            int total,
+            int success,
+            int processed,
+            List<Map<String, Object>> failLogEntries,
+            List<Map<String, Object>> importLogEntries) {
         if (processed <= 0 || processed % PROGRESS_FLUSH_INTERVAL != 0) {
             return;
         }
@@ -997,13 +1005,13 @@ public class ImportService {
      * 批量刷新：如果达到批量大小或进度更新间隔，则批量保存日志和进度
      */
     private void flushBatchIfNeeded(String recordId,
-                                    int total,
-                                    int success,
-                                    int processed,
-                                    List<Map<String, Object>> failLogEntries,
-                                    List<Map<String, Object>> importLogEntries,
-                                    List<ImportLogDetail> logDetailBuffer,
-                                    List<ReturnOrderDTO> batchBuffer) {
+            int total,
+            int success,
+            int processed,
+            List<Map<String, Object>> failLogEntries,
+            List<Map<String, Object>> importLogEntries,
+            List<ImportLogDetail> logDetailBuffer,
+            List<ReturnOrderDTO> batchBuffer) {
         // 检查是否需要保存日志明细
         boolean shouldFlushLogs = logDetailBuffer.size() >= BATCH_SAVE_SIZE;
         if (shouldFlushLogs) {
@@ -1014,7 +1022,8 @@ public class ImportService {
         }
 
         // 更新进度（使用轻量级方法，通过 selfProvider 确保 @Transactional 生效）
-        selfProvider.getObject().flushProgressIfNeeded(recordId, total, success, processed, failLogEntries, importLogEntries);
+        selfProvider.getObject().flushProgressIfNeeded(recordId, total, success, processed, failLogEntries,
+                importLogEntries);
     }
 
     /**
@@ -1041,11 +1050,11 @@ public class ImportService {
     @Deprecated(forRemoval = false)
     @Transactional
     protected void updateProgressSnapshot(String recordId,
-                                          int total,
-                                          int success,
-                                          int fail,
-                                          String failLogs,
-                                          String importLogs) {
+            int total,
+            int success,
+            int fail,
+            String failLogs,
+            String importLogs) {
         importRecordRepo.findById(recordId).ifPresent(record -> {
             if (STATUS_DELETING.equals(record.getStatus()) || STATUS_ROLLED_BACK.equals(record.getStatus())) {
                 return;
@@ -1079,7 +1088,8 @@ public class ImportService {
     }
 
     private String serialize(List<Map<String, Object>> logs) {
-        if (logs.isEmpty()) return "[]";
+        if (logs.isEmpty())
+            return "[]";
         try {
             return objectMapper.writeValueAsString(logs);
         } catch (JsonProcessingException e) {
@@ -1094,12 +1104,13 @@ public class ImportService {
     }
 
     private ReturnOrderPreparation prepareReturnOrdersForPartImport(String sourceFileName,
-                                                                    List<PartImportParser.ParseResult> parseResults) {
+            List<PartImportParser.ParseResult> parseResults) {
         String customerName = extractCustomerName(sourceFileName);
         String customerId = resolveCustomerId(customerName);
         Map<String, List<PartImportParser.ParseResult>> groupedResults = parseResults.stream()
                 .filter(PartImportParser.ParseResult::isSuccess)
-                .collect(Collectors.groupingBy(result -> normalizeOrderNumber(result.getDto().getOrderNumber()), LinkedHashMap::new, Collectors.toList()));
+                .collect(Collectors.groupingBy(result -> normalizeOrderNumber(result.getDto().getOrderNumber()),
+                        LinkedHashMap::new, Collectors.toList()));
 
         Map<String, ReturnOrderDTO> createdOrders = new HashMap<>();
         Map<String, String> orderErrors = new HashMap<>();
@@ -1143,7 +1154,8 @@ public class ImportService {
                             sourceFileName, orderNumber, existingOrder.getId());
                     continue;
                 }
-                log.warn("[Import] 创建退货单失败: fileName={}, orderNumber={}, error={}", sourceFileName, orderNumber, errMsg, e);
+                log.warn("[Import] 创建退货单失败: fileName={}, orderNumber={}, error={}", sourceFileName, orderNumber, errMsg,
+                        e);
                 orderErrors.put(orderNumber, errMsg);
             }
         }
@@ -1156,7 +1168,8 @@ public class ImportService {
         transitionProcessingToTimeoutIfNeeded();
 
         ImportRecord record = importRecordRepo.findById(importId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Import record not found: " + importId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Import record not found: " + importId));
 
         if (STATUS_ROLLED_BACK.equals(record.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "本次导入数据已删除，无需重复操作");
@@ -1195,7 +1208,8 @@ public class ImportService {
         log.info("[Import] [{}] 开始执行删除导入数据", importId);
 
         ImportRecord record = importRecordRepo.findById(importId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Import record not found: " + importId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Import record not found: " + importId));
 
         log.info("[Import] [{}] 导入记录类型: {}, importLogs长度: {}",
                 importId, record.getImportType(),
@@ -1487,15 +1501,24 @@ public class ImportService {
             return "UNKNOWN_ERROR";
         }
         String msg = errorMessage.toLowerCase();
-        if (msg.contains("order") && msg.contains("not found")) return "ORDER_NOT_FOUND";
-        if (msg.contains("退货单号不存在")) return "ORDER_NOT_FOUND";
-        if (msg.contains("退货单号已存在")) return "DUPLICATE_ORDER_NUMBER";
-        if (msg.contains("零件号主数据不存在") || msg.contains("未映射事业部") || msg.contains("未映射产品平台")) return "PART_CODE_MAPPING_NOT_FOUND";
-        if (msg.contains("不能为空") || msg.contains("required")) return "REQUIRED_FIELD_MISSING";
-        if (msg.contains("日期") && msg.contains("解析")) return "INVALID_DATE_FORMAT";
-        if (msg.contains("数字") && msg.contains("解析")) return "INVALID_NUMBER_FORMAT";
-        if (msg.contains("文件解析失败")) return "FILE_PARSE_FAILED";
-        if (msg.contains("读取文件失败")) return "FILE_READ_FAILED";
+        if (msg.contains("order") && msg.contains("not found"))
+            return "ORDER_NOT_FOUND";
+        if (msg.contains("退货单号不存在"))
+            return "ORDER_NOT_FOUND";
+        if (msg.contains("退货单号已存在"))
+            return "DUPLICATE_ORDER_NUMBER";
+        if (msg.contains("零件号主数据不存在") || msg.contains("未映射事业部") || msg.contains("未映射产品平台"))
+            return "PART_CODE_MAPPING_NOT_FOUND";
+        if (msg.contains("不能为空") || msg.contains("required"))
+            return "REQUIRED_FIELD_MISSING";
+        if (msg.contains("日期") && msg.contains("解析"))
+            return "INVALID_DATE_FORMAT";
+        if (msg.contains("数字") && msg.contains("解析"))
+            return "INVALID_NUMBER_FORMAT";
+        if (msg.contains("文件解析失败"))
+            return "FILE_PARSE_FAILED";
+        if (msg.contains("读取文件失败"))
+            return "FILE_READ_FAILED";
         return "IMPORT_ROW_FAILED";
     }
 
@@ -1558,19 +1581,23 @@ public class ImportService {
             return null;
         }
 
-        Matcher hibernateMatcher = Pattern.compile("not-null property references a null or transient value\\s*:\\s*[\\w.$]+\\.([\\w$]+)", Pattern.CASE_INSENSITIVE)
+        Matcher hibernateMatcher = Pattern
+                .compile("not-null property references a null or transient value\\s*:\\s*[\\w.$]+\\.([\\w$]+)",
+                        Pattern.CASE_INSENSITIVE)
                 .matcher(message);
         if (hibernateMatcher.find()) {
             return normalizeFieldKey(hibernateMatcher.group(1));
         }
 
-        Matcher oracleMatcher = Pattern.compile("ORA-01400:.*?\\(.*?\\.\\\"([A-Z0-9_]+)\\\"\\)", Pattern.CASE_INSENSITIVE)
+        Matcher oracleMatcher = Pattern
+                .compile("ORA-01400:.*?\\(.*?\\.\\\"([A-Z0-9_]+)\\\"\\)", Pattern.CASE_INSENSITIVE)
                 .matcher(message);
         if (oracleMatcher.find()) {
             return normalizeFieldKey(oracleMatcher.group(1));
         }
 
-        Matcher cannotInsertMatcher = Pattern.compile("cannot insert null into\\s*\\(.*?\\.\\\"([A-Z0-9_]+)\\\"\\)", Pattern.CASE_INSENSITIVE)
+        Matcher cannotInsertMatcher = Pattern
+                .compile("cannot insert null into\\s*\\(.*?\\.\\\"([A-Z0-9_]+)\\\"\\)", Pattern.CASE_INSENSITIVE)
                 .matcher(message);
         if (cannotInsertMatcher.find()) {
             return normalizeFieldKey(cannotInsertMatcher.group(1));
@@ -1582,7 +1609,8 @@ public class ImportService {
             return normalizeFieldKey(chineseRequiredMatcher.group(1));
         }
 
-        Matcher englishRequiredMatcher = Pattern.compile("([A-Za-z][A-Za-z0-9_ ]+) is required", Pattern.CASE_INSENSITIVE)
+        Matcher englishRequiredMatcher = Pattern
+                .compile("([A-Za-z][A-Za-z0-9_ ]+) is required", Pattern.CASE_INSENSITIVE)
                 .matcher(message);
         if (englishRequiredMatcher.find()) {
             return normalizeFieldKey(englishRequiredMatcher.group(1));
@@ -1656,7 +1684,8 @@ public class ImportService {
             return List.of();
         }
         try {
-            return objectMapper.readValue(importLogs, new TypeReference<>() {});
+            return objectMapper.readValue(importLogs, new TypeReference<>() {
+            });
         } catch (Exception e) {
             log.warn("[Import] 反序列化 importLogs 失败: {}", e.getMessage());
             return List.of();
@@ -1666,13 +1695,13 @@ public class ImportService {
     private record ReturnOrderPreparation(
             Map<String, ReturnOrderDTO> createdOrders,
             Map<String, String> orderErrors,
-            Map<String, Boolean> orderCreatedFlags
-    ) {}
+            Map<String, Boolean> orderCreatedFlags) {
+    }
 
     private record PendingPartImport(
             PartImportParser.ParseResult result,
             String fileName,
             ReturnOrderDTO createdOrder,
-            boolean orderCreated
-    ) {}
+            boolean orderCreated) {
+    }
 }
