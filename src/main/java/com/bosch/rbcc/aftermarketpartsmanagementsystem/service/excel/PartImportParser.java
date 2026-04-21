@@ -73,7 +73,7 @@ public class PartImportParser {
     private static final List<String> BOSCH_FAILURE_TYPE_HEADERS = List.of("博世失效", "failure desc", "bosch failure");
     private static final List<String> QC_NO_HEADERS = List.of("qc号", "qc notification", "qc no");
 
-    private static final String DEFAULT_IMPORTED_ANALYST = "Imported";
+    private static final String DEFAULT_IMPORTED_ANALYST = "-";
 
     private final PartCodeRepository partCodeRepository;
     private final DataFormatter dataFormatter = new DataFormatter();
