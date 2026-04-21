@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AnalysisReportService {
 
+    private static final String STATUS_ANALYSIS_REPORT_SUBMITTED = "analysis_report_submitted";
     private static final String STATUS_PENDING_APPROVAL = "pending_approval";
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
@@ -87,22 +88,22 @@ public class AnalysisReportService {
         report = repository.save(report);
         log.info("Report submitted: id={}, by={}", reportId, submittedBy);
 
-        // 联动：Part → pending_approval
+        // 联动：Part → analysis_report_submitted
         partRepository.findById(report.getPartId()).ifPresent(part -> {
-            part.setStatus(STATUS_PENDING_APPROVAL);
+            part.setStatus(STATUS_ANALYSIS_REPORT_SUBMITTED);
             part.setStatusChangedAt(LocalDateTime.now());
             partRepository.save(part);
 
-            // 联动：若所有抽样件均为 pending_approval → AnalysisOrder → pending_approval
+            // 联动：若所有抽样件均为 analysis_report_submitted → AnalysisOrder → pending_approval
             analysisOrderRepository.findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
                 .ifPresent(ao -> {
                     List<Part> sampledParts = partRepository
                         .findByOrderIdAndAnalyst(part.getOrderId(), part.getAnalyst())
                         .stream().filter(p -> p.getIsSample() != null && p.getIsSample() == 1)
                         .toList();
-                    boolean allPendingApproval = !sampledParts.isEmpty()
-                        && sampledParts.stream().allMatch(p -> STATUS_PENDING_APPROVAL.equals(p.getStatus()));
-                    if (allPendingApproval) {
+                    boolean allReportSubmitted = !sampledParts.isEmpty()
+                        && sampledParts.stream().allMatch(p -> STATUS_ANALYSIS_REPORT_SUBMITTED.equals(p.getStatus()));
+                    if (allReportSubmitted) {
                         ao.setStatus(STATUS_PENDING_APPROVAL);
                         ao.setStatusChangedAt(LocalDateTime.now());
                         analysisOrderRepository.save(ao);
