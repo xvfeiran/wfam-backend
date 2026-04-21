@@ -22,11 +22,11 @@ public class AnalysisOrderController {
 
     @Operation(summary = "查询分析单列表")
     @GetMapping
-    public List<AnalysisOrderDTO> list() {
+    public List<AnalysisOrderDTO> list(@RequestParam(required = false) List<String> statuses) {
         var headers = CommonHeaderManager.getCommonHeaders();
         String loginName = headers != null ? headers.getNtAccount() : null;
         String roleNamesStr = headers != null ? headers.getRoleNames() : null;
-        return analysisOrderService.list(loginName, roleNamesStr);
+        return analysisOrderService.list(loginName, roleNamesStr, statuses);
     }
 
     @Operation(summary = "获取分析单详情（含关联售后件）")
