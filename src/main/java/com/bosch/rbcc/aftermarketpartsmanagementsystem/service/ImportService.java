@@ -1366,8 +1366,8 @@ public class ImportService {
     }
 
     private String buildTrackingPlaceholder(String orderNumber) {
-        String placeholder = "IMPORT-" + orderNumber;
-        return placeholder.length() <= 50 ? placeholder : placeholder.substring(0, 50);
+        String tracking = orderNumber;
+        return tracking.length() <= 50 ? tracking : tracking.substring(0, 50);
     }
 
     private ReturnOrderDTO findExistingOrderAsImportTarget(String orderNumber) {
