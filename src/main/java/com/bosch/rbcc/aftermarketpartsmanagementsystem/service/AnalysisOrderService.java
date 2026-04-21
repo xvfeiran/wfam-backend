@@ -55,24 +55,32 @@ public class AnalysisOrderService {
                 });
     }
 
-    public List<AnalysisOrderDTO> list(String loginName, String roleNamesStr) {
+    public List<AnalysisOrderDTO> list(String loginName, String roleNamesStr, List<String> statuses) {
         boolean isAnalyst = roleNamesStr != null
                 && roleNamesStr.contains("W_RBCC_AEP_WFAM_Analyst")
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_QMC_Leader")
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_QMC_Manager")
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_SystemAdmin");
 
-        if (isAnalyst) {
-            return analysisOrderRepo.findByAnalystWithOrderNumbers(loginName)
-                    .stream()
-                    .map(this::toDTOFromProjection)
-                    .collect(Collectors.toList());
+        List<AnalysisOrderWithOrderNumberDTO> result;
+
+        if (statuses == null || statuses.isEmpty()) {
+            if (isAnalyst) {
+                result = analysisOrderRepo.findByAnalystWithOrderNumbers(loginName);
+            } else {
+                result = analysisOrderRepo.findAllWithOrderNumbers();
+            }
         } else {
-            return analysisOrderRepo.findAllWithOrderNumbers()
-                    .stream()
-                    .map(this::toDTOFromProjection)
-                    .collect(Collectors.toList());
+            if (isAnalyst) {
+                result = analysisOrderRepo.findByAnalystAndStatusIn(loginName, statuses);
+            } else {
+                result = analysisOrderRepo.findByStatusIn(statuses);
+            }
         }
+
+        return result.stream()
+                .map(this::toDTOFromProjection)
+                .collect(Collectors.toList());
     }
 
     public AnalysisOrderDTO getById(String id) {
