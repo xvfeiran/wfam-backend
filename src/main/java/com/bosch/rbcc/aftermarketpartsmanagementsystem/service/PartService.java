@@ -38,9 +38,11 @@ public class PartService {
     private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
+    private static final String STATUS_INITIAL_ANALYSIS_COMPLETED = "initial_analysis_completed";
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_PENDING_APPROVAL = "pending_approval";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
+    private static final String STATUS_ANALYSIS_SKIPPED = "analysis_skipped";
     private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
     private static final String STATUS_SCRAPPED = "scrapped";
     private static final Set<String> QC_ALLOWED_STATUSES = Set.of(
@@ -457,6 +459,11 @@ public class PartService {
         // 如果尚未生成零件编号，则生成新编号
         if (part.getPartNumber() == null) {
             part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform(), part.getOrderId()));
+        }
+        // 提交后状态变为信息录入/已完成
+        if (STATUS_IN_INITIAL_ANALYSIS.equals(part.getStatus())) {
+            part.setStatus(STATUS_INITIAL_ANALYSIS_COMPLETED);
+            part.setStatusChangedAt(LocalDateTime.now());
         }
         // 已提交的单据也可以再次提交（用于更新数据），只保存更新
         partRepo.save(part);
