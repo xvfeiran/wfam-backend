@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,6 +28,7 @@ public class AnalysisOrderService {
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_PENDING_APPROVAL = "pending_approval";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
+    private static final String STATUS_ANALYSIS_SKIPPED = "analysis_skipped";
     private static final String STATUS_WORKON_SCRAP_IN_PROGRESS = "workon_scrap_in_progress";
     private static final String STATUS_WORKON_SCRAPPED = "workon_scrapped";
     private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
@@ -107,8 +109,10 @@ public class AnalysisOrderService {
             part.setIsSample(sampled ? 1 : 0);
             if (sampled) {
                 part.setStatus(STATUS_IN_DETAILED_ANALYSIS);
-                part.setStatusChangedAt(LocalDateTime.now());
+            } else {
+                part.setStatus(STATUS_ANALYSIS_SKIPPED);
             }
+            part.setStatusChangedAt(LocalDateTime.now());
             partRepo.save(part);
         }
 
@@ -233,7 +237,7 @@ public class AnalysisOrderService {
                 .analyst(p.getAnalyst())
                 .isSample(p.getIsSample())
                 .status(p.getStatus())
-                .images(List.of())
+                .images(Collections.emptyList())
                 .build()
         ).collect(Collectors.toList());
         dto.setParts(partDTOs);
