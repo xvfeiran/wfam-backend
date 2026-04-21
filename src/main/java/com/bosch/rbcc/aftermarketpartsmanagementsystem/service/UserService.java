@@ -9,6 +9,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRep
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,12 @@ import java.util.TreeSet;
 @Service
 @RequiredArgsConstructor
 public class UserService {
+
+    private static final List<String> ANALYST_LIST = Arrays.asList(
+        "lisi",      // Li Si (Analyst)
+        "qianqi",    // Qian Qi (Analyst)
+        "zhaoliu"    // Zhao Liu (Analyst)
+    );
 
     private final AnalysisOrderRepository analysisOrderRepository;
     private final PartRepository partRepository;
@@ -48,23 +55,7 @@ public class UserService {
     }
 
     public List<Map<String, String>> listAnalysts() {
-        TreeSet<String> analysts = analysisOrderRepository.findAll().stream()
-            .map(AnalysisOrder::getAnalyst)
-            .filter(Objects::nonNull)
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .collect(TreeSet::new, TreeSet::add, TreeSet::addAll);
-
-        if (analysts.isEmpty()) {
-            partRepository.findAll().stream()
-                .map(Part::getAnalyst)
-                .filter(Objects::nonNull)
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .forEach(analysts::add);
-        }
-
-        return analysts.stream().map(this::toUser).toList();
+        return ANALYST_LIST.stream().map(this::toUser).toList();
     }
 
     private void addIfPresent(TreeSet<String> names, String value) {
