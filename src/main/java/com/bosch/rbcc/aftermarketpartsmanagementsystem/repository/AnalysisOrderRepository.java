@@ -1,7 +1,9 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.repository;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,4 +19,34 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
     long countByStatus(String status);
 
     void deleteByOrderIdIn(List<String> orderIds);
+
+    /**
+     * Fetch all analysis orders with their return order numbers in one query.
+     * Uses LEFT JOIN to handle cases where return order might be deleted.
+     */
+    @Query("""
+        SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
+            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
+            a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
+            r.orderNumber
+        )
+        FROM AnalysisOrder a
+        LEFT JOIN ReturnOrder r ON a.orderId = r.id
+        """)
+    List<AnalysisOrderWithOrderNumberDTO> findAllWithOrderNumbers();
+
+    /**
+     * Fetch analysis orders by analyst with their return order numbers in one query.
+     */
+    @Query("""
+        SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
+            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
+            a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
+            r.orderNumber
+        )
+        FROM AnalysisOrder a
+        LEFT JOIN ReturnOrder r ON a.orderId = r.id
+        WHERE a.analyst = :analyst
+        """)
+    List<AnalysisOrderWithOrderNumberDTO> findByAnalystWithOrderNumbers(String analyst);
 }

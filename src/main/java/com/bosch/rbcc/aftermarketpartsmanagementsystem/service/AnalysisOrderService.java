@@ -56,7 +56,6 @@ public class AnalysisOrderService {
     }
 
     public List<AnalysisOrderDTO> list(String loginName, String roleNamesStr) {
-        List<AnalysisOrder> orders;
         boolean isAnalyst = roleNamesStr != null
                 && roleNamesStr.contains("W_RBCC_AEP_WFAM_Analyst")
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_QMC_Leader")
@@ -64,11 +63,16 @@ public class AnalysisOrderService {
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_SystemAdmin");
 
         if (isAnalyst) {
-            orders = analysisOrderRepo.findByAnalyst(loginName);
+            return analysisOrderRepo.findByAnalystWithOrderNumbers(loginName)
+                    .stream()
+                    .map(this::toDTOFromProjection)
+                    .collect(Collectors.toList());
         } else {
-            orders = analysisOrderRepo.findAll();
+            return analysisOrderRepo.findAllWithOrderNumbers()
+                    .stream()
+                    .map(this::toDTOFromProjection)
+                    .collect(Collectors.toList());
         }
-        return orders.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     public AnalysisOrderDTO getById(String id) {
@@ -182,6 +186,25 @@ public class AnalysisOrderService {
                 .createdAt(ao.getCreatedAt() != null ? ao.getCreatedAt().toString() : null)
                 .updatedBy(ao.getUpdatedBy())
                 .updatedAt(ao.getUpdatedAt() != null ? ao.getUpdatedAt().toString() : null)
+                .build();
+    }
+
+    /**
+     * Convert from projection (already JOINED with order number) to DTO.
+     * Used by optimized list() method to eliminate N+1 query problem.
+     */
+    private AnalysisOrderDTO toDTOFromProjection(com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO p) {
+        return AnalysisOrderDTO.builder()
+                .id(p.id())
+                .orderId(p.orderId())
+                .orderNumber(p.orderNumber())
+                .analyst(p.analyst())
+                .status(p.status())
+                .statusChangedAt(p.statusChangedAt() != null ? p.statusChangedAt().toString() : null)
+                .createdBy(p.createdBy())
+                .createdAt(p.createdAt() != null ? p.createdAt().toString() : null)
+                .updatedBy(p.updatedBy())
+                .updatedAt(p.updatedAt() != null ? p.updatedAt().toString() : null)
                 .build();
     }
 
