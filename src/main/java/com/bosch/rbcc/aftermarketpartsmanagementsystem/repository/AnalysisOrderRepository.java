@@ -49,4 +49,34 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
         WHERE a.analyst = :analyst
         """)
     List<AnalysisOrderWithOrderNumberDTO> findByAnalystWithOrderNumbers(String analyst);
+
+    /**
+     * Fetch analysis orders by status list with their return order numbers.
+     */
+    @Query("""
+        SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
+            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
+            a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
+            r.orderNumber
+        )
+        FROM AnalysisOrder a
+        LEFT JOIN ReturnOrder r ON a.orderId = r.id
+        WHERE a.status IN :statuses
+        """)
+    List<AnalysisOrderWithOrderNumberDTO> findByStatusIn(List<String> statuses);
+
+    /**
+     * Fetch analysis orders by analyst and status list with their return order numbers.
+     */
+    @Query("""
+        SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
+            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
+            a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
+            r.orderNumber
+        )
+        FROM AnalysisOrder a
+        LEFT JOIN ReturnOrder r ON a.orderId = r.id
+        WHERE a.analyst = :analyst AND a.status IN :statuses
+        """)
+    List<AnalysisOrderWithOrderNumberDTO> findByAnalystAndStatusIn(String analyst, List<String> statuses);
 }
