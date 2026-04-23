@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -60,7 +62,14 @@ public class OcrService {
         ocrTaskRepo.save(task);
 
         log.info("OCR 任务已创建: taskId={}, partId={}", taskId, partId);
-        asyncProcessor.process(taskId);
+
+        // 在事务提交后再调用异步处理，确保任务已持久化
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                asyncProcessor.process(taskId);
+            }
+        });
 
         return toDTO(task, null);
     }
@@ -149,7 +158,14 @@ public class OcrService {
         task.setErrorMessage(null);
         ocrTaskRepo.save(task);
 
-        asyncProcessor.process(taskId);
+        // 在事务提交后再调用异步处理，确保任务状态已持久化
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                asyncProcessor.process(taskId);
+            }
+        });
+
         return toDTO(task, null);
     }
 
