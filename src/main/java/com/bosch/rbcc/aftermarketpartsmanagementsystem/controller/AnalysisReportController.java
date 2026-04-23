@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.ByteArrayOutputStream;
@@ -96,9 +97,12 @@ public class AnalysisReportController {
     public ResponseEntity<byte[]> exportReport(@PathVariable String id) {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             generatorService.generateReport(id, outputStream);
+            String filename = "report_" + id + ".xlsx";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
             return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"report_" + id + ".xlsx\"")
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .headers(headers)
                 .body(outputStream.toByteArray());
         } catch (IOException e) {
             return ResponseEntity.internalServerError().build();

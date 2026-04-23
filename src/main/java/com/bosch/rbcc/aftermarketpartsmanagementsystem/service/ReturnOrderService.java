@@ -70,7 +70,7 @@ public class ReturnOrderService {
         }, pageable);
 
         List<ReturnOrderDTO> dtos = page.getContent().stream()
-                .map(this::toDTO)
+                .map(this::toListDTO)
                 .collect(Collectors.toList());
 
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
@@ -473,6 +473,36 @@ public class ReturnOrderService {
                 .scrappedQuantity(scrappedCount)
                 .qcCreatedQuantity(qcCreated)
                 .qcNotCreatedQuantity(qcNotCreated)
+
+                .status(order.getStatus())
+                .createdBy(order.getCreatedBy())
+                .createdAt(order.getCreatedAt() != null ? order.getCreatedAt().toString() : null)
+                .updatedBy(order.getUpdatedBy())
+                .updatedAt(order.getUpdatedAt() != null ? order.getUpdatedAt().toString() : null)
+                .build();
+    }
+
+    /**
+     * 轻量级 DTO 转换，不查询 Part 表，用于列表页。
+     * 统计字段设为默认值（列表页不显示这些字段）。
+     */
+    private ReturnOrderDTO toListDTO(ReturnOrder order) {
+        return ReturnOrderDTO.builder()
+                .id(order.getId())
+                .orderNumber(order.getOrderNumber())
+                .customerId(order.getCustomerId())
+                .customer(order.getCustomer())
+                .receiveDate(order.getReceiveDate() != null ? order.getReceiveDate().toString() : null)
+                .complaintDate(order.getComplaintDate() != null ? order.getComplaintDate().toString() : null)
+                .returnMethod(order.getReturnMethod())
+                .trackingNumber(order.getTrackingNumber())
+                .returnQuantity(order.getReturnQuantity())
+                .complaintType(order.getComplaintType())
+                .initialAnalysisQuantity(0)
+                .detailedAnalysisQuantity(0)
+                .scrappedQuantity(0)
+                .qcCreatedQuantity(0)
+                .qcNotCreatedQuantity(0)
 
                 .status(order.getStatus())
                 .createdBy(order.getCreatedBy())
