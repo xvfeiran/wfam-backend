@@ -248,5 +248,13 @@ public class AnalysisOrderService {
         return dto;
     }
 
+    public int countByReturnOrderId(String orderId) {
+        return (int) analysisOrderRepo.countByOrderId(orderId);
+    }
+
+    public int countScrappedByReturnOrderId(String orderId) {
+        return (int) analysisOrderRepo.countByOrderIdAndStatus(orderId, STATUS_WORKON_SCRAPPED);
+    }
+
 }
 

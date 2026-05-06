@@ -3,6 +3,8 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.returnorder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageResponse;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ScrappedSummaryDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.AnalysisOrderService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ReturnOrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -34,6 +36,7 @@ import java.util.Map;
 public class ReturnOrderController {
 
     private final ReturnOrderService returnOrderService;
+    private final AnalysisOrderService analysisOrderService;
 
     @Operation(summary = "查询退货单列表", description = "支持按单号、客户、状态、日期范围筛选，支持分页和排序")
     @GetMapping
@@ -129,5 +132,16 @@ public class ReturnOrderController {
     @PostMapping("/import")
     public Map<String, Integer> importOrders(@RequestParam("file") MultipartFile file) {
         return returnOrderService.importFromExcel(file);
+    }
+
+    @Operation(summary = "获取退货单报废摘要")
+    @GetMapping("/{id}/scrapped-summary")
+    public ScrappedSummaryDTO getScrappedSummary(@PathVariable String id) {
+        int totalAnalysisOrders = analysisOrderService.countByReturnOrderId(id);
+        int scrappedAnalysisOrders = analysisOrderService.countScrappedByReturnOrderId(id);
+        return ScrappedSummaryDTO.builder()
+            .total(totalAnalysisOrders)
+            .scrapped(scrappedAnalysisOrders)
+            .build();
     }
 }
