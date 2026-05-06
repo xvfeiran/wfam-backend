@@ -18,6 +18,16 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
 
     long countByStatus(String status);
 
+    /**
+     * Count total analysis orders for a return order
+     */
+    long countByOrderId(String orderId);
+
+    /**
+     * Count analysis orders with workon_scrapped status for a return order
+     */
+    long countByOrderIdAndStatus(String orderId, String status);
+
     void deleteByOrderIdIn(List<String> orderIds);
 
     /**
