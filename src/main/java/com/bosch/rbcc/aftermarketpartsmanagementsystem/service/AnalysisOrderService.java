@@ -37,6 +37,7 @@ public class AnalysisOrderService {
     private final AnalysisOrderRepository analysisOrderRepo;
     private final PartRepository partRepo;
     private final ReturnOrderRepository returnOrderRepo;
+    private final ReturnOrderService returnOrderService;
 
     /**
      * 幂等创建分析单：若已存在则返回现有记录，否则创建新记录。
@@ -179,6 +180,9 @@ public class AnalysisOrderService {
             part.setStatusChangedAt(LocalDateTime.now());
             partRepo.save(part);
         }
+
+        // Check if all analysis orders for this return order are scrapped
+        returnOrderService.checkAndUpdateToScrappedIfAllScrapped(ao.getOrderId());
 
         return toDTO(ao);
     }
