@@ -6,6 +6,8 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Customer;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.enums.ReturnOrderStatus;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.CustomerRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
@@ -40,6 +42,7 @@ public class ReturnOrderService {
     private final ReturnOrderRepository orderRepo;
     private final PartRepository partRepo;
     private final CustomerRepository customerRepo;
+    private final AnalysisOrderRepository analysisOrderRepo;
     private final ReturnOrderExcelHandler excelHandler;
     private final EntityManager entityManager;
 
@@ -570,5 +573,36 @@ public class ReturnOrderService {
             return false;
         }
         return headers.getRoleNames().contains(roleName);
+    }
+
+    /**
+     * Update return order status
+     */
+    @Transactional
+    public void updateStatus(String orderId, ReturnOrderStatus status) {
+        ReturnOrder order = orderRepo.findById(orderId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Return order not found: " + orderId));
+        order.setStatus(status.getCode());
+        orderRepo.save(order);
+    }
+
+    /**
+     * Check if all analysis orders for a return order are scrapped.
+     * If so, update return order status to scrapped.
+     */
+    public void checkAndUpdateToScrappedIfAllScrapped(String orderId) {
+        // Only check if return order is in submitted status
+        ReturnOrder order = orderRepo.findById(orderId).orElse(null);
+        if (order == null || !ReturnOrderStatus.SUBMITTED.getCode().equals(order.getStatus())) {
+            return;
+        }
+
+        // Check if all analysis orders are workon_scrapped
+        long totalAnalysisOrders = analysisOrderRepo.countByOrderId(orderId);
+        long scrappedAnalysisOrders = analysisOrderRepo.countByOrderIdAndStatus(orderId, "workon_scrapped");
+
+        if (totalAnalysisOrders > 0 && totalAnalysisOrders == scrappedAnalysisOrders) {
+            updateStatus(orderId, ReturnOrderStatus.SCRAPPED);
+        }
     }
 }
