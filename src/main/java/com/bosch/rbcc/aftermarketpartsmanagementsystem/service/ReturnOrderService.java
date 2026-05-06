@@ -114,6 +114,11 @@ public class ReturnOrderService {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
 
+        // Check if return order is scrapped
+        if (ReturnOrderStatus.SCRAPPED.getCode().equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "已报废的退货单不允许编辑");
+        }
+
         // Check permission: non-draft orders can only be edited by QMC Leader
         if (!STATUS_DRAFT.equals(order.getStatus())) {
             boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
@@ -147,6 +152,11 @@ public class ReturnOrderService {
     public void delete(String id, boolean cascade) {
         ReturnOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
+
+        // Check if return order is scrapped
+        if (ReturnOrderStatus.SCRAPPED.getCode().equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "已报废的退货单不允许删除");
+        }
 
         // Check permission: non-draft orders can only be deleted by QMC Leader
         if (!STATUS_DRAFT.equals(order.getStatus())) {
