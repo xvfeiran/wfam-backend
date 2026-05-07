@@ -3,6 +3,10 @@ $env:JAVA_HOME = "C:\Users\XEF1CNG\.jdks\corretto-21.0.5"
 $MavenBin = "C:\Users\XEF1CNG\.m2\wrapper\dists\apache-maven-3.9.12-bin\5nmfsn99br87k5d4ajlekdq10k\apache-maven-3.9.12\bin"
 $env:Path = "$MavenBin;$env:JAVA_HOME\bin;$env:Path"
 
+# Set console encoding to UTF-8 for Chinese character display
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$env:MAVEN_OPTS = "-Dfile.encoding=UTF-8"
+
 # # 2. Define Watcher Logic (Background Job)
 # $WatchScript = {
 #     $fsw = New-Object IO.FileSystemWatcher
@@ -29,8 +33,13 @@ $env:Path = "$MavenBin;$env:JAVA_HOME\bin;$env:Path"
 Write-Host ">>> Launching Spring Boot with 'local' profile..." -ForegroundColor Cyan
 try {
     # Quoting -D parameters is mandatory in PowerShell
-    # clean + fork=true prevents Lombok Builder class loading issues
-    mvn --no-transfer-progress clean spring-boot:run -Plocal "-Dspring-boot.run.profiles=local" -DskipTests "-Dspring-boot.run.fork=true"
+    # compile (not clean) + fork=true prevents internal class loading issues
+    # UTF-8 encoding fixes Chinese character display in Windows console
+    mvn --no-transfer-progress compile spring-boot:run -Plocal `
+        "-Dspring-boot.run.profiles=local" `
+        -DskipTests `
+        "-Dspring-boot.run.fork=true" `
+        "-Dspring-boot.run.jvmArguments=-Dfile.encoding=UTF-8 -DconsoleEncoding=UTF-8 -Dsun.stdout.encoding=UTF-8"
 }
 finally {
     Write-Host "`n>>> Stopping Watcher Job..." -ForegroundColor Red

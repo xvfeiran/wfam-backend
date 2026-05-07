@@ -200,32 +200,73 @@ public class OcrAsyncProcessor {
 
     /**
      * 将 Dify workflow outputs 解析为 OcrResultDTO。
-     * 工作流输出结构：outputs.result = { "车辆生产日期": "...", "车辆VIN码": "...", ... }
+     * 工作流输出结构：outputs.result 可能是 JSON 对象或 JSON 字符串
      */
     private OcrResultDTO parseOutputs(JsonNode outputs) {
-        // 工作流 End 节点将 LLM structured_output 映射到 outputs.result
         JsonNode result = outputs.path("result");
-        if (!result.isMissingNode() && result.isObject()) {
-            return mapChineseFields(result);
+        log.debug("解析 outputs.result, 节点类型={}, 内容={}", result.getNodeType(), result);
+
+        if (result.isMissingNode() || result.isNull()) {
+            log.warn("outputs.result 为空或缺失: {}", outputs);
+            return OcrResultDTO.builder().build();
         }
 
-        log.warn("无法从 Dify outputs 解析 OCR 结果，返回空结果: {}", outputs);
+        // Dify 返回的 result 可能是字符串形式："{\"车辆生产日期\": ...}"
+        // 需要先解析为 JsonNode
+        JsonNode dataNode = result;
+        if (result.isTextual()) {
+            try {
+                log.debug("result 是文本节点，尝试解析 JSON 字符串: {}", result.asText());
+                dataNode = objectMapper.readTree(result.asText());
+                log.debug("解析成功，数据节点类型={}, 内容={}", dataNode.getNodeType(), dataNode);
+            } catch (Exception e) {
+                log.error("解析 result 字符串失败: {}", result.asText(), e);
+                return OcrResultDTO.builder().build();
+            }
+        }
+
+        if (dataNode.isObject()) {
+            return mapChineseFields(dataNode);
+        }
+
+        log.warn("无法从 Dify outputs 解析 OCR 结果，返回空结果: outputs={}, resultType={}", outputs, result.getNodeType());
         return OcrResultDTO.builder().build();
     }
 
     /**
-     * 将 LLM 输出的中文字段名映射到 OcrResultDTO。
+     * 将 Dify LLM 输出映射到 OcrResultDTO。
+     * 支持英文 key（推荐）和中文 key（向后兼容）。
+     *
+     * 英文 key 规范：
+     * - production_date: 车辆生产日期
+     * - purchase_date: 车辆购买日期
+     * - failure_date: 车辆失效日期
+     * - vin_code: 车辆VIN码
+     * - mileage: 车辆行驶里程
+     * - failure_description: 客户失效描述
+     * - repair_station: 维修站号/投诉地
      */
     private OcrResultDTO mapChineseFields(JsonNode node) {
         OcrResultDTO.OcrResultDTOBuilder builder = OcrResultDTO.builder();
 
-        String productionDate = textOrNull(node, "车辆生产日期");
-        String purchaseDate   = textOrNull(node, "车辆购买日期");
-        String failureDate    = textOrNull(node, "车辆失效日期");
-        String vin            = textOrNull(node, "车辆VIN码");
-        String mileageStr     = textOrNull(node, "车辆行驶里程");
-        String description    = textOrNull(node, "客户失效描述");
-        String repairStation  = textOrNull(node, "维修站号/投诉地");
+        // 打印所有可用字段用于调试
+        if (log.isDebugEnabled()) {
+            StringBuilder sb = new StringBuilder();
+            node.fieldNames().forEachRemaining(name -> sb.append(name).append(", "));
+            log.debug("OCR 结果节点包含的字段: {}", sb);
+        }
+
+        // 优先使用英文 key，回退到中文 key（向后兼容）
+        String productionDate = textOrAlt(node, "production_date", "车辆生产日期");
+        String purchaseDate   = textOrAlt(node, "purchase_date", "车辆购买日期", "车辆 购买日期");
+        String failureDate    = textOrAlt(node, "failure_date", "车辆失效日期");
+        String vin            = textOrAlt(node, "vin_code", "车辆VIN码", " 车辆VIN码", "车辆 VIN码");
+        String mileageStr     = textOrAlt(node, "mileage", "车辆行驶里程");
+        String description    = textOrAlt(node, "failure_description", "客户失效描述");
+        String repairStation  = textOrAlt(node, "repair_station", "维修站号/投诉地");
+
+        log.debug("字段映射结果: productionDate={}, purchaseDate={}, failureDate={}, vin={}, mileage={}, description={}, repairStation={}",
+                productionDate, purchaseDate, failureDate, vin, mileageStr, description, repairStation);
 
         builder.vehicleProductionDate(productionDate);
         builder.vehiclePurchaseDate(purchaseDate);
@@ -247,6 +288,19 @@ public class OcrAsyncProcessor {
         }
 
         return builder.build();
+    }
+
+    /**
+     * 尝试多个可能的字段名（英文 key 优先，回退到中文 key）
+     */
+    private String textOrAlt(JsonNode node, String... fieldNames) {
+        for (String name : fieldNames) {
+            String value = textOrNull(node, name);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private String textOrNull(JsonNode node, String fieldName) {

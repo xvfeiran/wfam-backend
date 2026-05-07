@@ -212,16 +212,16 @@ public class AnalysisOrderService {
      */
     private AnalysisOrderDTO toDTOFromProjection(com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO p) {
         return AnalysisOrderDTO.builder()
-                .id(p.id())
-                .orderId(p.orderId())
-                .orderNumber(p.orderNumber())
-                .analyst(p.analyst())
-                .status(p.status())
-                .statusChangedAt(p.statusChangedAt() != null ? p.statusChangedAt().toString() : null)
-                .createdBy(p.createdBy())
-                .createdAt(p.createdAt() != null ? p.createdAt().toString() : null)
-                .updatedBy(p.updatedBy())
-                .updatedAt(p.updatedAt() != null ? p.updatedAt().toString() : null)
+                .id(p.getId())
+                .orderId(p.getOrderId())
+                .orderNumber(p.getOrderNumber())
+                .analyst(p.getAnalyst())
+                .status(p.getStatus())
+                .statusChangedAt(p.getStatusChangedAt() != null ? p.getStatusChangedAt().toString() : null)
+                .createdBy(p.getCreatedBy())
+                .createdAt(p.getCreatedAt() != null ? p.getCreatedAt().toString() : null)
+                .updatedBy(p.getUpdatedBy())
+                .updatedAt(p.getUpdatedAt() != null ? p.getUpdatedAt().toString() : null)
                 .build();
     }
 
