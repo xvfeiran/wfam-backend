@@ -40,6 +40,16 @@ public class OcrService {
     private final OcrAsyncProcessor asyncProcessor;
     private final ObjectMapper objectMapper;
 
+    /** 事务提交后触发异步 OCR 处理 */
+    private class AfterCommitCallback implements TransactionSynchronization {
+        private final String taskId;
+
+        AfterCommitCallback(String taskId) { this.taskId = taskId; }
+
+        @Override
+        public void afterCommit() { asyncProcessor.process(taskId); }
+    }
+
     /**
      * 创建 OCR 任务：保存文件到临时目录，立即返回 taskId，后台异步识别。
      *
@@ -64,12 +74,7 @@ public class OcrService {
         log.info("OCR 任务已创建: taskId={}, partId={}", taskId, partId);
 
         // 在事务提交后再调用异步处理，确保任务已持久化
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                asyncProcessor.process(taskId);
-            }
-        });
+        TransactionSynchronizationManager.registerSynchronization(new AfterCommitCallback(taskId));
 
         return toDTO(task, null);
     }
@@ -159,12 +164,7 @@ public class OcrService {
         ocrTaskRepo.save(task);
 
         // 在事务提交后再调用异步处理，确保任务状态已持久化
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                asyncProcessor.process(taskId);
-            }
-        });
+        TransactionSynchronizationManager.registerSynchronization(new AfterCommitCallback(taskId));
 
         return toDTO(task, null);
     }
