@@ -6,7 +6,7 @@ COPY pom.xml .
 COPY src ./src
 COPY settings.xml /root/.m2/settings.xml
 
-RUN mvn clean package -X -U -P test -DskipTests
+RUN mvn clean package -DskipTests
 
 FROM docker.production.tmp-service.bosch.com/eclipse-temurin:21-jre
 
@@ -19,4 +19,4 @@ RUN keytool -importcert -trustcacerts -cacerts \
     -file /app/bosch-chain.pem -noprompt
 
 EXPOSE 8102
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=test"]
