@@ -1,4 +1,5 @@
 spring:
+
   datasource:
     driverClassName: oracle.jdbc.OracleDriver
     url: jdbc:oracle:thin:@cngorarac01.apac.bosch.com:38000/aepqual_app.apac.bosch.com?currentSchema=SUPER_LINE_LEADER
@@ -8,11 +9,43 @@ spring:
     enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
+    baseline-version: 3
     schemas: SUPER_LINE_LEADER
     table: APMS_FLYWAY_SCHEMA_HISTORY
+    ignore-migration-patterns: "*:failed"
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+file:
+  upload:
+    base-path: ${user.home}/.wfam/upload
+    template-path: ${file.upload.base-path}/templates
+    report-path: ${file.upload.base-path}/reports
 
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}){faint} %clr(%5p) %clr(${PID}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+  level:
+    root: INFO
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.springdoc: ERROR
+    com.zaxxer.hikari: WARN
+    org.apache.catalina: WARN
+
+ocr:
+  mock:
+    fail-enabled: false
+    fail-message: OCR mock识别失败，请手动补全必填字段后保存
+    processing-delay-ms: 3000
