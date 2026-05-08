@@ -59,6 +59,8 @@ public class PartService {
             String productPlatform, String status, String qcCreated,
             String analyst, int page, int size, String sortBy, String sortOrder) {
 
+        log.info("Part list params - qcCreated: '{}', status: '{}'", qcCreated, status);
+
         Page<Part> partPage = partRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -87,14 +89,19 @@ public class PartService {
             }
             if ("yes".equals(qcCreated)) {
                 predicates.add(cb.isNotNull(root.get("qcNo")));
-                predicates.add(cb.notEqual(root.get("qcNo"), ""));
+                log.debug("Adding QC created filter: yes");
             } else if ("no".equals(qcCreated)) {
+                // QC未录入：qcNo为null或为空字符串
                 predicates.add(cb.or(
                         cb.isNull(root.get("qcNo")),
                         cb.equal(root.get("qcNo"), "")));
+                log.debug("Adding QC created filter: no");
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         }, buildPageRequest(page, size, sortBy, sortOrder));
+
+        log.debug("Part query result - total: {}, page size: {}, qcCreated filter: '{}'",
+                partPage.getTotalElements(), partPage.getContent().size(), qcCreated);
 
         // 仅对当前页批量查询退货单号
         Set<String> orderIds = partPage.getContent().stream()
