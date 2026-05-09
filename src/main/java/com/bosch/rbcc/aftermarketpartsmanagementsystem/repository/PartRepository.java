@@ -20,6 +20,10 @@ public interface PartRepository extends JpaRepository<Part, String>,
 
     Optional<Part> findByPartNumber(String partNumber);
 
+    boolean existsByOrderIdAndPartNumber(String orderId, String partNumber);
+
+    boolean existsByOrderIdAndPartNumberAndIdNot(String orderId, String partNumber, String id);
+
     @Query(value = "SELECT MAX(TO_NUMBER(SUBSTR(PART_NUMBER, :startPos))) FROM APMS_PART WHERE PART_NUMBER LIKE :pattern AND ORDER_ID = :orderId", nativeQuery = true)
     Optional<Integer> findMaxSeqByPrefixAndOrderId(@Param("startPos") int startPos, @Param("pattern") String pattern, @Param("orderId") String orderId);
 

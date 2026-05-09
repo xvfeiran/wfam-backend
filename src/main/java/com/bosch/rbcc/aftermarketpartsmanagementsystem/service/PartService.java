@@ -14,6 +14,7 @@ import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -149,6 +150,20 @@ public class PartService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
     }
 
+    /**
+     * 检查 partNumber 在同一退货单下是否可用（排除指定 partId）。
+     */
+    @Transactional(readOnly = true)
+    public boolean isPartNumberAvailable(String partNumber, String orderId, String excludeId) {
+        if (partNumber == null || partNumber.isBlank() || orderId == null || orderId.isBlank()) {
+            return false;
+        }
+        if (excludeId != null && !excludeId.isBlank()) {
+            return !partRepo.existsByOrderIdAndPartNumberAndIdNot(orderId, partNumber, excludeId);
+        }
+        return !partRepo.existsByOrderIdAndPartNumber(orderId, partNumber);
+    }
+
     @Transactional
     public PartDTO create(PartDTO dto, String ocrTaskId) {
         // Check if the associated return order allows adding new parts
@@ -169,9 +184,18 @@ public class PartService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Analyst is required");
         }
 
+        // partNumber 唯一性校验
+        if (dto.getPartNumber() != null && !dto.getPartNumber().isBlank()) {
+            if (partRepo.existsByOrderIdAndPartNumber(dto.getOrderId(), dto.getPartNumber())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Part number '" + dto.getPartNumber() + "' already exists in this return order");
+            }
+        }
+
         Part part = Part.builder()
                 .id(UUID.randomUUID().toString())
                 .orderId(trimText(dto.getOrderId()))
+                .partNumber(trimText(dto.getPartNumber()))
                 .partCode(trimText(dto.getPartCode()))
                 .businessUnit(trimText(dto.getBusinessUnit()))
                 .productPlatform(trimText(dto.getProductPlatform()))
@@ -192,7 +216,12 @@ public class PartService {
                 .status(STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
-        partRepo.save(part);
+        try {
+            partRepo.save(part);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Part number '" + dto.getPartNumber() + "' already exists in this return order");
+        }
 
         // 触发分析单自动创建（幂等）
         analysisOrderService.getOrCreate(dto.getOrderId(), dto.getAnalyst());
@@ -414,6 +443,9 @@ public class PartService {
         }
 
         part.setPartCode(trimText(dto.getPartCode()));
+        if (dto.getPartNumber() != null && !dto.getPartNumber().isBlank()) {
+            part.setPartNumber(trimText(dto.getPartNumber()));
+        }
         part.setBusinessUnit(trimText(dto.getBusinessUnit()));
         part.setProductPlatform(trimText(dto.getProductPlatform()));
         part.setProductionShift(trimText(dto.getProductionShift()));
@@ -465,7 +497,12 @@ public class PartService {
 
         // 如果尚未生成零件编号，则生成新编号
         if (part.getPartNumber() == null) {
-            part.setPartNumber(generatePartNumber(part.getBusinessUnit(), part.getProductPlatform(), part.getOrderId()));
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Part number is required before submit");
+        }
+        // 提交前再次校验唯一性（防并发）
+        if (partRepo.existsByOrderIdAndPartNumberAndIdNot(part.getOrderId(), part.getPartNumber(), part.getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Part number '" + part.getPartNumber() + "' already exists in this return order");
         }
         // 提交后状态变为信息录入/已完成
         if (STATUS_IN_INITIAL_ANALYSIS.equals(part.getStatus())) {
@@ -473,7 +510,12 @@ public class PartService {
             part.setStatusChangedAt(LocalDateTime.now());
         }
         // 已提交的单据也可以再次提交（用于更新数据），只保存更新
-        partRepo.save(part);
+        try {
+            partRepo.save(part);
+        } catch (DataIntegrityViolationException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Part number '" + part.getPartNumber() + "' already exists in this return order");
+        }
         return toDTO(part);
     }
 

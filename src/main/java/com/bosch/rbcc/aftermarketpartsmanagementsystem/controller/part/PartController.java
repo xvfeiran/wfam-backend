@@ -52,6 +52,15 @@ public class PartController {
         return partService.getById(id);
     }
 
+    @Operation(summary = "检查退件编号唯一性")
+    @GetMapping("/check-part-number")
+    public Map<String, Boolean> checkPartNumber(
+            @RequestParam String partNumber,
+            @RequestParam String orderId,
+            @RequestParam(required = false) String excludeId) {
+        return Map.of("available", partService.isPartNumberAvailable(partNumber, orderId, excludeId));
+    }
+
     @Operation(summary = "新建售后件")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
