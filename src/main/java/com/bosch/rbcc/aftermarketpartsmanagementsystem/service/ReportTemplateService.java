@@ -10,9 +10,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
@@ -20,9 +17,6 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -40,9 +34,7 @@ public class ReportTemplateService {
     private final AnalysisReportRepository analysisReportRepository;
     private final ExcelTemplateParserService parserService;
     private final ObjectMapper objectMapper;
-
-    @Value("${file.upload.template-path:${user.home}/.wfam/upload/templates}")
-    private String templateBasePath;
+    private final FileStorageService fileStorageService;
 
     public List<ReportTemplateDTO> getAll() {
         return repository.findAll().stream()
@@ -68,23 +60,21 @@ public class ReportTemplateService {
             log.info("Uploading template: platform={}, failureType={}, name={}, file={}", productPlatform, failureType, name, file.getOriginalFilename());
 
             List<ReportTemplateFieldDTO> fields = parserService.parseTemplate(file);
-            String fileName = generateFileName(productPlatform, failureType, file.getOriginalFilename());
-            Path filePath = Paths.get(templateBasePath, fileName);
-            Files.createDirectories(filePath.getParent());
-            file.transferTo(filePath.toFile());
+            String storedName = generateFileName(productPlatform, failureType, file.getOriginalFilename());
+            String relativePath = fileStorageService.store("templates", storedName, file);
 
             // 将空字符串转换为null，便于匹配逻辑处理
             String normalizedFailureType = (failureType != null && !failureType.trim().isEmpty()) ? failureType : null;
 
             // 使用自定义名称或默认名称
-            String templateName = (name != null && !name.trim().isEmpty()) ? name.trim() : fileName;
+            String templateName = (name != null && !name.trim().isEmpty()) ? name.trim() : storedName;
 
             ReportTemplate template = ReportTemplate.builder()
                 .id(UUID.randomUUID().toString())
                 .name(templateName)
                 .productPlatform(productPlatform)
                 .failureType(normalizedFailureType)
-                .filePath(filePath.toString())
+                .filePath(relativePath)
                 .fileName(file.getOriginalFilename())
                 .fieldDefinitions(objectMapper.writeValueAsString(fields))
                 .enabled(1)
@@ -138,14 +128,10 @@ public class ReportTemplateService {
         return templates.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
-    public Resource downloadTemplate(String id) {
+    public String getTemplateFilePath(String id) {
         ReportTemplate template = repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Template not found: " + id));
-        Path filePath = Paths.get(template.getFilePath());
-        if (!Files.exists(filePath)) {
-            throw new IllegalArgumentException("Template file not found: " + template.getFilePath());
-        }
-        return new FileSystemResource(filePath.toFile());
+        return template.getFilePath();
     }
 
     @Transactional

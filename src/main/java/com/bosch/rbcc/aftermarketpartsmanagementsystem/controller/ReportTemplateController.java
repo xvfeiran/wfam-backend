@@ -5,12 +5,8 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ReportTemplateSer
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.Resource;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.ContentDisposition;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -72,15 +68,12 @@ public class ReportTemplateController {
     }
 
     @GetMapping("/{id}/download")
-    @Operation(summary = "Download template file", description = "Download the Excel template file")
-    public ResponseEntity<Resource> downloadTemplate(@PathVariable String id) {
-        Resource resource = templateService.downloadTemplate(id);
-        String filename = resource.getFilename();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
-        return ResponseEntity.ok()
-            .headers(headers)
-            .body(resource);
+    @Operation(summary = "下载模板文件", description = "重定向到统一文件访问端点")
+    public ResponseEntity<Void> downloadTemplate(@PathVariable String id) {
+        String relativePath = templateService.getTemplateFilePath(id);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(java.net.URI.create("/api/v1/files/" + relativePath))
+                .build();
     }
 
     @DeleteMapping("/{id}")
