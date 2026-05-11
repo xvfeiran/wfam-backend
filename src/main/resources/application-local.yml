@@ -21,8 +21,6 @@ spring:
 file:
   upload:
     base-path: ${user.home}/.wfam/upload
-    template-path: ${file.upload.base-path}/templates
-    report-path: ${file.upload.base-path}/reports
 
 springdoc:
   api-docs:
