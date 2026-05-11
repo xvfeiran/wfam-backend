@@ -1,5 +1,6 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImageUploadResult;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
@@ -22,6 +24,19 @@ public class FileController {
     private static final String OCTET_STREAM = "application/octet-stream";
 
     private final FileStorageService fileStorageService;
+
+    @PostMapping("/upload")
+    @Operation(summary = "通用文件上传", description = "上传文件到 pending 目录，返回相对路径，适用于尚未关联实体的场景")
+    public ImageUploadResult uploadFile(@RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "未提供文件");
+        }
+        String relativePath = fileStorageService.store("pending", file);
+        return ImageUploadResult.builder()
+                .relativePath(relativePath)
+                .url("/api/v1/files/" + relativePath)
+                .build();
+    }
 
     @GetMapping("/{category}/**")
     @Operation(summary = "获取存储文件", description = "根据 category 和路径获取上传的文件")
