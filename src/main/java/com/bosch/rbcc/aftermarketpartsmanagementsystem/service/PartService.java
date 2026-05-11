@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -55,6 +56,7 @@ public class PartService {
     private final AnalysisOrderService analysisOrderService;
     private final OcrService ocrService;
     private final EntityManager entityManager;
+    private final ObjectMapper objectMapper;
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
             String productPlatform, String status, String qcCreated,
@@ -659,7 +661,7 @@ public class PartService {
                 .customerDescription(part.getCustomerDescription())
                 .otherDescription(part.getOtherDescription())
                 .status(part.getStatus())
-                .images(List.of())
+                .images(parseImages(part.getImages()))
                 .createdBy(part.getCreatedBy())
                 .createdAt(part.getCreatedAt() != null ? part.getCreatedAt().toString() : null)
                 .updatedBy(part.getUpdatedBy())
@@ -675,5 +677,14 @@ public class PartService {
 
     private String trimText(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private List<String> parseImages(String imagesJson) {
+        if (imagesJson == null || imagesJson.trim().isEmpty()) return Collections.emptyList();
+        try {
+            return objectMapper.readValue(imagesJson, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
     }
 }

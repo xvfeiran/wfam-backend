@@ -92,6 +92,9 @@ public class Part {
     @Column(name = "STATUS_CHANGED_AT")
     private LocalDateTime statusChangedAt;
 
+    @Column(name = "IMAGES", length = 2000)
+    private String images;
+
     @Column(name = "STATUS", length = 50, nullable = false)
     private String status;
 
