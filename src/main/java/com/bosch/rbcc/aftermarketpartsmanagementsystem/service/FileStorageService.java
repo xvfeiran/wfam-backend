@@ -71,30 +71,6 @@ public class FileStorageService {
         return resolvePath(category, relativePath).toAbsolutePath().toString();
     }
 
-    /**
-     * Move a file from one location to another under basePath.
-     * @param fromRelativePath e.g. "pending/uuid.jpg"
-     * @param toRelativePath   e.g. "parts/{partId}/uuid.jpg"
-     * @return the toRelativePath
-     */
-    public String move(String fromRelativePath, String toRelativePath) {
-        try {
-            Path source = resolveFullPath(fromRelativePath);
-            Path target = resolveFullPath(toRelativePath);
-            if (!Files.exists(source)) {
-                log.warn("移动文件失败，源文件不存在: {}", fromRelativePath);
-                return toRelativePath;
-            }
-            Files.createDirectories(target.getParent());
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-            log.info("文件已移动: {} -> {}", fromRelativePath, toRelativePath);
-            return toRelativePath;
-        } catch (IOException e) {
-            log.error("移动文件失败: {} -> {}", fromRelativePath, toRelativePath, e);
-            return toRelativePath;
-        }
-    }
-
     private String doStore(String category, String fileName, MultipartFile file) {
         try {
             Path targetDir = Path.of(basePath, category);

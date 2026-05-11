@@ -1,7 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImageUploadResult;
+
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.OcrTask;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
@@ -30,7 +30,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
-import org.springframework.web.multipart.MultipartFile;
+
 
 @Slf4j
 @Service
@@ -59,7 +59,7 @@ public class PartService {
     private final OcrService ocrService;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
-    private final FileStorageService fileStorageService;
+
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
             String productPlatform, String status, String qcCreated,
@@ -221,20 +221,12 @@ public class PartService {
                 .status(STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
-        // Move pending images to parts/{partId}/
         if (dto.getImages() != null && !dto.getImages().isEmpty()) {
-            List<String> movedPaths = new ArrayList<>();
-            for (String imgPath : dto.getImages()) {
-                if (imgPath.startsWith("pending/")) {
-                    String fileName = imgPath.substring("pending/".length());
-                    String newPath = "parts/" + part.getId() + "/" + fileName;
-                    fileStorageService.move(imgPath, newPath);
-                    movedPaths.add(newPath);
-                } else {
-                    movedPaths.add(imgPath);
-                }
+            try {
+                part.setImages(objectMapper.writeValueAsString(dto.getImages()));
+            } catch (Exception e) {
+                log.warn("序列化图片列表失败", e);
             }
-            part.setImages(objectMapper.writeValueAsString(movedPaths));
         }
         try {
             partRepo.save(part);
@@ -706,73 +698,4 @@ public class PartService {
         }
     }
 
-    private static final String PARTS_CATEGORY = "parts";
-
-    @Transactional
-    public ImageUploadResult uploadImage(String partId, MultipartFile file) {
-        if (!partRepo.existsById(partId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "售后件不存在: " + partId);
-        }
-
-        validateImageFile(file);
-        String relativePath = fileStorageService.store(PARTS_CATEGORY, partId + "/" + UUID.randomUUID() + getExtension(file.getOriginalFilename()), file);
-        addImageToPart(partId, relativePath);
-
-        return ImageUploadResult.builder()
-                .relativePath(relativePath)
-                .url("/api/v1/files/" + relativePath)
-                .build();
-    }
-
-    @Transactional
-    public void deleteImage(String partId, String imageRelativePath) {
-        Part part = partRepo.findById(partId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "售后件不存在: " + partId));
-
-        List<String> images = new ArrayList<>(parseImages(part.getImages()));
-        if (!images.contains(imageRelativePath)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "图片不存在: " + imageRelativePath);
-        }
-
-        images.remove(imageRelativePath);
-        part.setImages(images.isEmpty() ? null : serializeImages(images));
-        partRepo.save(part);
-
-        fileStorageService.delete(PARTS_CATEGORY, imageRelativePath.substring(PARTS_CATEGORY.length() + 1));
-    }
-
-    private void addImageToPart(String partId, String relativePath) {
-        Part part = partRepo.findById(partId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "售后件不存在: " + partId));
-        List<String> images = new ArrayList<>(parseImages(part.getImages()));
-        images.add(relativePath);
-        part.setImages(serializeImages(images));
-        partRepo.save(part);
-    }
-
-    private String serializeImages(List<String> images) {
-        try {
-            return objectMapper.writeValueAsString(images);
-        } catch (Exception e) {
-            throw new RuntimeException("序列化图片列表失败", e);
-        }
-    }
-
-    private void validateImageFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "未提供文件");
-        }
-        String contentType = file.getContentType();
-        if (contentType == null || (!contentType.startsWith("image/jpeg") && !contentType.startsWith("image/png") && !contentType.startsWith("image/jpg"))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "不支持的文件格式，请上传 jpg 或 png 格式的图片");
-        }
-        if (file.getSize() > 10 * 1024 * 1024L) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "文件大小超过限制，最大支持 10MB");
-        }
-    }
-
-    private String getExtension(String filename) {
-        if (filename == null) return ".jpg";
-        int dot = filename.lastIndexOf('.');
-        return dot >= 0 ? filename.substring(dot) : ".jpg";
-    }
 }
