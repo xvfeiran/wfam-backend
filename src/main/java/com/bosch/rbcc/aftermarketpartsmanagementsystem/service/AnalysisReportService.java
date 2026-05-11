@@ -1,6 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisReportDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImageUploadResult;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisReport;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
@@ -14,6 +15,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -33,6 +37,7 @@ public class AnalysisReportService {
     private final ObjectMapper objectMapper;
     private final PartRepository partRepository;
     private final AnalysisOrderRepository analysisOrderRepository;
+    private final FileStorageService fileStorageService;
 
     public List<AnalysisReportDTO> getAll() {
         return repository.findAll().stream()
@@ -323,5 +328,49 @@ public class AnalysisReportService {
 
     private String formatDateTime(LocalDateTime dateTime) {
         return dateTime != null ? dateTime.toString() : null;
+    }
+
+    private static final String ANALYSIS_CATEGORY = "analysis";
+
+    @Transactional
+    public ImageUploadResult uploadAttachment(String reportId, MultipartFile file) {
+        AnalysisReport report = repository.findById(reportId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "精分析报告不存在: " + reportId));
+
+        String ext = getExtension(file.getOriginalFilename());
+        String relativePath = fileStorageService.store(ANALYSIS_CATEGORY, reportId + "/" + UUID.randomUUID() + ext, file);
+
+        List<String> attachments = new ArrayList<>(parseAttachments(report.getAttachments()));
+        attachments.add(relativePath);
+        report.setAttachments(serializeAttachments(attachments));
+        repository.save(report);
+
+        return ImageUploadResult.builder()
+                .relativePath(relativePath)
+                .url("/api/v1/files/" + relativePath)
+                .build();
+    }
+
+    @Transactional
+    public void deleteAttachment(String reportId, String attachmentRelativePath) {
+        AnalysisReport report = repository.findById(reportId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "精分析报告不存在: " + reportId));
+
+        List<String> attachments = new ArrayList<>(parseAttachments(report.getAttachments()));
+        if (!attachments.contains(attachmentRelativePath)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "附件不存在: " + attachmentRelativePath);
+        }
+
+        attachments.remove(attachmentRelativePath);
+        report.setAttachments(attachments.isEmpty() ? null : serializeAttachments(attachments));
+        repository.save(report);
+
+        fileStorageService.delete(ANALYSIS_CATEGORY, attachmentRelativePath.substring(ANALYSIS_CATEGORY.length() + 1));
+    }
+
+    private String getExtension(String filename) {
+        if (filename == null) return ".bin";
+        int dot = filename.lastIndexOf('.');
+        return dot >= 0 ? filename.substring(dot) : ".bin";
     }
 }
