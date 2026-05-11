@@ -244,7 +244,8 @@ public class OcrAsyncProcessor {
      * - vin_code: 车辆VIN码
      * - mileage: 车辆行驶里程
      * - failure_description: 客户失效描述
-     * - repair_station: 维修站号/投诉地
+     * - repair_station: 维修站号
+     * - complaint_location: 投诉地
      */
     private OcrResultDTO mapChineseFields(JsonNode node) {
         OcrResultDTO.OcrResultDTOBuilder builder = OcrResultDTO.builder();
@@ -263,17 +264,19 @@ public class OcrAsyncProcessor {
         String vin            = textOrAlt(node, "vin_code", "车辆VIN码", " 车辆VIN码", "车辆 VIN码");
         String mileageStr     = textOrAlt(node, "mileage", "车辆行驶里程");
         String description    = textOrAlt(node, "failure_description", "客户失效描述");
-        String repairStation  = textOrAlt(node, "repair_station", "维修站号/投诉地");
+        String repairStation  = textOrAlt(node, "repair_station", "维修站号");
+        String complaintLocation = textOrAlt(node, "complaint_location", "投诉地");
 
-        log.debug("字段映射结果: productionDate={}, purchaseDate={}, failureDate={}, vin={}, mileage={}, description={}, repairStation={}",
-                productionDate, purchaseDate, failureDate, vin, mileageStr, description, repairStation);
+        log.debug("字段映射结果: productionDate={}, purchaseDate={}, failureDate={}, vin={}, mileage={}, description={}, repairStation={}, complaintLocation={}",
+                productionDate, purchaseDate, failureDate, vin, mileageStr, description, repairStation, complaintLocation);
 
         builder.vehicleProductionDate(productionDate);
         builder.vehiclePurchaseDate(purchaseDate);
         builder.vehicleFailureDate(failureDate);
         builder.vehicleVIN(vin);
         builder.customerDescription(description);
-        builder.repairStationLocation(repairStation);
+        builder.repairStation(repairStation);
+        builder.complaintLocation(complaintLocation);
 
         if (mileageStr != null) {
             try {

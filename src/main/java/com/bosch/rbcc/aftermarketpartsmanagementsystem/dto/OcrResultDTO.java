@@ -34,6 +34,9 @@ public class OcrResultDTO {
     @Schema(description = "客户失效描述", example = "发动机异响，怠速不稳")
     private String customerDescription;
 
-    @Schema(description = "维修站号/投诉地", example = "avatrzhz0102001-阿维塔中心 郑州郑东新区店")
-    private String repairStationLocation;
+    @Schema(description = "维修站号", example = "avatrzhz0102001")
+    private String repairStation;
+
+    @Schema(description = "投诉地", example = "阿维塔中心 郑州郑东新区店")
+    private String complaintLocation;
 }

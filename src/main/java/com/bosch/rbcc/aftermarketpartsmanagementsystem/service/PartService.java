@@ -209,7 +209,7 @@ public class PartService {
                 .vehicleMileage(dto.getVehicleMileage())
                 .customerDescription(trimText(dto.getCustomerDescription()))
                 .otherDescription(trimText(dto.getOtherDescription()))
-                .repairStationLocation(trimText(dto.getRepairStationLocation()))
+                .repairStation(trimText(dto.getRepairStation())).complaintLocation(trimText(dto.getComplaintLocation()))
                 .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
                 .analyst(trimText(dto.getAnalyst()))
                 .qcNo(trimText(dto.getQcNo()))
@@ -270,7 +270,7 @@ public class PartService {
                 .vehicleMileage(dto.getVehicleMileage())
                 .customerDescription(trimText(dto.getCustomerDescription()))
                 .otherDescription(trimText(dto.getOtherDescription()))
-                .repairStationLocation(trimText(dto.getRepairStationLocation()))
+                .repairStation(trimText(dto.getRepairStation())).complaintLocation(trimText(dto.getComplaintLocation()))
                 .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
                 .analyst(trimText(dto.getAnalyst()))
                 .qcNo(trimText(dto.getQcNo()))
@@ -353,7 +353,7 @@ public class PartService {
                     .vehicleMileage(dto.getVehicleMileage())
                     .customerDescription(trimText(dto.getCustomerDescription()))
                     .otherDescription(trimText(dto.getOtherDescription()))
-                    .repairStationLocation(trimText(dto.getRepairStationLocation()))
+                    .repairStation(trimText(dto.getRepairStation())).complaintLocation(trimText(dto.getComplaintLocation()))
                     .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
                     .analyst(trimText(dto.getAnalyst()))
                     .qcNo(trimText(dto.getQcNo()))
@@ -458,7 +458,7 @@ public class PartService {
         part.setVehicleMileage(dto.getVehicleMileage());
         part.setCustomerDescription(trimText(dto.getCustomerDescription()));
         part.setOtherDescription(trimText(dto.getOtherDescription()));
-        part.setRepairStationLocation(trimText(dto.getRepairStationLocation()));
+        part.setRepairStation(trimText(dto.getRepairStation())); part.setComplaintLocation(trimText(dto.getComplaintLocation()));
         part.setResponsibleEngineer(trimText(dto.getResponsibleEngineer()));
         part.setAnalyst(trimText(dto.getAnalyst()));
         partRepo.save(part);
@@ -644,7 +644,7 @@ public class PartService {
                 .productionShift(part.getProductionShift())
                 .failureType(part.getFailureType())
                 .boschFailureType(part.getBoschFailureType())
-                .repairStationLocation(part.getRepairStationLocation())
+                .repairStation(part.getRepairStation()).complaintLocation(part.getComplaintLocation())
                 .responsibleEngineer(part.getResponsibleEngineer())
                 .analyst(part.getAnalyst())
                 .qcNo(part.getQcNo())

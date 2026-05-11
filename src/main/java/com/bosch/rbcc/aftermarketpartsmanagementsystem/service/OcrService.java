@@ -228,8 +228,11 @@ public class OcrService {
         if (result.getCustomerDescription() != null) {
             part.setCustomerDescription(result.getCustomerDescription());
         }
-        if (result.getRepairStationLocation() != null) {
-            part.setRepairStationLocation(result.getRepairStationLocation());
+        if (result.getRepairStation() != null) {
+            part.setRepairStation(result.getRepairStation());
+        }
+        if (result.getComplaintLocation() != null) {
+            part.setComplaintLocation(result.getComplaintLocation());
         }
     }
 

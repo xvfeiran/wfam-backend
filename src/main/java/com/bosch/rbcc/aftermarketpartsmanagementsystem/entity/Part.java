@@ -70,8 +70,11 @@ public class Part {
     @Column(name = "OTHER_DESCRIPTION", length = 500)
     private String otherDescription;
 
-    @Column(name = "REPAIR_STATION_LOCATION", length = 255)
-    private String repairStationLocation;
+    @Column(name = "REPAIR_STATION", length = 100)
+    private String repairStation;
+
+    @Column(name = "COMPLAINT_LOCATION", length = 100)
+    private String complaintLocation;
 
     @Column(name = "RESPONSIBLE_ENGINEER", length = 100)
     private String responsibleEngineer;
