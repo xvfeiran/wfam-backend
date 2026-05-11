@@ -221,6 +221,21 @@ public class PartService {
                 .status(STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
+        // Move pending images to parts/{partId}/
+        if (dto.getImages() != null && !dto.getImages().isEmpty()) {
+            List<String> movedPaths = new ArrayList<>();
+            for (String imgPath : dto.getImages()) {
+                if (imgPath.startsWith("pending/")) {
+                    String fileName = imgPath.substring("pending/".length());
+                    String newPath = "parts/" + part.getId() + "/" + fileName;
+                    fileStorageService.move(imgPath, newPath);
+                    movedPaths.add(newPath);
+                } else {
+                    movedPaths.add(imgPath);
+                }
+            }
+            part.setImages(objectMapper.writeValueAsString(movedPaths));
+        }
         try {
             partRepo.save(part);
         } catch (DataIntegrityViolationException e) {
