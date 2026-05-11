@@ -17,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,8 @@ public class AnalysisOrderService {
     private static final String STATUS_WORKON_SCRAPPED = "workon_scrapped";
     private static final String STATUS_SCRAP_IN_PROGRESS = "scrap_in_progress";
     private static final String STATUS_SCRAPPED = "scrapped";
+
+    private static final Set<String> AFTERMARKET_TYPES = Set.of("BA40", "BA41");
 
     private final AnalysisOrderRepository analysisOrderRepo;
     private final PartRepository partRepo;
@@ -101,6 +104,15 @@ public class AnalysisOrderService {
         if (!STATUS_PENDING_SAMPLING.equals(ao.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                 "Analysis order must be in pending_sampling status for sampling");
+        }
+
+        // 0KM 退货单不允许抽样，只能直接报废
+        String complaintType = returnOrderRepo.findById(ao.getOrderId())
+                .map(o -> o.getComplaintType())
+                .orElse(null);
+        if (complaintType != null && !AFTERMARKET_TYPES.contains(complaintType)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "0KM退货单不能抽样，只能走报废流程");
         }
 
         List<Part> parts = partRepo.findByOrderIdAndAnalyst(ao.getOrderId(), ao.getAnalyst());
