@@ -20,10 +20,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -31,14 +29,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OcrService {
 
-    public record OcrImagePayload(byte[] content, String contentType) {}
-
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final OcrTaskRepository ocrTaskRepo;
     private final PartRepository partRepo;
     private final OcrAsyncProcessor asyncProcessor;
     private final ObjectMapper objectMapper;
+    private final FileStorageService fileStorageService;
 
     /** 事务提交后触发异步 OCR 处理 */
     private class AfterCommitCallback implements TransactionSynchronization {
@@ -61,7 +58,7 @@ public class OcrService {
         validateFile(file);
 
         String taskId   = UUID.randomUUID().toString();
-        String filePath = saveToTempDir(taskId, file);
+        String filePath = fileStorageService.store("ocr", taskId + getExtension(file.getOriginalFilename()), file);
 
         OcrTask task = OcrTask.builder()
                 .id(taskId)
@@ -115,29 +112,13 @@ public class OcrService {
     }
 
     @Transactional(readOnly = true)
-    public OcrImagePayload getTaskImage(String taskId) {
+    public String getTaskImageRelativePath(String taskId) {
         OcrTask task = ocrTaskRepo.findById(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 任务不存在: " + taskId));
-
         if (task.getFilePath() == null || task.getFilePath().isBlank()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 图片不存在: taskId=" + taskId);
         }
-
-        try {
-            Path imagePath = Path.of(task.getFilePath());
-            if (!Files.exists(imagePath)) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 图片文件不存在: taskId=" + taskId);
-            }
-
-            byte[] bytes = Files.readAllBytes(imagePath);
-            String contentType = Files.probeContentType(imagePath);
-            if (contentType == null || contentType.isBlank()) {
-                contentType = inferContentTypeFromPath(imagePath);
-            }
-            return new OcrImagePayload(bytes, contentType);
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "读取 OCR 图片失败", e);
-        }
+        return task.getFilePath();
     }
 
     @Transactional
@@ -149,7 +130,7 @@ public class OcrService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "OCR 任务缺少原图，无法重试");
         }
 
-        Path imagePath = Path.of(task.getFilePath());
+        Path imagePath = fileStorageService.resolveFullPath(task.getFilePath());
         if (!Files.exists(imagePath)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 原图不存在，无法重试");
         }
@@ -256,18 +237,6 @@ public class OcrService {
         }
     }
 
-    private String saveToTempDir(String taskId, MultipartFile file) {
-        try {
-            String ext = getExtension(file.getOriginalFilename());
-            Path tempFile = Path.of(System.getProperty("java.io.tmpdir"), "ocr_" + taskId + ext);
-            Files.copy(file.getInputStream(), tempFile, StandardCopyOption.REPLACE_EXISTING);
-            log.info("OCR 图片已保存至临时目录: {}", tempFile);
-            return tempFile.toAbsolutePath().toString();
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "文件保存失败", e);
-        }
-    }
-
     private String getExtension(String filename) {
         if (filename == null) return ".jpg";
         int dot = filename.lastIndexOf('.');
@@ -283,16 +252,5 @@ public class OcrService {
                 .errorMessage(task.getErrorMessage())
                 .createdAt(task.getCreatedAt())
                 .build();
-    }
-
-    private String inferContentTypeFromPath(Path imagePath) {
-        String fileName = imagePath.getFileName() != null ? imagePath.getFileName().toString().toLowerCase(Locale.ROOT) : "";
-        if (fileName.endsWith(".png")) {
-            return "image/png";
-        }
-        if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
-            return "image/jpeg";
-        }
-        return "application/octet-stream";
     }
 }

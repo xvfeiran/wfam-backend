@@ -46,16 +46,19 @@ public class OcrAsyncProcessor {
     private final OcrTaskRepository ocrTaskRepo;
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
+    private final FileStorageService fileStorageService;
 
     // @Lazy 打破与 OcrService 的循环依赖
     @Lazy
     @Autowired
     private OcrService ocrService;
 
-    public OcrAsyncProcessor(OcrTaskRepository ocrTaskRepo, ObjectMapper objectMapper, RestTemplate restTemplate) {
+    public OcrAsyncProcessor(OcrTaskRepository ocrTaskRepo, ObjectMapper objectMapper,
+                             RestTemplate restTemplate, FileStorageService fileStorageService) {
         this.ocrTaskRepo = ocrTaskRepo;
         this.objectMapper = objectMapper;
         this.restTemplate = restTemplate;
+        this.fileStorageService = fileStorageService;
     }
 
     @Async("ocrTaskExecutor")
@@ -121,8 +124,9 @@ public class OcrAsyncProcessor {
      * 3. 将 outputs 解析为 OcrResultDTO JSON
      */
     private String callDifyOcr(String filePath) throws Exception {
-        byte[] imageBytes = Files.readAllBytes(Path.of(filePath));
-        String fileName = Path.of(filePath).getFileName().toString();
+        Path imagePath = fileStorageService.resolveFullPath(filePath);
+        byte[] imageBytes = Files.readAllBytes(imagePath);
+        String fileName = imagePath.getFileName().toString();
         String mimeType = inferMimeType(fileName);
 
         String uploadedFileId = uploadFileToDify(imageBytes, fileName, mimeType);

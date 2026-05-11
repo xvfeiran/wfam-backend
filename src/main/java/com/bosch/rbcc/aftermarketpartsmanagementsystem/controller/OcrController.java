@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -70,14 +70,14 @@ public class OcrController {
     }
 
     @GetMapping("/tasks/{taskId}/image")
-    @Operation(summary = "获取 OCR 任务图片", description = "返回 OCR 上传原图，用于编辑页回显和大图预览")
-    public ResponseEntity<byte[]> getTaskImage(
+    @Operation(summary = "获取 OCR 任务图片", description = "重定向到统一文件访问端点")
+    public ResponseEntity<Void> getTaskImage(
             @Parameter(description = "任务 ID", required = true)
             @PathVariable String taskId) {
-        OcrService.OcrImagePayload payload = ocrService.getTaskImage(taskId);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(payload.contentType()))
-                .body(payload.content());
+        String relativePath = ocrService.getTaskImageRelativePath(taskId);
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(java.net.URI.create("/api/v1/files/" + relativePath))
+                .build();
     }
 
     @PostMapping("/tasks/{taskId}/retry")
