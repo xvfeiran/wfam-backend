@@ -1,95 +1,19 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.UUID;
 
-@Slf4j
-@Service
-public class FileStorageService {
+public interface FileStorageService {
 
-    @Value("${file.upload.base-path:${user.home}/.wfam/upload}")
-    private String basePath;
+    String store(String category, MultipartFile file);
 
-    /**
-     * Store file under {basePath}/{category}/{uuid}.{ext}.
-     * Returns relative path like "ocr/abc123.jpg".
-     */
-    public String store(String category, MultipartFile file) {
-        String ext = getExtension(file.getOriginalFilename());
-        String fileName = UUID.randomUUID() + ext;
-        return doStore(category, fileName, file);
-    }
+    String store(String category, String subPath, MultipartFile file);
 
-    /**
-     * Store file under {basePath}/{category}/{subPath}.
-     * subPath can include directories, e.g. "partId/uuid.jpg".
-     * Returns relative path like "parts/{partId}/abc123.jpg".
-     */
-    public String store(String category, String subPath, MultipartFile file) {
-        return doStore(category, subPath, file);
-    }
+    Resource load(String category, String relativePath);
 
-    public Resource load(String category, String relativePath) {
-        Path filePath = resolvePath(category, relativePath);
-        if (!Files.exists(filePath)) {
-            return null;
-        }
-        return new FileSystemResource(filePath);
-    }
+    boolean delete(String category, String relativePath);
 
-    public boolean delete(String category, String relativePath) {
-        try {
-            Path filePath = resolvePath(category, relativePath);
-            return Files.deleteIfExists(filePath);
-        } catch (IOException e) {
-            log.error("删除文件失败: category={}, path={}", category, relativePath, e);
-            return false;
-        }
-    }
-
-    public Path resolvePath(String category, String relativePath) {
-        return Path.of(basePath, category, relativePath);
-    }
-
-    /** Resolve a full relative path (includes category prefix) against basePath */
-    public Path resolveFullPath(String relativePath) {
-        return Path.of(basePath, relativePath);
-    }
-
-    public String getAbsolutePath(String category, String relativePath) {
-        return resolvePath(category, relativePath).toAbsolutePath().toString();
-    }
-
-    private String doStore(String category, String fileName, MultipartFile file) {
-        try {
-            Path targetDir = Path.of(basePath, category);
-            Files.createDirectories(targetDir);
-            Path targetFile = targetDir.resolve(fileName);
-            Files.createDirectories(targetFile.getParent());
-            Files.copy(file.getInputStream(), targetFile, StandardCopyOption.REPLACE_EXISTING);
-            String relativePath = category + "/" + fileName;
-            log.info("文件已存储: {}", relativePath);
-            return relativePath;
-        } catch (IOException e) {
-            throw new ResponseStatusException(
-                org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "文件保存失败", e);
-        }
-    }
-
-    private String getExtension(String filename) {
-        if (filename == null) return ".bin";
-        int dot = filename.lastIndexOf('.');
-        return dot >= 0 ? filename.substring(dot) : ".bin";
-    }
+    Path resolveFullPath(String relativePath);
 }

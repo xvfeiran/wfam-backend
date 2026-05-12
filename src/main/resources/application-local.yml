@@ -47,3 +47,14 @@ ocr:
     fail-enabled: false
     fail-message: OCR mock识别失败，请手动补全必填字段后保存
     processing-delay-ms: 3000
+
+custom:
+  smb:
+    enabled: false
+    host: SMB_HOST
+    share-name: SMB_SHARE_NAME
+    user: SMB_USER
+    password: SMB_PASSWORD
+    domain: SMB_DOMAIN
+    prefix: SMB_PREFIX
+    env: dev
