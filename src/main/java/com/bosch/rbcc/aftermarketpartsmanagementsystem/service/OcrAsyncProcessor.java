@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -20,8 +21,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -124,9 +123,13 @@ public class OcrAsyncProcessor {
      * 3. 将 outputs 解析为 OcrResultDTO JSON
      */
     private String callDifyOcr(String filePath) throws Exception {
-        Path imagePath = fileStorageService.resolveFullPath(filePath);
-        byte[] imageBytes = Files.readAllBytes(imagePath);
-        String fileName = imagePath.getFileName().toString();
+        // filePath = "ocr/uuid.ext" — split into category + filename
+        int slash = filePath.indexOf('/');
+        String category = filePath.substring(0, slash);
+        String fileName = filePath.substring(slash + 1);
+
+        Resource resource = fileStorageService.load(category, fileName);
+        byte[] imageBytes = resource.getInputStream().readAllBytes();
         String mimeType = inferMimeType(fileName);
 
         String uploadedFileId = uploadFileToDify(imageBytes, fileName, mimeType);
@@ -208,7 +211,6 @@ public class OcrAsyncProcessor {
      */
     private OcrResultDTO parseOutputs(JsonNode outputs) {
         JsonNode result = outputs.path("result");
-        log.debug("解析 outputs.result, 节点类型={}, 内容={}", result.getNodeType(), result);
 
         if (result.isMissingNode() || result.isNull()) {
             log.warn("outputs.result 为空或缺失: {}", outputs);
@@ -220,9 +222,7 @@ public class OcrAsyncProcessor {
         JsonNode dataNode = result;
         if (result.isTextual()) {
             try {
-                log.debug("result 是文本节点，尝试解析 JSON 字符串: {}", result.asText());
                 dataNode = objectMapper.readTree(result.asText());
-                log.debug("解析成功，数据节点类型={}, 内容={}", dataNode.getNodeType(), dataNode);
             } catch (Exception e) {
                 log.error("解析 result 字符串失败: {}", result.asText(), e);
                 return OcrResultDTO.builder().build();
@@ -254,13 +254,6 @@ public class OcrAsyncProcessor {
     private OcrResultDTO mapChineseFields(JsonNode node) {
         OcrResultDTO.OcrResultDTOBuilder builder = OcrResultDTO.builder();
 
-        // 打印所有可用字段用于调试
-        if (log.isDebugEnabled()) {
-            StringBuilder sb = new StringBuilder();
-            node.fieldNames().forEachRemaining(name -> sb.append(name).append(", "));
-            log.debug("OCR 结果节点包含的字段: {}", sb);
-        }
-
         // 优先使用英文 key，回退到中文 key（向后兼容）
         String productionDate = textOrAlt(node, "production_date", "车辆生产日期");
         String purchaseDate   = textOrAlt(node, "purchase_date", "车辆购买日期", "车辆 购买日期");
@@ -270,9 +263,6 @@ public class OcrAsyncProcessor {
         String description    = textOrAlt(node, "failure_description", "客户失效描述");
         String repairStation  = textOrAlt(node, "repair_station", "维修站号");
         String complaintLocation = textOrAlt(node, "complaint_location", "投诉地");
-
-        log.debug("字段映射结果: productionDate={}, purchaseDate={}, failureDate={}, vin={}, mileage={}, description={}, repairStation={}, complaintLocation={}",
-                productionDate, purchaseDate, failureDate, vin, mileageStr, description, repairStation, complaintLocation);
 
         builder.vehicleProductionDate(productionDate);
         builder.vehiclePurchaseDate(purchaseDate);

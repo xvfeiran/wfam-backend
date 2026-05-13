@@ -1,8 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.lookup;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Customer;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.enums.FailureType;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.CustomerService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.PartCodeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,8 +26,6 @@ public class LookupController {
 
     private final CustomerService customerService;
     private final PartCodeService partCodeService;
-    private final PartRepository partRepository;
-    private final ReturnOrderRepository returnOrderRepository;
 
     @Operation(summary = "获取所有下拉选项数据")
     @GetMapping
@@ -65,10 +62,6 @@ public class LookupController {
     }
 
     private List<String> getFailureTypes() {
-        List<String> fromPart = partRepository.findDistinctFailureTypes();
-        if (!fromPart.isEmpty()) {
-            return fromPart;
-        }
-        return returnOrderRepository.findDistinctComplaintTypes();
+        return FailureType.allCodes();
     }
 }

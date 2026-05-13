@@ -5,6 +5,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageResponse;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReportTemplateDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.AnalysisReportService;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.PartService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ReportTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +27,7 @@ public class PartController {
     private final PartService partService;
     private final AnalysisReportService analysisReportService;
     private final ReportTemplateService reportTemplateService;
+    private final PartRepository partRepository;
 
     @Operation(summary = "查询售后件列表（分页）", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入、分析员筛选，page从0开始")
     @GetMapping
@@ -59,6 +61,13 @@ public class PartController {
             @RequestParam String orderId,
             @RequestParam(required = false) String excludeId) {
         return Map.of("available", partService.isPartNumberAvailable(partNumber, orderId, excludeId));
+    }
+
+    @Operation(summary = "获取建议序号", description = "根据退货单ID返回下一个可用序号")
+    @GetMapping("/next-sequence")
+    public Map<String, Integer> nextSequence(@RequestParam String orderId) {
+        int next = (int) partRepository.countByOrderId(orderId) + 1;
+        return Map.of("nextSequence", next);
     }
 
     @Operation(summary = "新建售后件")

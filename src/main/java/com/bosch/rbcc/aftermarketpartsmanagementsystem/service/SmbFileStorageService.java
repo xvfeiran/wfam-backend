@@ -132,8 +132,20 @@ public class SmbFileStorageService implements FileStorageService {
     }
 
     private void ensureDirectory(DiskShare diskShare, String dirPath) {
-        if (!diskShare.folderExists(dirPath)) {
-            diskShare.mkdir(dirPath);
+        if (diskShare.folderExists(dirPath)) {
+            return;
+        }
+        // mkdir doesn't create parents, so build up from root
+        String[] parts = dirPath.split("/");
+        StringBuilder current = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) continue;
+            if (current.length() > 0) current.append("/");
+            current.append(part);
+            String path = current.toString();
+            if (!diskShare.folderExists(path)) {
+                diskShare.mkdir(path);
+            }
         }
     }
 
