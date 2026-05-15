@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -21,6 +22,8 @@ import java.util.Map;
 @RequestMapping("/api/v1/approvals")
 @RequiredArgsConstructor
 public class ApprovalController {
+
+    private static final String ROLE_QMC_LEADER = "W_RBCC_AEP_WFAM_QMC_Leader";
 
     private final ApprovalService approvalService;
     private final AnalysisReportService analysisReportService;
@@ -34,6 +37,7 @@ public class ApprovalController {
     @Operation(summary = "获取待审批的分析报告")
     @GetMapping("/pending/analysis")
     public List<AnalysisApplicationDTO> getPendingAnalysisApprovals() {
+        requireQMCLeader();
         return approvalService.getPendingAnalysisApprovals();
     }
 
@@ -42,6 +46,7 @@ public class ApprovalController {
     public void approve(
             @PathVariable String id,
             @RequestBody(required = false) Map<String, String> body) {
+        requireQMCLeader();
         String comment = body != null ? body.get("comment") : null;
         analysisReportService.approve(id, getCurrentUsername(), comment);
     }
@@ -51,6 +56,7 @@ public class ApprovalController {
     public void reject(
             @PathVariable String id,
             @RequestBody Map<String, String> body) {
+        requireQMCLeader();
         analysisReportService.reject(id, getCurrentUsername(), body.get("reason"));
     }
 
@@ -64,5 +70,19 @@ public class ApprovalController {
     private String getCurrentUsername() {
         CommonHeaders headers = CommonHeaderManager.getCommonHeaders();
         return headers != null && headers.getUsername() != null ? headers.getUsername() : "anonymous";
+    }
+
+    private boolean hasRole(String roleName) {
+        CommonHeaders headers = CommonHeaderManager.getCommonHeaders();
+        if (headers == null || headers.getRoleNames() == null) {
+            return false;
+        }
+        return headers.getRoleNames().contains(roleName);
+    }
+
+    private void requireQMCLeader() {
+        if (!hasRole(ROLE_QMC_LEADER)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Leader can access pending approvals");
+        }
     }
 }
