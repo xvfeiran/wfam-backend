@@ -98,7 +98,7 @@ public class NotificationService {
 
     // ========== Scheduled notifications ==========
 
-    @Scheduled(cron = "${custom.notification.cron:0 0 0 * * ?}")
+    @Scheduled(cron = "${custom.notification.cron}")
     public void scheduledNotificationCheck() {
         log.info("Scheduled notification check started");
         try {

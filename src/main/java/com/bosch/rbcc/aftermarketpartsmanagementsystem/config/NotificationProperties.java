@@ -14,25 +14,25 @@ public class NotificationProperties {
     private Analysis analysis = new Analysis();
     private Approval approval = new Approval();
     private Frequency frequency = new Frequency();
-    private String cron = "0 0 0 * * ?";
-    private String qmcLeaderEmails = "";
-    private Map<String, String> userEmails = new java.util.HashMap<>();
+    private String cron;
+    private String qmcLeaderEmails;
+    private Map<String, String> userEmails;
 
     @Data
     public static class Analysis {
-        private int warningDays = 13;
-        private int overdueDays = 21;
+        private int warningDays;
+        private int overdueDays;
     }
 
     @Data
     public static class Approval {
-        private int overdueDays = 3;
+        private int overdueDays;
     }
 
     @Data
     public static class Frequency {
-        private int warning = 1;
-        private int overdue = 3;
-        private int approvalReminder = 3;
+        private int warning;
+        private int overdue;
+        private int approvalReminder;
     }
 }
