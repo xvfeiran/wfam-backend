@@ -58,3 +58,16 @@ custom:
     password: Bosch411526.5
     prefix: wfam
     env: dev
+  notification:
+    email-suffix: "cn.bosch.com"
+    qmc-leader-emails: ""                    # QMC Leader 邮箱列表，逗号分隔
+    cron: "0 0 0 * * ?"                      # 定时任务执行时间（每日凌晨0点）
+    analysis:
+      warning-days: 13                       # 精分析预警天数
+      overdue-days: 21                       # 精分析超期天数
+    approval:
+      overdue-days: 3                        # 审批超期天数
+    frequency:
+      warning: 1                             # 预警邮件频率（天）
+      overdue: 3                             # 超期邮件频率（天）
+      approval-reminder: 3                   # 审批提醒频率（天）
