@@ -42,6 +42,8 @@ public interface PartRepository extends JpaRepository<Part, String>,
 
     long countByStatusAndStatusChangedAtLessThanEqual(String status, LocalDateTime statusChangedAt);
 
+    List<Part> findByStatusAndStatusChangedAtLessThanEqual(String status, LocalDateTime statusChangedAt);
+
     List<Part> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
 
     @Query(value = "SELECT TRUNC(CREATED_AT) AS day, COUNT(*) AS cnt FROM APMS_PART WHERE TRUNC(CREATED_AT) BETWEEN :startDate AND :endDate GROUP BY TRUNC(CREATED_AT)", nativeQuery = true)
