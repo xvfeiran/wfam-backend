@@ -15,7 +15,6 @@ public class NotificationProperties {
     private Approval approval = new Approval();
     private Frequency frequency = new Frequency();
     private String cron = "0 0 0 * * ?";
-    private String emailSuffix = "cn.bosch.com";
     private String qmcLeaderEmails = "";
     private Map<String, String> userEmails = new java.util.HashMap<>();
 

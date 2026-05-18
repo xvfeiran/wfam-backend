@@ -20,9 +20,11 @@ public class UserEmailService {
 
     private final NotificationProperties props;
 
+    private static final String DEFAULT_EMAIL = "feiran.xu@cn.bosch.com";
+
     /**
      * 根据 loginName 查询邮箱地址。
-     * 查找顺序：yml 配置 → API 查询（待实现）→ loginName@emailSuffix 拼接
+     * 查找顺序：yml 配置 → TODO: 用户目录 API → 统一使用默认邮箱
      */
     public Optional<String> getEmail(String loginName) {
         if (loginName == null || loginName.isBlank()) {
@@ -36,11 +38,11 @@ public class UserEmailService {
             return Optional.of(userEmails.get(trimmed));
         }
 
-        // 2. TODO: 接入真实用户目录 API 后替换此处
+        // TODO: 接入用户目录 API，根据 loginName 查询真实邮箱
         // Optional<String> apiEmail = resolveFromApi(trimmed);
         // if (apiEmail.isPresent()) return apiEmail;
 
-        // 3. 兜底：拼接 loginName@emailSuffix
-        return Optional.of(trimmed + "@" + props.getEmailSuffix());
+        log.debug("No email mapping for loginName={}, using default", trimmed);
+        return Optional.of(DEFAULT_EMAIL);
     }
 }

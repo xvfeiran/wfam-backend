@@ -59,7 +59,6 @@ custom:
     prefix: wfam
     env: dev
   notification:
-    email-suffix: "cn.bosch.com"
     qmc-leader-emails: ""                    # QMC Leader 邮箱列表，逗号分隔
     cron: "0 0 0 * * ?"                      # 定时任务执行时间（每日凌晨0点）
     analysis:
