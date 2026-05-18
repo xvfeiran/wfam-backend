@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,6 +39,8 @@ public class AnalysisReportService {
     private final PartRepository partRepository;
     private final AnalysisOrderRepository analysisOrderRepository;
     private final FileStorageService fileStorageService;
+    private final JdbcTemplate jdbcTemplate;
+    private final NotificationService notificationService;
 
     public List<AnalysisReportDTO> getAll() {
         return repository.findAll().stream()
@@ -79,6 +82,14 @@ public class AnalysisReportService {
             report = createReportFromDTO(dto, username);
         }
         report = repository.save(report);
+        // Write responsibility to dedicated column via JDBC
+        if (dto.getResponsibility() != null) {
+            jdbcTemplate.update(
+                "UPDATE APMS_ANALYSIS_REPORT SET RESPONSIBILITY = ? WHERE ID = ?",
+                dto.getResponsibility(), report.getId());
+        }
+        // 触发责任判定通知
+        notificationService.sendResponsibilityNotification(report.getPartId(), dto.getResponsibility());
         log.info("Report saved: id={}, partId={}", report.getId(), report.getPartId());
         return toDTO(report);
     }
@@ -243,6 +254,12 @@ public class AnalysisReportService {
         if ("submitted".equals(status)) {
             builder.submittedBy(username).submittedAt(LocalDateTime.now());
         }
+        // Inject responsibility into content JSON for Excel export
+        if (dto.getResponsibility() != null) {
+            Map<String, Object> contentMap = dto.getContent() != null ? new HashMap<>(dto.getContent()) : new HashMap<>();
+            contentMap.put("responsibility", dto.getResponsibility());
+            builder.content(serializeContent(contentMap));
+        }
         return builder.build();
     }
 
@@ -257,6 +274,12 @@ public class AnalysisReportService {
         if ("submitted".equals(dto.getStatus())) {
             report.setSubmittedBy(username);
             report.setSubmittedAt(LocalDateTime.now());
+        }
+        // Inject responsibility into content JSON
+        if (dto.getResponsibility() != null) {
+            Map<String, Object> contentMap = dto.getContent() != null ? new HashMap<>(dto.getContent()) : new HashMap<>();
+            contentMap.put("responsibility", dto.getResponsibility());
+            report.setContent(serializeContent(contentMap));
         }
     }
 
@@ -292,6 +315,7 @@ public class AnalysisReportService {
             .content(parseContent(entity.getContent()))
             .summary(entity.getSummary())
             .status(entity.getStatus())
+            .responsibility(getResponsibilityFromDb(entity.getId()))
             .attachments(parseAttachments(entity.getAttachments()))
             .submittedBy(entity.getSubmittedBy())
             .submittedAt(formatDateTime(entity.getSubmittedAt()))
@@ -372,5 +396,15 @@ public class AnalysisReportService {
         if (filename == null) return ".bin";
         int dot = filename.lastIndexOf('.');
         return dot >= 0 ? filename.substring(dot) : ".bin";
+    }
+
+    private String getResponsibilityFromDb(String reportId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                "SELECT RESPONSIBILITY FROM APMS_ANALYSIS_REPORT WHERE ID = ?",
+                String.class, reportId);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

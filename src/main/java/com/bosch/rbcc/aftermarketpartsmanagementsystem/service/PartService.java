@@ -60,6 +60,7 @@ public class PartService {
     private final OcrService ocrService;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
@@ -234,6 +235,13 @@ public class PartService {
         } catch (DataIntegrityViolationException e) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Part number '" + dto.getPartNumber() + "' already exists in this return order");
+        }
+
+        // 检查是否为 0km 退货，触发通知
+        if (dto.getOrderId() != null) {
+            returnOrderRepository.findById(dto.getOrderId()).ifPresent(order -> {
+                notificationService.sendZeroKmNotification(part.getId(), order.getComplaintType());
+            });
         }
 
         // 触发分析单自动创建（幂等）

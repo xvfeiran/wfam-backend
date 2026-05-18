@@ -43,6 +43,7 @@ public class DashboardMetricsService {
     private final PartRepository partRepository;
     private final AnalysisReportRepository analysisReportRepository;
     private final AnalysisOrderRepository analysisOrderRepository;
+    private final NotificationProperties notificationProperties;
 
     public DashboardStatsDTO getDashboardStats() {
         int totalOrders = (int) returnOrderRepository.count();
@@ -93,8 +94,8 @@ public class DashboardMetricsService {
         long detailedAnalysisCount = partRepository.countByStatus(PART_STATUS_IN_DETAILED_ANALYSIS);
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime warningThreshold = now.minusDays(5);
-        LocalDateTime overdueThreshold = now.minusDays(10);
+        LocalDateTime warningThreshold = now.minusDays(notificationProperties.getAnalysis().getWarningDays());
+        LocalDateTime overdueThreshold = now.minusDays(notificationProperties.getAnalysis().getOverdueDays());
         long warningCount = partRepository.countByStatusAndStatusChangedAtLessThanEqual(PART_STATUS_IN_DETAILED_ANALYSIS, warningThreshold);
         long overdueCount = partRepository.countByStatusAndStatusChangedAtLessThanEqual(PART_STATUS_IN_DETAILED_ANALYSIS, overdueThreshold);
 
@@ -116,8 +117,8 @@ public class DashboardMetricsService {
         long detailedAnalysisCount = partRepository.countByStatusAndAnalyst(PART_STATUS_IN_DETAILED_ANALYSIS, analyst);
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime warningThreshold = now.minusDays(5);
-        LocalDateTime overdueThreshold = now.minusDays(10);
+        LocalDateTime warningThreshold = now.minusDays(notificationProperties.getAnalysis().getWarningDays());
+        LocalDateTime overdueThreshold = now.minusDays(notificationProperties.getAnalysis().getOverdueDays());
         long warningCount = partRepository.countByStatusAndAnalystAndStatusChangedAtLessThanEqual(PART_STATUS_IN_DETAILED_ANALYSIS, analyst, warningThreshold);
         long overdueCount = partRepository.countByStatusAndAnalystAndStatusChangedAtLessThanEqual(PART_STATUS_IN_DETAILED_ANALYSIS, analyst, overdueThreshold);
 

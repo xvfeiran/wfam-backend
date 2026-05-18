@@ -26,6 +26,8 @@ public class AnalysisReportDTO {
     private String status;
     @Schema(description = "报告摘要")
     private String summary;
+    @Schema(description = "责任判定", example = "B")
+    private String responsibility;
     private List<String> attachments;
     private String submittedBy;
     private String submittedAt;
