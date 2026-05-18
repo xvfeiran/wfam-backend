@@ -3,6 +3,8 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller.dashboard;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.DashboardStatsDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.TaskDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.TrendDataPointDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaders;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.DashboardMetricsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,8 +35,10 @@ public class DashboardController {
     @Operation(summary = "获取仪表盘统计数据")
     @GetMapping("/stats")
     public DashboardStatsDTO getStats() {
+        String analyst = getCurrentAnalyst();
+        String roleNames = getCurrentRoleNames();
         return callWithTimeout(
-            dashboardMetricsService::getDashboardStats,
+            () -> dashboardMetricsService.getDashboardStats(analyst, roleNames),
             Duration.ofSeconds(3),
             DashboardStatsDTO.builder()
                 .totalOrders(0)
@@ -49,8 +53,10 @@ public class DashboardController {
     @Operation(summary = "获取任务中心列表")
     @GetMapping("/tasks")
     public List<TaskDTO> getTasks() {
+        String analyst = getCurrentAnalyst();
+        String roleNames = getCurrentRoleNames();
         return callWithTimeout(
-            dashboardMetricsService::getTasks,
+            () -> dashboardMetricsService.getTasks(analyst, roleNames),
             Duration.ofSeconds(3),
             List.of(),
             "dashboard.tasks"
@@ -90,5 +96,15 @@ public class DashboardController {
             log.warn("{} fallback due to {}", apiName, ex.getClass().getSimpleName());
             return fallback;
         }
+    }
+
+    private String getCurrentAnalyst() {
+        CommonHeaders headers = CommonHeaderManager.getCommonHeaders();
+        return headers != null ? headers.getNtAccount() : null;
+    }
+
+    private String getCurrentRoleNames() {
+        CommonHeaders headers = CommonHeaderManager.getCommonHeaders();
+        return headers != null ? headers.getRoleNames() : null;
     }
 }
