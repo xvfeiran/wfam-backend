@@ -66,6 +66,28 @@ public class DashboardMetricsService {
             .build();
     }
 
+    public DashboardStatsDTO getDashboardStats(String analyst, String roleNames) {
+        int totalOrders = (int) returnOrderRepository.count();
+        int totalParts = (int) partRepository.count();
+
+        int completionBase = (int) partRepository.countByStatusIn(List.of(PART_STATUS_ANALYSIS_COMPLETED, PART_STATUS_SCRAPPED));
+
+        double completionRate = totalParts == 0 ? 0.0 : Math.round((completionBase * 10000.0 / totalParts)) / 100.0;
+
+        int pendingTasks = getTasks(analyst, roleNames).stream()
+            .map(TaskDTO::getCount)
+            .filter(Objects::nonNull)
+            .mapToInt(Integer::intValue)
+            .sum();
+
+        return DashboardStatsDTO.builder()
+            .totalOrders(totalOrders)
+            .totalParts(totalParts)
+            .pendingTasks(pendingTasks)
+            .completionRate(completionRate)
+            .build();
+    }
+
     public List<TaskDTO> getTasks() {
         long initialAnalysisCount = partRepository.countByStatus(PART_STATUS_IN_INITIAL_ANALYSIS);
         long detailedAnalysisCount = partRepository.countByStatus(PART_STATUS_IN_DETAILED_ANALYSIS);
@@ -78,6 +100,32 @@ public class DashboardMetricsService {
 
         long approvalCount = analysisReportRepository.countByStatus("submitted");
         long scrapConfirmCount = analysisOrderRepository.countByStatus(ANALYSIS_ORDER_WORKON_SCRAP_IN_PROGRESS);
+
+        List<TaskDTO> tasks = new ArrayList<>();
+        tasks.add(task("initial_analysis", "待初分析", initialAnalysisCount, "medium", 1));
+        tasks.add(task("detailed_analysis", "待精分析", detailedAnalysisCount, "medium", 2));
+        tasks.add(task("warning", "精分析预警", warningCount, "high", 3));
+        tasks.add(task("overdue", "精分析超期", overdueCount, "urgent", 4));
+        tasks.add(task("approval", "精分析报告待审批", approvalCount, "medium", 5));
+        tasks.add(task("scrap_confirm", "报废审批确认", scrapConfirmCount, "medium", 6));
+        return tasks;
+    }
+
+    public List<TaskDTO> getTasks(String analyst, String roleNames) {
+        long initialAnalysisCount = partRepository.countByStatusAndAnalyst(PART_STATUS_IN_INITIAL_ANALYSIS, analyst);
+        long detailedAnalysisCount = partRepository.countByStatusAndAnalyst(PART_STATUS_IN_DETAILED_ANALYSIS, analyst);
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime warningThreshold = now.minusDays(5);
+        LocalDateTime overdueThreshold = now.minusDays(10);
+        long warningCount = partRepository.countByStatusAndAnalystAndStatusChangedAtLessThanEqual(PART_STATUS_IN_DETAILED_ANALYSIS, analyst, warningThreshold);
+        long overdueCount = partRepository.countByStatusAndAnalystAndStatusChangedAtLessThanEqual(PART_STATUS_IN_DETAILED_ANALYSIS, analyst, overdueThreshold);
+
+        long approvalCount = isApprovalRole(roleNames)
+            ? analysisReportRepository.countByStatus("submitted")
+            : 0;
+
+        long scrapConfirmCount = analysisOrderRepository.countByStatusAndAnalyst(ANALYSIS_ORDER_WORKON_SCRAP_IN_PROGRESS, analyst);
 
         List<TaskDTO> tasks = new ArrayList<>();
         tasks.add(task("initial_analysis", "待初分析", initialAnalysisCount, "medium", 1));
@@ -229,5 +277,13 @@ public class DashboardMetricsService {
             })
             .sorted(Comparator.comparing(ProcessingTimeDTO::getStage))
             .toList();
+    }
+
+    private boolean isApprovalRole(String roleNames) {
+        if (roleNames == null) {
+            return false;
+        }
+        return roleNames.contains("W_RBCC_AEP_WFAM_QMC_Leader")
+            || roleNames.contains("W_RBCC_AEP_WFAM_QMC_Manager");
     }
 }
