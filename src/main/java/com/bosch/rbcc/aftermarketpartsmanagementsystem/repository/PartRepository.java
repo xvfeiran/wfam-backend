@@ -53,4 +53,10 @@ public interface PartRepository extends JpaRepository<Part, String>,
     @Modifying
     @Query(value = "UPDATE APMS_PART SET CREATED_AT = :createdAt WHERE ID = :id", nativeQuery = true)
     int updateCreatedAt(@Param("id") String id, @Param("createdAt") LocalDateTime createdAt);
+
+    long countByStatusAndAnalyst(String status, String analyst);
+
+    long countByStatusInAndAnalyst(Collection<String> statuses, String analyst);
+
+    long countByStatusAndAnalystAndStatusChangedAtLessThanEqual(String status, String analyst, LocalDateTime statusChangedAt);
 }

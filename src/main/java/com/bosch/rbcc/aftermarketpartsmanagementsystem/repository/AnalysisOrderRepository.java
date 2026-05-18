@@ -89,4 +89,6 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
         WHERE a.analyst = :analyst AND a.status IN :statuses
         """)
     List<AnalysisOrderWithOrderNumberDTO> findByAnalystAndStatusIn(String analyst, List<String> statuses);
+
+    long countByStatusAndAnalyst(String status, String analyst);
 }
