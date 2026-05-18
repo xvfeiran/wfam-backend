@@ -4,6 +4,8 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 @Data
 @Component
 @ConfigurationProperties(prefix = "custom.notification")
@@ -15,6 +17,7 @@ public class NotificationProperties {
     private String cron = "0 0 0 * * ?";
     private String emailSuffix = "cn.bosch.com";
     private String qmcLeaderEmails = "";
+    private Map<String, String> userEmails = new java.util.HashMap<>();
 
     @Data
     public static class Analysis {
@@ -32,10 +35,5 @@ public class NotificationProperties {
         private int warning = 1;
         private int overdue = 3;
         private int approvalReminder = 3;
-    }
-
-    public String toEmailAddress(String loginName) {
-        if (loginName == null || loginName.isBlank()) return null;
-        return loginName.trim() + "@" + emailSuffix;
     }
 }

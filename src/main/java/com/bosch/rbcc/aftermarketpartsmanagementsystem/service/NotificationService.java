@@ -37,6 +37,7 @@ public class NotificationService {
     private final NotificationProperties props;
     private final NotificationLogRepository logRepo;
     private final PartRepository partRepository;
+    private final UserEmailService userEmailService;
 
     // ========== Event-triggered notifications ==========
 
@@ -323,10 +324,7 @@ public class NotificationService {
     // ========== Helpers ==========
 
     private void addEmailIfExists(List<String> list, String loginName) {
-        String email = props.toEmailAddress(loginName);
-        if (email != null) {
-            list.add(email);
-        }
+        userEmailService.getEmail(loginName).ifPresent(list::add);
     }
 
     private void addQmcLeaders(List<String> list) {

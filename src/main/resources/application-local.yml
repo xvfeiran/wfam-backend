@@ -71,3 +71,7 @@ custom:
       warning: 1                             # 预警邮件频率（天）
       overdue: 3                             # 超期邮件频率（天）
       approval-reminder: 3                   # 审批提醒频率（天）
+    user-emails:                               # loginName → 邮箱映射（后续替换为 API 查询）
+      lisi: "lisi@cn.bosch.com"
+      qianqi: "qianqi@cn.bosch.com"
+      zhaoliu: "zhaoliu@cn.bosch.com"
