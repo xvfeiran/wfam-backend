@@ -88,8 +88,12 @@ public class AnalysisReportService {
                 "UPDATE APMS_ANALYSIS_REPORT SET RESPONSIBILITY = ? WHERE ID = ?",
                 dto.getResponsibility(), report.getId());
         }
-        // 触发责任判定通知
-        notificationService.sendResponsibilityNotification(report.getPartId(), dto.getResponsibility());
+        // 触发责任判定通知（不影响主保存流程）
+        try {
+            notificationService.sendResponsibilityNotification(report.getPartId(), dto.getResponsibility());
+        } catch (Exception e) {
+            log.warn("Responsibility notification failed: {}", e.getMessage());
+        }
         log.info("Report saved: id={}, partId={}", report.getId(), report.getPartId());
         return toDTO(report);
     }
@@ -308,14 +312,19 @@ public class AnalysisReportService {
     }
 
     private AnalysisReportDTO toDTO(AnalysisReport entity) {
+        Map<String, Object> content = parseContent(entity.getContent());
+        String responsibility = getResponsibilityFromDb(entity.getId());
+        if (responsibility == null && content != null && content.containsKey("responsibility")) {
+            responsibility = String.valueOf(content.get("responsibility"));
+        }
         return AnalysisReportDTO.builder()
             .id(entity.getId())
             .partId(entity.getPartId())
             .templateId(entity.getTemplateId())
-            .content(parseContent(entity.getContent()))
+            .content(content)
             .summary(entity.getSummary())
             .status(entity.getStatus())
-            .responsibility(getResponsibilityFromDb(entity.getId()))
+            .responsibility(responsibility)
             .attachments(parseAttachments(entity.getAttachments()))
             .submittedBy(entity.getSubmittedBy())
             .submittedAt(formatDateTime(entity.getSubmittedAt()))

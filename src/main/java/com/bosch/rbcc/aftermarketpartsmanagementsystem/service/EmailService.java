@@ -1,17 +1,17 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
 public class EmailService {
+
+    private static long counter = 0;
 
     private final EmailConfigurationService configurationService;
 
@@ -19,10 +19,32 @@ public class EmailService {
         this.configurationService = configurationService;
     }
 
-    @Async
-    public void sendEmail(String to, String subject, String content) {
+    /**
+     * 异步发送 HTML 邮件（虚拟线程）
+     */
+    public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        dispatch(to, subject, htmlContent, true);
+    }
+
+    /**
+     * 异步发送纯文本邮件（虚拟线程）
+     */
+    public void sendTextEmail(String to, String subject, String text) {
+        dispatch(to, subject, text, false);
+    }
+
+    public boolean isAvailable() {
+        return configurationService.hasConfiguration();
+    }
+
+    private void dispatch(String to, String subject, String content, boolean html) {
+        long seq = ++counter;
+        Thread.ofVirtual().name("email-vt-" + seq).start(() -> doSend(to, subject, content, html));
+    }
+
+    private void doSend(String to, String subject, String content, boolean html) {
         if (!configurationService.hasConfiguration()) {
-            log.warn("No email configuration found, skipping email send");
+            log.warn("[email-vt] No email configuration, skip sending to {}", to);
             return;
         }
 
@@ -33,22 +55,12 @@ public class EmailService {
 
             helper.setTo(to);
             helper.setSubject(subject);
-            helper.setText(content, true);
+            helper.setText(content, html);
 
             mailSender.send(message);
-            log.info("Email sent successfully to {}", to);
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage(), e);
-            throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
+            log.info("[email-vt] Sent to {} | subject={}", to, subject);
+        } catch (Exception e) {
+            log.error("[email-vt] Failed to {}: {}", to, e.getMessage());
         }
-    }
-
-    @Async
-    public void sendHtmlEmail(String to, String subject, String htmlContent) {
-        sendEmail(to, subject, htmlContent);
-    }
-
-    public boolean isAvailable() {
-        return configurationService.hasConfiguration();
     }
 }

@@ -199,38 +199,27 @@ public class NotificationService {
         String recipientsStr = String.join(";", recipients);
         String ccStr = ccList.isEmpty() ? null : String.join(";", ccList);
 
-        try {
-            for (String to : recipients) {
-                emailService.sendHtmlEmail(to, subject, content);
-            }
-            if (!ccList.isEmpty()) {
-                for (String cc : ccList) {
-                    emailService.sendHtmlEmail(cc, subject, content);
-                }
-            }
-            logRepo.save(NotificationLog.builder()
-                .id(UUID.randomUUID().toString())
-                .partId(partId)
-                .notificationType(type)
-                .recipients(recipientsStr)
-                .ccRecipients(ccStr)
-                .status("SUCCESS")
-                .sentAt(LocalDateTime.now())
-                .build());
-            log.info("Notification sent: type={}, partId={}, recipients={}", type, partId, recipientsStr);
-        } catch (Exception e) {
-            logRepo.save(NotificationLog.builder()
-                .id(UUID.randomUUID().toString())
-                .partId(partId)
-                .notificationType(type)
-                .recipients(recipientsStr)
-                .ccRecipients(ccStr)
-                .status("FAILED")
-                .sentAt(LocalDateTime.now())
-                .errorMessage(e.getMessage())
-                .build());
-            log.error("Notification failed: type={}, partId={}, error={}", type, partId, e.getMessage());
+        for (String to : recipients) {
+            emailService.sendHtmlEmail(to, subject, content);
         }
+        for (String cc : ccList) {
+            emailService.sendHtmlEmail(cc, subject, content);
+        }
+
+        try {
+            logRepo.save(NotificationLog.builder()
+                .id(UUID.randomUUID().toString())
+                .partId(partId)
+                .notificationType(type)
+                .recipients(recipientsStr)
+                .ccRecipients(ccStr)
+                .status("SENT")
+                .sentAt(LocalDateTime.now())
+                .build());
+        } catch (Exception e) {
+            log.warn("Failed to log notification: {}", e.getMessage());
+        }
+        log.info("Notification dispatched: type={}, partId={}, recipients={}", type, partId, recipientsStr);
     }
 
     // ========== Email content builders ==========

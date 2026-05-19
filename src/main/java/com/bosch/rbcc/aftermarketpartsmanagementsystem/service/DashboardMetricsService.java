@@ -1,5 +1,6 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.config.NotificationProperties;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ChartDataItemDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.DashboardStatsDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ProcessingTimeDTO;
