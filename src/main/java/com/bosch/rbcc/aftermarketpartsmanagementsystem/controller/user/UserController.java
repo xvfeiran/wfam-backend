@@ -20,11 +20,14 @@ public class UserController {
 
     private final UserService userService;
 
-    @Operation(summary = "获取系统用户列表", description = "返回 id / loginName / displayName，用于责任工程师、分析师下拉。role=analyst 时只返回分析师")
+    @Operation(summary = "获取系统用户列表", description = "返回 id / loginName / displayName。role=analyst 时只返回分析师，role=cqe 时只返回客户质量工程师")
     @GetMapping
     public List<Map<String, String>> list(@RequestParam(required = false) String role) {
         if ("analyst".equals(role)) {
             return userService.listAnalysts();
+        }
+        if ("cqe".equals(role)) {
+            return userService.listCustomerQualityEngineers();
         }
         return userService.listUsers();
     }

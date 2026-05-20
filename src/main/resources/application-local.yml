@@ -42,6 +42,14 @@ logging:
     com.zaxxer.hikari: WARN
     org.apache.catalina: WARN
 
+aep:
+  proxy:
+    enabled: true
+    gateway-host: https://aepgateway.quality.tmp-service.bosch.com
+    app-id: "1081"
+    access-key: eyJhbGciOiJIUzI1NiJ9.eyJjbGllbnRJZCI6IjEwODEiLCJncmFudF90eXBlIjoiY2xpZW50X2NyZWRlbnRpYWxzIiwiY2xpZW50U2VjcmV0IjoiZmM3MDM5OTktMWFhNy00ZTllLTg2ZGQtY2IzOWM3YjdlNDY4Iiwic3ViIjoiMTA4MSIsImlhdCI6MTc3OTE2OTYxMywiZXhwIjo0ODg5NTY5NjEzfQ.fv7ELKqtNTOKfHIAoXTNBFIdRdJpgi2Jk45AVNK7N28
+    user-list-uri: /api/system/role/list-with-users
+
 ocr:
   mock:
     fail-enabled: false
