@@ -11,13 +11,10 @@ public class AuditorAwareImpl implements AuditorAware<String> {
 
     @Override
     public Optional<String> getCurrentAuditor() {
-        // 如果使用 Spring Security
-        // Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        // return Optional.ofNullable(auth != null ? auth.getName() : "system");
-
-        // 简单示例，默认用 system
         CommonHeaders commonHeaders = CommonHeaderManager.getCommonHeaders();
-
+        if (commonHeaders != null && commonHeaders.getUsername() != null && !commonHeaders.getUsername().isBlank()) {
+            return Optional.of(commonHeaders.getUsername());
+        }
         return Optional.of("system");
     }
 }

@@ -18,8 +18,6 @@ public class UserEmailService {
     private final AepProxyProperties aepProxyProperties;
     private final UserService userService;
 
-    private static final String DEFAULT_EMAIL = "feiran.xu@cn.bosch.com";
-
     /**
      * 根据 loginName（即 AEP 的 username）查询邮箱地址。
      * AEP 启用时从接口实时查询，否则从 yml 配置读取。
@@ -40,8 +38,8 @@ public class UserEmailService {
             return Optional.of(userEmails.get(trimmed));
         }
 
-        log.debug("No email mapping for loginName={}, using default", trimmed);
-        return Optional.of(DEFAULT_EMAIL);
+        log.warn("No email mapping for loginName={}", trimmed);
+        return Optional.empty();
     }
 
     private Optional<String> resolveFromAep(String username) {
