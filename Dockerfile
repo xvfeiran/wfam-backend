@@ -1,4 +1,4 @@
-FROM docker.production.tmp-service.bosch.com/maven:3.9.9-amazoncorretto-21-debian AS build
+FROM docker-virtual.rb-artifactory.bosch.com/maven:3.9.9-amazoncorretto-21-debian AS build
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ COPY settings.xml /root/.m2/settings.xml
 
 RUN mvn clean package -DskipTests
 
-FROM docker.production.tmp-service.bosch.com/eclipse-temurin:21-jre
+FROM docker-virtual.rb-artifactory.bosch.com/eclipse-temurin:21-jre
 
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
