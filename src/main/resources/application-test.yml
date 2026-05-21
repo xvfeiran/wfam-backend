@@ -21,8 +21,6 @@ spring:
 file:
   upload:
     base-path: ${user.home}/.wfam/upload
-    template-path: ${file.upload.base-path}/templates
-    report-path: ${file.upload.base-path}/reports
 
 springdoc:
   api-docs:
@@ -44,8 +42,43 @@ logging:
     com.zaxxer.hikari: WARN
     org.apache.catalina: WARN
 
+aep:
+  proxy:
+    enabled: true
+    gateway-host: https://aepgateway.quality.tmp-service.bosch.com
+    app-id: "1081"
+    access-key: eyJhbGciOiJIUzI1NiJ9.eyJjbGllbnRJZCI6IjEwODEiLCJncmFudF90eXBlIjoiY2xpZW50X2NyZWRlbnRpYWxzIiwiY2xpZW50U2VjcmV0IjoiZmM3MDM5OTktMWFhNy00ZTllLTg2ZGQtY2IzOWM3YjdlNDY4Iiwic3ViIjoiMTA4MSIsImlhdCI6MTc3OTE2OTYxMywiZXhwIjo0ODg5NTY5NjEzfQ.fv7ELKqtNTOKfHIAoXTNBFIdRdJpgi2Jk45AVNK7N28
+    user-list-uri: /api/system/role/list-with-users
+
 ocr:
   mock:
     fail-enabled: false
     fail-message: OCR mock识别失败，请手动补全必填字段后保存
     processing-delay-ms: 3000
+
+custom:
+  smb:
+    enabled: true
+    host: cng0fs02.apac.bosch.com
+    share-name: superlineleader$
+    domain: APAC
+    user: XEF1CNG
+    password: Bosch411526.5
+    prefix: wfam
+    env: dev
+  notification:
+    qmc-leader-emails: ""                    # QMC Leader 邮箱列表，逗号分隔
+    cron: "0 0 0 * * ?"                      # 定时任务执行时间（每日凌晨0点）
+    analysis:
+      warning-days: 13                       # 精分析预警天数
+      overdue-days: 21                       # 精分析超期天数
+    approval:
+      overdue-days: 3                        # 审批超期天数
+    frequency:
+      warning: 1                             # 预警邮件频率（天）
+      overdue: 3                             # 超期邮件频率（天）
+      approval-reminder: 3                   # 审批提醒频率（天）
+    user-emails:                               # loginName → 邮箱映射（后续替换为 API 查询）
+      lisi: "lisi@cn.bosch.com"
+      qianqi: "qianqi@cn.bosch.com"
+      zhaoliu: "zhaoliu@cn.bosch.com"
