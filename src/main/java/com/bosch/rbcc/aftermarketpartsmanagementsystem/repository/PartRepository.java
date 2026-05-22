@@ -31,6 +31,8 @@ public interface PartRepository extends JpaRepository<Part, String>,
 
     long countByOrderId(String orderId);
 
+    long countByOrderIdIn(List<String> orderIds);
+
     @Query(value = "SELECT * FROM APMS_PART p WHERE p.ORDER_ID IN (SELECT r.ID FROM APMS_RETURN_ORDER r WHERE r.ORDER_NUMBER LIKE :orderNumber)", nativeQuery = true)
     List<Part> findByOrderNumber(@Param("orderNumber") String orderNumber);
 

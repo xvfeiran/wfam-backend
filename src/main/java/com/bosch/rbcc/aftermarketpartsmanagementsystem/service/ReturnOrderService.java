@@ -11,6 +11,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderR
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.CustomerRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.config.ExportProperties;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.ReturnOrderExcelHandler;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
@@ -44,6 +45,7 @@ public class ReturnOrderService {
     private final CustomerRepository customerRepo;
     private final AnalysisOrderRepository analysisOrderRepo;
     private final ReturnOrderExcelHandler excelHandler;
+    private final ExportProperties exportProperties;
     private final EntityManager entityManager;
 
     public Page<ReturnOrderDTO> list(String orderNumber, String customer, List<String> statuses,
@@ -240,23 +242,61 @@ public class ReturnOrderService {
         return new PageImpl<>(dtos, pageable, page.getTotalElements());
     }
 
-    private static final int EXPORT_MAX_ROWS = 5000;
-
     public byte[] exportToExcel(String orderNumber, String customer, String status,
                                  String receiveDateStart, String receiveDateEnd) {
         List<String> statuses = (status != null && !status.isBlank()) ? List.of(status) : null;
-        // 先计算总量，超限则拒绝，避免生成超大文件
-        long total = list(orderNumber, customer, statuses, receiveDateStart, receiveDateEnd,
-                org.springframework.data.domain.PageRequest.of(0, 1)).getTotalElements();
 
-        if (total > EXPORT_MAX_ROWS) {
+        var orderSpec = buildOrderSpec(orderNumber, customer, statuses, receiveDateStart, receiveDateEnd);
+
+        List<ReturnOrder> matchingOrders = orderRepo.findAll(orderSpec);
+        List<String> orderIds = matchingOrders.stream().map(ReturnOrder::getId).toList();
+        long totalParts = orderIds.isEmpty() ? 0 : partRepo.countByOrderIdIn(orderIds);
+
+        int maxRows = exportProperties.getMaxRows();
+        if (totalParts > maxRows) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "导出数量（" + total + " 条）超过上限 " + EXPORT_MAX_ROWS + " 条，请添加筛选条件缩小范围后重试");
+                    "导出数据量（" + totalParts + " 条）超过上限 " + maxRows + " 条，请缩小筛选条件范围");
         }
 
-        List<ReturnOrderDTO> orders = list(orderNumber, customer, statuses, receiveDateStart, receiveDateEnd,
-                org.springframework.data.domain.PageRequest.of(0, EXPORT_MAX_ROWS)).getContent();
-        return excelHandler.exportToExcel(orders);
+        List<ReturnOrderExcelHandler.ExportRow> rows = new ArrayList<>();
+        Map<String, ReturnOrderDTO> orderDtoCache = new LinkedHashMap<>();
+        for (ReturnOrder order : matchingOrders) {
+            ReturnOrderDTO orderDto = orderDtoCache.computeIfAbsent(order.getId(),
+                    id -> toDTO(orderRepo.findById(id).orElseThrow()));
+            List<Part> parts = partRepo.findByOrderId(order.getId());
+            for (Part part : parts) {
+                rows.add(new ReturnOrderExcelHandler.ExportRow(orderDto, toPartDTO(part)));
+            }
+        }
+
+        return excelHandler.exportToExcel(rows);
+    }
+
+    private org.springframework.data.jpa.domain.Specification<ReturnOrder> buildOrderSpec(
+            String orderNumber, String customer, List<String> statuses,
+            String receiveDateStart, String receiveDateEnd) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (orderNumber != null && !orderNumber.isBlank()) {
+                predicates.add(cb.like(cb.upper(root.get("orderNumber")), "%" + orderNumber.toUpperCase() + "%"));
+            }
+            if (customer != null && !customer.isBlank()) {
+                predicates.add(cb.or(
+                    cb.equal(root.get("customerId"), customer),
+                    cb.equal(root.get("customer"), customer)
+                ));
+            }
+            if (statuses != null && !statuses.isEmpty()) {
+                predicates.add(root.get("status").in(statuses));
+            }
+            if (receiveDateStart != null && !receiveDateStart.isBlank()) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("receiveDate"), LocalDate.parse(receiveDateStart)));
+            }
+            if (receiveDateEnd != null && !receiveDateEnd.isBlank()) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("receiveDate"), LocalDate.parse(receiveDateEnd)));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
     }
 
     public Map<String, Integer> importFromExcel(MultipartFile file) {
