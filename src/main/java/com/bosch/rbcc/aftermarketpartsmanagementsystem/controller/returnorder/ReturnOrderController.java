@@ -23,6 +23,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.validation.Valid;
 
+import java.net.URLEncoder;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -121,7 +122,7 @@ public class ReturnOrderController {
             @RequestParam(required = false) String receiveDateStart,
             @RequestParam(required = false) String receiveDateEnd) {
         byte[] data = returnOrderService.exportToExcel(orderNumber, customer, status, receiveDateStart, receiveDateEnd);
-        String filename = "ReturnOrders_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".xlsx";
+        String filename = URLEncoder.encode("退件明细_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE), java.nio.charset.StandardCharsets.UTF_8) + ".xlsx";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
         headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
