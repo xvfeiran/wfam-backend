@@ -32,3 +32,7 @@ logging:
   charset:
     console: UTF-8
     file: UTF-8
+
+aftermarket-parts:
+  export:
+    max-rows: 10000
