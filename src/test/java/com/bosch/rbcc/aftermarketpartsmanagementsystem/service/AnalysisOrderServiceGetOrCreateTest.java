@@ -110,7 +110,6 @@ class AnalysisOrderServiceGetOrCreateTest {
                 .status("in_detailed_analysis").build();
         when(analysisOrderRepo.findByOrderIdAndAnalyst("order-1", "analyst1"))
                 .thenReturn(Optional.of(existing));
-        when(returnOrderRepo.findById("order-1")).thenReturn(Optional.empty());
 
         AnalysisOrderDTO result = service.getOrCreate("order-1", "analyst1");
 

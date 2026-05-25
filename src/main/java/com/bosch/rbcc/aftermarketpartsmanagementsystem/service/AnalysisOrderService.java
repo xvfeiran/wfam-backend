@@ -6,6 +6,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrde
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
@@ -50,7 +51,8 @@ public class AnalysisOrderService {
                 .map(this::toDTO)
                 .orElseGet(() -> {
                     String complaintType = returnOrderRepo.findById(orderId)
-                            .map(o -> o.getComplaintType())
+                            .map(ReturnOrder::getComplaintType)
+                            // ReturnOrder not found: treat as aftermarket (pending_sampling) to avoid silent data loss
                             .orElse(null);
                     String initialStatus = ComplaintTypeConstants.isZeroKm(complaintType)
                             ? STATUS_ANALYSIS_COMPLETED
