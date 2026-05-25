@@ -39,4 +39,9 @@ class ComplaintTypeConstantsTest {
     void blank_isNotZeroKm() {
         assertFalse(ComplaintTypeConstants.isZeroKm(""));
     }
+
+    @Test
+    void whitespace_isNotZeroKm() {
+        assertFalse(ComplaintTypeConstants.isZeroKm("   "));
+    }
 }
