@@ -15,7 +15,10 @@ public class NotificationProperties {
     private Approval approval = new Approval();
     private Frequency frequency = new Frequency();
     private String cron;
-    private String qmcLeaderEmails;
+    /** 仅 Debug 用：是否启用 Mock QMC Leader 邮箱列表（生产环境必须保持 false）。 */
+    private boolean mockQmcLeaderEnabled = false;
+    /** 仅 Debug 用：Mock QMC Leader 邮箱，逗号分隔（仅 mockQmcLeaderEnabled=true 时生效）。 */
+    private String mockQmcLeaderEmails;
     private Map<String, String> userEmails;
 
     @Data

@@ -58,7 +58,8 @@ ocr:
 
 custom:
   notification:
-    qmc-leader-emails: ""                    # QMC Leader 邮箱列表，逗号分隔
+    mock-qmc-leader-enabled: false           # 【仅本地调试】是否启用 Mock QMC Leader 邮箱；生产环境必须保持 false
+    mock-qmc-leader-emails: ""              # 【仅本地调试】Mock QMC Leader 邮箱，逗号分隔；仅 mock-qmc-leader-enabled=true 时生效
     cron: "0 0 0 * * ?"                      # 定时任务执行时间（每日凌晨0点）
     analysis:
       warning-days: 13                       # 精分析预警天数

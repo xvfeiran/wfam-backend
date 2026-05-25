@@ -19,7 +19,7 @@ public class SmbConfigurationDTO {
     @Schema(description = "SMB服务器地址", example = "cng0fs02.apac.bosch.com")
     private String host;
 
-    @Schema(description = "共享名", example = "superlineleader$")
+    @Schema(description = "共享名", example = "wfam$")
     private String shareName;
 
     @Schema(description = "域", example = "APAC")

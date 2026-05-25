@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -31,6 +32,9 @@ public class UserService {
     private static final List<String> CQE_LIST = Arrays.asList(
         "zhangsan"   // Zhang San (Customer Quality Engineer)
     );
+
+    private static final String ROLE_QMC_LEADER  = "W_RBCC_AEP_WFAM_QMC_Leader";
+    private static final String ROLE_QMC_MANAGER = "W_RBCC_AEP_WFAM_QMC_Manager";
 
     private final AepProxyProperties aepProxyProperties;
     @Autowired(required = false)
@@ -68,6 +72,25 @@ public class UserService {
             return fetchUsersFromAep("W_RBCC_AEP_WFAM_Customer_Quality");
         }
         return CQE_LIST.stream().map(this::toMockUser).toList();
+    }
+
+    /**
+     * 查询所有 QMC Leader 用户（含 QMC_Leader 和 QMC_Manager 两个角色，去重合并）。
+     * AEP 启用时从接口实时查询，否则返回空列表（由调用方回退到 yml 配置）。
+     */
+    public List<Map<String, String>> listQmcLeaders() {
+        if (!aepProxyProperties.isEnabled()) {
+            return List.of();
+        }
+        // AEP 的同一次接口返回所有角色，分别按角色名过滤后合并去重
+        List<Map<String, String>> result = new ArrayList<>(fetchUsersFromAep(ROLE_QMC_LEADER));
+        TreeSet<String> seen = new TreeSet<>();
+        result.forEach(u -> seen.add(u.get("loginName")));
+
+        fetchUsersFromAep(ROLE_QMC_MANAGER).stream()
+                .filter(u -> seen.add(u.get("loginName")))
+                .forEach(result::add);
+        return result;
     }
 
     @SuppressWarnings("unchecked")

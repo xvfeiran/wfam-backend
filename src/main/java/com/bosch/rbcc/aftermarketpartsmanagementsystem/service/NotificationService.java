@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -316,12 +315,6 @@ public class NotificationService {
     }
 
     private void addQmcLeaders(List<String> list) {
-        String emails = props.getQmcLeaderEmails();
-        if (emails != null && !emails.isBlank()) {
-            Arrays.stream(emails.split(","))
-                .map(String::trim)
-                .filter(e -> !e.isEmpty())
-                .forEach(list::add);
-        }
+        list.addAll(userEmailService.getQmcLeaderEmails());
     }
 }
