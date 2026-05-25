@@ -91,7 +91,8 @@ public class SmbConfigurationService {
         config.setShareName(dto.getShareName());
         config.setDomain(dto.getDomain());
         config.setSmbUser(dto.getUser());
-        if (!PASSWORD_MASK.equals(dto.getPassword())) {
+        if (dto.getPassword() != null && !dto.getPassword().isBlank()
+                && !PASSWORD_MASK.equals(dto.getPassword())) {
             config.setSmbPassword(dto.getPassword());
         }
         config.setPrefix(dto.getPrefix());
