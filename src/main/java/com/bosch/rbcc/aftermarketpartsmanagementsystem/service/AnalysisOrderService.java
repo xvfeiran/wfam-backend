@@ -43,25 +43,19 @@ public class AnalysisOrderService {
 
     /**
      * 幂等创建分析单：若已存在则返回现有记录，否则创建新记录。
-     * 0km 退货单（complaintType 不在 {BA40, BA41}）的 AO 直接以 analysis_completed 状态创建。
+     * 所有分析单（含 0km）初始状态均为 pending_sampling；
+     * 0km 单子在详情页通过 is0km 计算属性隐藏采样按钮、展示提示。
      */
     @Transactional
     public AnalysisOrderDTO getOrCreate(String orderId, String analyst) {
         return analysisOrderRepo.findByOrderIdAndAnalyst(orderId, analyst)
                 .map(this::toDTO)
                 .orElseGet(() -> {
-                    String complaintType = returnOrderRepo.findById(orderId)
-                            .map(ReturnOrder::getComplaintType)
-                            // ReturnOrder not found: treat as aftermarket (pending_sampling) to avoid silent data loss
-                            .orElse(null);
-                    String initialStatus = ComplaintTypeConstants.isZeroKm(complaintType)
-                            ? STATUS_ANALYSIS_COMPLETED
-                            : STATUS_PENDING_SAMPLING;
                     AnalysisOrder ao = AnalysisOrder.builder()
                             .id(UUID.randomUUID().toString())
                             .orderId(orderId)
                             .analyst(analyst)
-                            .status(initialStatus)
+                            .status(STATUS_PENDING_SAMPLING)
                             .statusChangedAt(LocalDateTime.now())
                             .build();
                     analysisOrderRepo.save(ao);
