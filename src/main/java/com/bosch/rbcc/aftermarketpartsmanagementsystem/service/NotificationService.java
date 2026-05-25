@@ -1,6 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.config.NotificationProperties;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.constant.ComplaintTypeConstants;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.NotificationLog;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.NotificationLogRepository;
@@ -27,8 +28,6 @@ public class NotificationService {
     private static final String TYPE_APPROVAL_REMINDER = "APPROVAL_REMINDER";
     private static final String TYPE_RESPONSIBILITY = "RESPONSIBILITY";
     private static final String TYPE_ZERO_KM = "ZERO_KM";
-
-    private static final List<String> ZERO_KM_TYPES = List.of("BA10", "BA20", "BA21", "BA30", "BA31");
 
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_PENDING_APPROVAL = "pending_approval";
@@ -72,7 +71,7 @@ public class NotificationService {
     }
 
     public void sendZeroKmNotification(String partId, String orderComplaintType) {
-        if (orderComplaintType == null || !ZERO_KM_TYPES.contains(orderComplaintType.toUpperCase())) {
+        if (!ComplaintTypeConstants.isZeroKm(orderComplaintType)) {
             return;
         }
 

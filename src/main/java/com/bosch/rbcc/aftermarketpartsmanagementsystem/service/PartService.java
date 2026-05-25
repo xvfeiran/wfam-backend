@@ -5,7 +5,6 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.OcrTask;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.OcrTaskRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
@@ -14,6 +13,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.constant.ComplaintTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -220,7 +220,9 @@ public class PartService {
                 .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
                 .analyst(trimText(dto.getAnalyst()))
                 .qcNo(trimText(dto.getQcNo()))
-                .status(STATUS_IN_INITIAL_ANALYSIS)
+                .status(ComplaintTypeConstants.isZeroKm(returnOrder.getComplaintType())
+                        ? STATUS_ANALYSIS_SKIPPED
+                        : STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
         if (dto.getImages() != null && !dto.getImages().isEmpty()) {
@@ -237,12 +239,8 @@ public class PartService {
                     "Part number '" + dto.getPartNumber() + "' already exists in this return order");
         }
 
-        // 检查是否为 0km 退货，触发通知
-        if (dto.getOrderId() != null) {
-            returnOrderRepository.findById(dto.getOrderId()).ifPresent(order -> {
-                notificationService.sendZeroKmNotification(part.getId(), order.getComplaintType());
-            });
-        }
+        // 检查是否为 0km 退货，触发通知（returnOrder 在方法头部已加载，直接复用）
+        notificationService.sendZeroKmNotification(part.getId(), returnOrder.getComplaintType());
 
         // 触发分析单自动创建（幂等）
         analysisOrderService.getOrCreate(dto.getOrderId(), dto.getAnalyst());
