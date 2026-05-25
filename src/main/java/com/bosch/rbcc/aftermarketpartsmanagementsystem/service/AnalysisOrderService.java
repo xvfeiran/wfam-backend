@@ -115,7 +115,7 @@ public class AnalysisOrderService {
 
         // 0KM 退货单不允许抽样，只能直接报废
         String complaintType = returnOrderRepo.findById(ao.getOrderId())
-                .map(o -> o.getComplaintType())
+                .map(ReturnOrder::getComplaintType)
                 .orElse(null);
         if (ComplaintTypeConstants.isZeroKm(complaintType)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
