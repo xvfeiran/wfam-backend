@@ -14,6 +14,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.constant.ComplaintTypeConstants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -220,7 +221,9 @@ public class PartService {
                 .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
                 .analyst(trimText(dto.getAnalyst()))
                 .qcNo(trimText(dto.getQcNo()))
-                .status(STATUS_IN_INITIAL_ANALYSIS)
+                .status(ComplaintTypeConstants.isZeroKm(returnOrder.getComplaintType())
+                        ? STATUS_ANALYSIS_SKIPPED
+                        : STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
         if (dto.getImages() != null && !dto.getImages().isEmpty()) {
