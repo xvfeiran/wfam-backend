@@ -1,47 +1,35 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.config;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.SmbConfigurationDTO;
 import com.hierynomus.smbj.SMBClient;
 import com.hierynomus.smbj.SmbConfig;
 import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
-import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.PooledObjectFactory;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 
+/**
+ * SMB 连接池工厂。
+ * 不再持有连接参数，改由 SmbConfigurationService 在需要时传入参数并调用 buildPool。
+ */
 @Slf4j
-@Configuration
-@ConditionalOnProperty(name = "custom.smb.enabled", havingValue = "true")
+@Component
 public class SmbjConfig {
 
-    @Value("${custom.smb.user}")
-    private String user;
-
-    @Value("${custom.smb.password}")
-    private String password;
-
-    @Value("${custom.smb.domain}")
-    private String domain;
-
-    @Value("${custom.smb.host}")
-    private String host;
-
-    @Value("${custom.smb.share-name}")
-    private String shareName;
-
-    @Bean
-    public GenericObjectPool<DiskShare> diskSharePool() {
+    /**
+     * 根据配置 DTO 构建一个新的 DiskShare 连接池。
+     * 注意：池的创建本身不会立即建立 SMB 连接，连接在首次 borrowObject 时建立。
+     */
+    public GenericObjectPool<DiskShare> buildPool(SmbConfigurationDTO cfg) {
         GenericObjectPoolConfig<DiskShare> poolConfig = new GenericObjectPoolConfig<>();
         poolConfig.setMaxTotal(10);
         poolConfig.setMinIdle(0);
@@ -50,23 +38,36 @@ public class SmbjConfig {
         poolConfig.setTestOnBorrow(true);
         poolConfig.setSoftMinEvictableIdleDuration(Duration.ofMillis(60000));
         poolConfig.setTimeBetweenEvictionRuns(Duration.ofMillis(30000));
-        return new GenericObjectPool<>(new DiskShareFactory(), poolConfig);
+        return new GenericObjectPool<>(
+                new DiskShareFactory(cfg.getHost(), cfg.getShareName(),
+                        cfg.getDomain(), cfg.getUser(), cfg.getPassword()),
+                poolConfig);
     }
 
-    @PreDestroy
-    public void closeSmbClient() {
-        if (diskSharePool() != null) {
-            diskSharePool().close();
+    private static class DiskShareFactory implements PooledObjectFactory<DiskShare> {
+
+        private final String host;
+        private final String shareName;
+        private final String domain;
+        private final String user;
+        private final String password;
+
+        DiskShareFactory(String host, String shareName, String domain,
+                         String user, String password) {
+            this.host = host;
+            this.shareName = shareName;
+            this.domain = domain;
+            this.user = user;
+            this.password = password;
         }
-    }
-
-    private class DiskShareFactory implements PooledObjectFactory<DiskShare> {
 
         @Override
         public PooledObject<DiskShare> makeObject() throws Exception {
-            SMBClient smbClient = new SMBClient(SmbConfig.builder().withEncryptData(true).build());
+            SMBClient smbClient = new SMBClient(
+                    SmbConfig.builder().withEncryptData(true).build());
             Connection connection = smbClient.connect(host);
-            AuthenticationContext ac = new AuthenticationContext(user, password.toCharArray(), domain);
+            AuthenticationContext ac = new AuthenticationContext(
+                    user, password.toCharArray(), domain);
             Session session = connection.authenticate(ac);
             DiskShare diskShare = (DiskShare) session.connectShare(shareName);
             log.info("SMB DiskShare created: {}//{}/{}", host, shareName, domain);
@@ -92,9 +93,11 @@ public class SmbjConfig {
         }
 
         @Override
-        public void activateObject(PooledObject<DiskShare> p) {}
+        public void activateObject(PooledObject<DiskShare> p) {
+        }
 
         @Override
-        public void passivateObject(PooledObject<DiskShare> p) {}
+        public void passivateObject(PooledObject<DiskShare> p) {
+        }
     }
 }
