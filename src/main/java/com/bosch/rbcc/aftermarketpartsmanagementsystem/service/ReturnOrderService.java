@@ -573,6 +573,7 @@ public class ReturnOrderService {
                 .partCode(part.getPartCode())
                 .businessUnit(part.getBusinessUnit())
                 .productPlatform(part.getProductPlatform())
+                .partProductionDate(part.getPartProductionDate() != null ? part.getPartProductionDate().toString() : null)
                 .productionShift(part.getProductionShift())
                 .failureType(part.getFailureType())
                 .boschFailureType(part.getBoschFailureType())

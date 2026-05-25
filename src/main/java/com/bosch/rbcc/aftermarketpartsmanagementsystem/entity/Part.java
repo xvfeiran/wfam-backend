@@ -39,6 +39,9 @@ public class Part {
     @Column(name = "PRODUCT_PLATFORM", length = 50)
     private String productPlatform;
 
+    @Column(name = "PART_PRODUCTION_DATE")
+    private LocalDate partProductionDate;
+
     @Column(name = "PRODUCTION_SHIFT", length = 20)
     private String productionShift;
 

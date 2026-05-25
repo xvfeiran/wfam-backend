@@ -245,6 +245,7 @@ public class AnalysisOrderService {
                 .partCode(p.getPartCode())
                 .businessUnit(p.getBusinessUnit())
                 .productPlatform(p.getProductPlatform())
+                .partProductionDate(p.getPartProductionDate() != null ? p.getPartProductionDate().toString() : null)
                 .productionShift(p.getProductionShift())
                 .failureType(p.getFailureType())
                 .boschFailureType(p.getBoschFailureType())

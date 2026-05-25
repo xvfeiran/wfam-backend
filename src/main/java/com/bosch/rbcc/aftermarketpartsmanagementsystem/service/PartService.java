@@ -206,6 +206,7 @@ public class PartService {
                 .partCode(trimText(dto.getPartCode()))
                 .businessUnit(trimText(dto.getBusinessUnit()))
                 .productPlatform(trimText(dto.getProductPlatform()))
+                .partProductionDate(parseDate(dto.getPartProductionDate()))
                 .productionShift(trimText(dto.getProductionShift()))
                 .failureType(trimText(dto.getFailureType()))
                 .boschFailureType(trimText(dto.getBoschFailureType()))
@@ -279,6 +280,7 @@ public class PartService {
                 .businessUnit(trimText(dto.getBusinessUnit()))
                 .productPlatform(trimText(dto.getProductPlatform()))
                 .partNumber(generatePartNumber(dto.getBusinessUnit(), dto.getProductPlatform(), dto.getOrderId()))
+                .partProductionDate(parseDate(dto.getPartProductionDate()))
                 .productionShift(trimText(dto.getProductionShift()))
                 .failureType(trimText(dto.getFailureType()))
                 .boschFailureType(trimText(dto.getBoschFailureType()))
@@ -362,6 +364,7 @@ public class PartService {
                     .businessUnit(trimText(dto.getBusinessUnit()))
                     .productPlatform(trimText(dto.getProductPlatform()))
                     .partNumber(batchPartNumbers.get(idx))
+                    .partProductionDate(parseDate(dto.getPartProductionDate()))
                     .productionShift(trimText(dto.getProductionShift()))
                     .failureType(trimText(dto.getFailureType()))
                     .boschFailureType(trimText(dto.getBoschFailureType()))
@@ -467,6 +470,7 @@ public class PartService {
         }
         part.setBusinessUnit(trimText(dto.getBusinessUnit()));
         part.setProductPlatform(trimText(dto.getProductPlatform()));
+        part.setPartProductionDate(parseDate(dto.getPartProductionDate()));
         part.setProductionShift(trimText(dto.getProductionShift()));
         part.setFailureType(trimText(dto.getFailureType()));
         part.setBoschFailureType(trimText(dto.getBoschFailureType()));
@@ -660,6 +664,8 @@ public class PartService {
                 .partCode(part.getPartCode())
                 .businessUnit(part.getBusinessUnit())
                 .productPlatform(part.getProductPlatform())
+                .partProductionDate(
+                        part.getPartProductionDate() != null ? part.getPartProductionDate().toString() : null)
                 .productionShift(part.getProductionShift())
                 .failureType(part.getFailureType())
                 .boschFailureType(part.getBoschFailureType())

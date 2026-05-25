@@ -27,6 +27,7 @@ public class PartDTO {
     private String businessUnit;
     @Schema(description = "产品平台", example = "WSA")
     private String productPlatform;
+    private String partProductionDate;
     private String productionShift;
     @Schema(description = "客户失效类型（NVH/功能/外观）", example = "NVH")
     private String failureType;
