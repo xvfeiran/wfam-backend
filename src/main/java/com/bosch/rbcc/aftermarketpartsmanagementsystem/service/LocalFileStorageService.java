@@ -2,7 +2,6 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
@@ -17,7 +16,6 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "custom.smb.enabled", havingValue = "false", matchIfMissing = true)
 public class LocalFileStorageService implements FileStorageService {
 
     @Value("${file.upload.base-path:${user.home}/.wfam/upload}")
