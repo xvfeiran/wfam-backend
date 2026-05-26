@@ -46,19 +46,28 @@ public class AnalysisOrderService {
 
     /**
      * 幂等创建分析单：若已存在则返回现有记录，否则创建新记录。
-     * 所有分析单（含 0km）初始状态均为 pending_sampling；
-     * 0km 单子在详情页通过 is0km 计算属性隐藏采样按钮、展示提示。
+     * <ul>
+     *   <li>0km 退货单：初始状态为 {@code analysis_completed}，表示无需精分析，可直接报废。</li>
+     *   <li>售后件退货单：初始状态为 {@code pending_sampling}，走正常抽样 → 精分析 → 报废流程。</li>
+     * </ul>
      */
     @Transactional
     public AnalysisOrderDTO getOrCreate(String orderId, String analyst) {
         return analysisOrderRepo.findByOrderIdAndAnalyst(orderId, analyst)
                 .map(this::toDTO)
                 .orElseGet(() -> {
+                    String complaintType = returnOrderRepo.findById(orderId)
+                            .map(ReturnOrder::getComplaintType)
+                            .orElse(null);
+                    String initialStatus = ComplaintTypeConstants.isZeroKm(complaintType)
+                            ? STATUS_ANALYSIS_COMPLETED
+                            : STATUS_PENDING_SAMPLING;
+
                     AnalysisOrder ao = AnalysisOrder.builder()
                             .id(UUID.randomUUID().toString())
                             .orderId(orderId)
                             .analyst(analyst)
-                            .status(STATUS_PENDING_SAMPLING)
+                            .status(initialStatus)
                             .statusChangedAt(LocalDateTime.now())
                             .build();
                     analysisOrderRepo.save(ao);
