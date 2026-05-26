@@ -2,8 +2,11 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.repository;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,10 +34,10 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
     void deleteByOrderIdIn(List<String> orderIds);
 
     /**
-     * Fetch all analysis orders with their return order numbers in one query.
-     * Uses LEFT JOIN to handle cases where return order might be deleted.
+     * 分页查询，支持可选的角色限制（loginNameRestriction 非 null 时只返回该分析师的记录）、
+     * 分析师筛选和退货单号模糊搜索。
      */
-    @Query("""
+    @Query(value = """
         SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
             a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
             a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
@@ -42,13 +45,28 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
         )
         FROM AnalysisOrder a
         LEFT JOIN ReturnOrder r ON a.orderId = r.id
+        WHERE (:loginNameRestriction IS NULL OR a.analyst = :loginNameRestriction)
+          AND (:analystFilter IS NULL OR a.analyst = :analystFilter)
+          AND (:orderNumberFilter IS NULL OR LOWER(r.orderNumber) LIKE LOWER(CONCAT('%', CONCAT(:orderNumberFilter, '%'))))
+        """,
+        countQuery = """
+        SELECT COUNT(a.id)
+        FROM AnalysisOrder a
+        LEFT JOIN ReturnOrder r ON a.orderId = r.id
+        WHERE (:loginNameRestriction IS NULL OR a.analyst = :loginNameRestriction)
+          AND (:analystFilter IS NULL OR a.analyst = :analystFilter)
+          AND (:orderNumberFilter IS NULL OR LOWER(r.orderNumber) LIKE LOWER(CONCAT('%', CONCAT(:orderNumberFilter, '%'))))
         """)
-    List<AnalysisOrderWithOrderNumberDTO> findAllWithOrderNumbers();
+    Page<AnalysisOrderWithOrderNumberDTO> findWithFilters(
+            @Param("loginNameRestriction") String loginNameRestriction,
+            @Param("analystFilter") String analystFilter,
+            @Param("orderNumberFilter") String orderNumberFilter,
+            Pageable pageable);
 
     /**
-     * Fetch analysis orders by analyst with their return order numbers in one query.
+     * 同上，附加状态列表筛选。
      */
-    @Query("""
+    @Query(value = """
         SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
             a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
             a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
@@ -56,39 +74,26 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
         )
         FROM AnalysisOrder a
         LEFT JOIN ReturnOrder r ON a.orderId = r.id
-        WHERE a.analyst = :analyst
-        """)
-    List<AnalysisOrderWithOrderNumberDTO> findByAnalystWithOrderNumbers(String analyst);
-
-    /**
-     * Fetch analysis orders by status list with their return order numbers.
-     */
-    @Query("""
-        SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
-            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
-            a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
-            r.orderNumber
-        )
+        WHERE (:loginNameRestriction IS NULL OR a.analyst = :loginNameRestriction)
+          AND (:analystFilter IS NULL OR a.analyst = :analystFilter)
+          AND (:orderNumberFilter IS NULL OR LOWER(r.orderNumber) LIKE LOWER(CONCAT('%', CONCAT(:orderNumberFilter, '%'))))
+          AND a.status IN :statuses
+        """,
+        countQuery = """
+        SELECT COUNT(a.id)
         FROM AnalysisOrder a
         LEFT JOIN ReturnOrder r ON a.orderId = r.id
-        WHERE a.status IN :statuses
+        WHERE (:loginNameRestriction IS NULL OR a.analyst = :loginNameRestriction)
+          AND (:analystFilter IS NULL OR a.analyst = :analystFilter)
+          AND (:orderNumberFilter IS NULL OR LOWER(r.orderNumber) LIKE LOWER(CONCAT('%', CONCAT(:orderNumberFilter, '%'))))
+          AND a.status IN :statuses
         """)
-    List<AnalysisOrderWithOrderNumberDTO> findByStatusIn(List<String> statuses);
-
-    /**
-     * Fetch analysis orders by analyst and status list with their return order numbers.
-     */
-    @Query("""
-        SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
-            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
-            a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
-            r.orderNumber
-        )
-        FROM AnalysisOrder a
-        LEFT JOIN ReturnOrder r ON a.orderId = r.id
-        WHERE a.analyst = :analyst AND a.status IN :statuses
-        """)
-    List<AnalysisOrderWithOrderNumberDTO> findByAnalystAndStatusIn(String analyst, List<String> statuses);
+    Page<AnalysisOrderWithOrderNumberDTO> findWithFiltersAndStatuses(
+            @Param("loginNameRestriction") String loginNameRestriction,
+            @Param("analystFilter") String analystFilter,
+            @Param("orderNumberFilter") String orderNumberFilter,
+            @Param("statuses") List<String> statuses,
+            Pageable pageable);
 
     long countByStatusAndAnalyst(String status, String analyst);
 }

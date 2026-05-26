@@ -48,7 +48,7 @@ public class ReturnOrderController {
             @Parameter(description = "退货单状态列表（多选）") @RequestParam(required = false) List<String> statuses,
             @Parameter(description = "收件日期开始") @RequestParam(required = false) String receiveDateStart,
             @Parameter(description = "收件日期结束") @RequestParam(required = false) String receiveDateEnd,
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         // 合并 status 和 statuses 参数
         List<String> mergedStatuses = new java.util.ArrayList<>();
         if (status != null && !status.isBlank()) mergedStatuses.add(status);

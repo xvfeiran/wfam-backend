@@ -16,6 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -63,32 +66,27 @@ public class AnalysisOrderService {
                 });
     }
 
-    public List<AnalysisOrderDTO> list(String loginName, String roleNamesStr, List<String> statuses) {
+    public Page<AnalysisOrderDTO> list(String loginName, String roleNamesStr,
+                                       String orderNumber, String analystFilter,
+                                       List<String> statuses, Pageable pageable) {
         boolean isAnalyst = roleNamesStr != null
                 && roleNamesStr.contains("W_RBCC_AEP_WFAM_Analyst")
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_QMC_Leader")
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_QMC_Manager")
                 && !roleNamesStr.contains("W_RBCC_AEP_WFAM_SystemAdmin");
 
-        List<AnalysisOrderWithOrderNumberDTO> result;
+        // 角色限制：分析师只能看自己的单，其他角色传 null（不限制）
+        String loginNameRestriction = isAnalyst ? loginName : null;
+        String orderNumberFilter = (orderNumber != null && !orderNumber.isBlank()) ? orderNumber.trim() : null;
+        String analystFilterNorm = (analystFilter != null && !analystFilter.isBlank()) ? analystFilter.trim() : null;
 
+        Page<AnalysisOrderWithOrderNumberDTO> page;
         if (statuses == null || statuses.isEmpty()) {
-            if (isAnalyst) {
-                result = analysisOrderRepo.findByAnalystWithOrderNumbers(loginName);
-            } else {
-                result = analysisOrderRepo.findAllWithOrderNumbers();
-            }
+            page = analysisOrderRepo.findWithFilters(loginNameRestriction, analystFilterNorm, orderNumberFilter, pageable);
         } else {
-            if (isAnalyst) {
-                result = analysisOrderRepo.findByAnalystAndStatusIn(loginName, statuses);
-            } else {
-                result = analysisOrderRepo.findByStatusIn(statuses);
-            }
+            page = analysisOrderRepo.findWithFiltersAndStatuses(loginNameRestriction, analystFilterNorm, orderNumberFilter, statuses, pageable);
         }
-
-        return result.stream()
-                .map(this::toDTOFromProjection)
-                .collect(Collectors.toList());
+        return page.map(this::toDTOFromProjection);
     }
 
     public AnalysisOrderDTO getById(String id) {

@@ -132,7 +132,7 @@ public class PartService {
 
     private String resolveSortField(String sortBy) {
         if (sortBy == null || sortBy.isBlank()) {
-            return "createdAt";
+            return "updatedAt";
         }
 
         return switch (sortBy) {
@@ -147,7 +147,7 @@ public class PartService {
             // orderNumber is not a Part column; use orderId for deterministic DB-side
             // ordering.
             case "orderNumber" -> "orderId";
-            default -> "createdAt";
+            default -> "updatedAt";
         };
     }
 
