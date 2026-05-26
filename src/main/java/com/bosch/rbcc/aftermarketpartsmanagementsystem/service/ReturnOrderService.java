@@ -104,6 +104,7 @@ public class ReturnOrderService {
                 .trackingNumber(dto.getTrackingNumber())
                 .returnQuantity(dto.getReturnQuantity())
                 .complaintType(dto.getComplaintType())
+                .otherInfo(dto.getOtherInfo())
 
                 .status(STATUS_DRAFT)
                 .build();
@@ -146,6 +147,7 @@ public class ReturnOrderService {
         if (dto.getComplaintType() != null) {
             order.setComplaintType(dto.getComplaintType());
         }
+        order.setOtherInfo(dto.getOtherInfo());
         orderRepo.save(order);
         return toDTO(order);
     }
@@ -363,6 +365,7 @@ public class ReturnOrderService {
                 .trackingNumber(dto.getTrackingNumber())
                 .returnQuantity(dto.getReturnQuantity())
                 .complaintType(dto.getComplaintType())
+                .otherInfo(dto.getOtherInfo())
 
                 .status(STATUS_SUBMITTED)
                 .build();
@@ -446,6 +449,7 @@ public class ReturnOrderService {
                     .trackingNumber(dto.getTrackingNumber())
                     .returnQuantity(dto.getReturnQuantity())
                     .complaintType(dto.getComplaintType())
+                    .otherInfo(dto.getOtherInfo())
                     .status(STATUS_SUBMITTED)
                     .build();
             orders.add(order);
@@ -521,6 +525,7 @@ public class ReturnOrderService {
                 .trackingNumber(order.getTrackingNumber())
                 .returnQuantity(order.getReturnQuantity())
                 .complaintType(order.getComplaintType())
+                .otherInfo(order.getOtherInfo())
                 .initialAnalysisQuantity(parts.size())
                 .detailedAnalysisQuantity(detailedCount)
                 .scrappedQuantity(scrappedCount)
@@ -551,6 +556,7 @@ public class ReturnOrderService {
                 .trackingNumber(order.getTrackingNumber())
                 .returnQuantity(order.getReturnQuantity())
                 .complaintType(order.getComplaintType())
+                .otherInfo(order.getOtherInfo())
                 .initialAnalysisQuantity(0)
                 .detailedAnalysisQuantity(0)
                 .scrappedQuantity(0)
@@ -589,6 +595,7 @@ public class ReturnOrderService {
                 .vehicleMileage(part.getVehicleMileage())
                 .customerDescription(part.getCustomerDescription())
                 .otherDescription(part.getOtherDescription())
+                .otherInfo(part.getOtherInfo())
                 .status(part.getStatus())
                 .images(List.of())
                 .isSample(part.getIsSample())

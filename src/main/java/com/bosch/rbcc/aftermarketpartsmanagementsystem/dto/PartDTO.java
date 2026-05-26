@@ -1,6 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -45,6 +46,9 @@ public class PartDTO {
     private Integer vehicleMileage;
     private String customerDescription;
     private String otherDescription;
+    @Schema(description = "其他信息", example = "备注说明")
+    @Size(max = 500, message = "其他信息长度不能超过500个字符")
+    private String otherInfo;
     @Schema(description = "状态", example = "registered")
     private String status;
     private List<String> images;

@@ -42,6 +42,10 @@ public class ReturnOrderDTO {
     @Schema(description = "投诉类型（BA代码）", example = "BA40")
     private String complaintType;
 
+    @Schema(description = "其他信息", example = "备注说明")
+    @Size(max = 500, message = "其他信息长度不能超过500个字符")
+    private String otherInfo;
+
     private Integer initialAnalysisQuantity;
     private Integer detailedAnalysisQuantity;
     private Integer scrappedQuantity;

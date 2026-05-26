@@ -52,6 +52,9 @@ public class ReturnOrder {
     @Column(name = "COMPLAINT_TYPE", length = 20, nullable = false)
     private String complaintType;
 
+    @Column(name = "OTHER_INFO", length = 500)
+    private String otherInfo;
+
     @Column(name = "STATUS", length = 50, nullable = false)
     private String status;
 

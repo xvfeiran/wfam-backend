@@ -73,6 +73,9 @@ public class Part {
     @Column(name = "OTHER_DESCRIPTION", length = 500)
     private String otherDescription;
 
+    @Column(name = "OTHER_INFO", length = 500)
+    private String otherInfo;
+
     @Column(name = "REPAIR_STATION", length = 100)
     private String repairStation;
 
