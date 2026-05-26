@@ -38,7 +38,8 @@ public class ReportTemplate {
     @Column(name = "FILE_NAME", length = 200, nullable = false)
     private String fileName;
 
-    @Column(name = "FIELD_DEFINITIONS", length = 4000)
+    @Lob
+    @Column(name = "FIELD_DEFINITIONS")
     private String fieldDefinitions;
 
     @Column(name = "ENABLED")
