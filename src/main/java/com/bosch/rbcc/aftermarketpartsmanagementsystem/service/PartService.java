@@ -56,7 +56,6 @@ public class PartService {
     private final PartRepository partRepo;
     private final OcrTaskRepository ocrTaskRepo;
     private final ReturnOrderRepository returnOrderRepository;
-    private final AnalysisOrderService analysisOrderService;
     private final OcrService ocrService;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
@@ -406,27 +405,6 @@ public class PartService {
         // 刷新并清理一级缓存，避免内存占用过大
         entityManager.flush();
         entityManager.clear();
-
-        // 批量创建分析单
-        Set<String> uniqueOrderIds = dtos.stream()
-                .map(PartDTO::getOrderId)
-                .collect(Collectors.toSet());
-        for (String orderId : uniqueOrderIds) {
-            String analyst = dtos.stream()
-                    .filter(dto -> orderId.equals(dto.getOrderId()))
-                    .map(PartDTO::getAnalyst)
-                    .findFirst()
-                    .orElse(null);
-            if (analyst != null) {
-                try {
-                    analysisOrderService.getOrCreate(orderId, analyst);
-                } catch (Exception e) {
-                    // 分析单创建失败不影响零件创建
-                    log.warn("[PartImport] Failed to create analysis order for orderId={}: {}", orderId,
-                            e.getMessage());
-                }
-            }
-        }
 
         // 批量查询退货单号用于DTO构建
         Set<String> savedOrderIds = savedParts.stream()
