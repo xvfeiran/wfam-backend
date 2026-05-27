@@ -179,10 +179,9 @@ public class PartService {
                         "Return order not found: " + dto.getOrderId()));
 
         String orderStatus = returnOrder.getStatus();
-        // Only draft and submitted status can add parts
-        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
+        if (!STATUS_DRAFT.equals(orderStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Parts can only be added to return orders in 'draft' or 'submitted' status. Current status: "
+                    "Parts can only be added to return orders in 'draft' status. Current status: "
                             + orderStatus);
         }
 
@@ -243,9 +242,6 @@ public class PartService {
 
         // 检查是否为 0km 退货，触发通知（returnOrder 在方法头部已加载，直接复用）
         notificationService.sendZeroKmNotification(part.getId(), returnOrder.getComplaintType());
-
-        // 触发分析单自动创建（幂等）
-        analysisOrderService.getOrCreate(dto.getOrderId(), dto.getAnalyst());
 
         // 绑定 OCR 任务（新建模式下在此时才有 partId）
         if (ocrTaskId != null && !ocrTaskId.isBlank()) {
