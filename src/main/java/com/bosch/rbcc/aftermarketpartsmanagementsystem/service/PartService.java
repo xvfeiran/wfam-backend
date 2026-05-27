@@ -6,6 +6,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.OcrTask;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.OcrTaskRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
@@ -56,6 +57,7 @@ public class PartService {
     private final PartRepository partRepo;
     private final OcrTaskRepository ocrTaskRepo;
     private final ReturnOrderRepository returnOrderRepository;
+    private final AnalysisOrderRepository analysisOrderRepo;
     private final OcrService ocrService;
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
@@ -178,10 +180,16 @@ public class PartService {
                         "Return order not found: " + dto.getOrderId()));
 
         String orderStatus = returnOrder.getStatus();
-        if (!STATUS_DRAFT.equals(orderStatus)) {
+        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Parts can only be added to return orders in 'draft' status. Current status: "
+                    "Parts can only be added to return orders in 'draft' or 'submitted' status. Current status: "
                             + orderStatus);
+        }
+
+        // Block part creation after end-entry (analysis orders exist)
+        if (analysisOrderRepo.countByOrderId(dto.getOrderId()) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot add parts after entry has been ended");
         }
 
         // Analyst is required

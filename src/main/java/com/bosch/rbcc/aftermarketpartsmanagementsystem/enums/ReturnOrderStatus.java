@@ -6,6 +6,7 @@ import lombok.Getter;
 public enum ReturnOrderStatus {
     DRAFT("draft", "草稿"),
     SUBMITTED("submitted", "已提交"),
+    REGISTERED("registered", "退件登记/已完成"),
     SCRAPPED("scrapped", "已报废");
 
     private final String code;

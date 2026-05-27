@@ -93,10 +93,16 @@ public class ReturnOrderController {
         return Map.of("partsCount", count);
     }
 
-    @Operation(summary = "提交退货单，生成退货单号", description = "draft → in_initial_analysis")
+    @Operation(summary = "提交退货单，生成退货单号", description = "draft → submitted")
     @PostMapping("/{id}/submit")
     public ReturnOrderDTO submit(@PathVariable String id) {
         return returnOrderService.submit(id);
+    }
+
+    @Operation(summary = "结束录入，批量创建分析单", description = "submitted → registered")
+    @PostMapping("/{id}/end-entry")
+    public ReturnOrderDTO endEntry(@PathVariable String id) {
+        return returnOrderService.endEntry(id);
     }
 
     @Operation(summary = "获取退货单关联售后件列表（分页）", description = "支持按关键词、事业部、产品平台、状态筛选，支持分页和排序")

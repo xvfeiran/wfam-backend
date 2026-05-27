@@ -40,6 +40,7 @@ public class ReturnOrderService {
 
     private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_SUBMITTED = "submitted";
+    private static final String STATUS_REGISTERED = "registered";
     private static final String ROLE_QMC_LEADER = "W_RBCC_AEP_WFAM_QMC_Leader";
 
     private final ReturnOrderRepository orderRepo;
@@ -205,16 +206,30 @@ public class ReturnOrderService {
         if (!STATUS_DRAFT.equals(order.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not in draft status");
         }
+        order.setOrderNumber(generateOrderNumber());
+        order.setStatus(STATUS_SUBMITTED);
+        orderRepo.save(order);
+        return toDTO(order);
+    }
+
+    @Transactional
+    public ReturnOrderDTO endEntry(String id) {
+        ReturnOrder order = orderRepo.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found: " + id));
+        if (!STATUS_SUBMITTED.equals(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not in submitted status");
+        }
 
         // Validate: must have at least one part
         List<Part> parts = partRepo.findByOrderId(id);
         if (parts.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot submit return order without parts");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot end entry without parts");
         }
 
-        order.setOrderNumber(generateOrderNumber());
-        order.setStatus(STATUS_SUBMITTED);
-        orderRepo.save(order);
+        // Check if analysis orders already exist (idempotent)
+        if (analysisOrderRepo.countByOrderId(id) > 0) {
+            return toDTO(order);
+        }
 
         // Batch-create analysis orders grouped by analyst
         Set<String> analysts = parts.stream()
@@ -236,6 +251,9 @@ public class ReturnOrderService {
                 analysisOrderRepo.save(ao);
             }
         }
+
+        order.setStatus(STATUS_REGISTERED);
+        orderRepo.save(order);
 
         return toDTO(order);
     }
@@ -681,9 +699,9 @@ public class ReturnOrderService {
      * If so, update return order status to scrapped.
      */
     public void checkAndUpdateToScrappedIfAllScrapped(String orderId) {
-        // Only check if return order is in submitted status
+        // Only check if return order is in registered status
         ReturnOrder order = orderRepo.findById(orderId).orElse(null);
-        if (order == null || !ReturnOrderStatus.SUBMITTED.getCode().equals(order.getStatus())) {
+        if (order == null || !ReturnOrderStatus.REGISTERED.getCode().equals(order.getStatus())) {
             return;
         }
 
