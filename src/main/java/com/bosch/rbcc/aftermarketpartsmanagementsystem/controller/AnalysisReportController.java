@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/analysis-reports")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Analysis Report Management", description = "APIs for managing analysis reports")
 public class AnalysisReportController {
 
@@ -97,14 +99,17 @@ public class AnalysisReportController {
     public ResponseEntity<byte[]> exportReport(@PathVariable String id) {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             generatorService.generateReport(id, outputStream);
+            byte[] bytes = outputStream.toByteArray();
+            log.info("Export report: id={}, size={} bytes", id, bytes.length);
             String filename = "report_" + id + ".xlsx";
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
             headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
             return ResponseEntity.ok()
                 .headers(headers)
-                .body(outputStream.toByteArray());
-        } catch (IOException e) {
+                .body(bytes);
+        } catch (Exception e) {
+            log.error("Export report failed: id={}", id, e);
             return ResponseEntity.internalServerError().build();
         }
     }
