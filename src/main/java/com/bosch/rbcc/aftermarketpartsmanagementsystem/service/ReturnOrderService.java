@@ -25,7 +25,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
@@ -485,8 +484,6 @@ public class ReturnOrderService {
 
             LocalDate receiveDate   = parseDate(dto.getReceiveDate());
             LocalDate complaintDate = parseDate(dto.getComplaintDate());
-            LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
-
             ReturnOrder order = ReturnOrder.builder()
                     .id(UUID.randomUUID().toString())
                     .orderNumber(orderNumber)

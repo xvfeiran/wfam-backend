@@ -31,7 +31,6 @@ public class AnalysisOrderService {
 
     private static final String STATUS_PENDING_SAMPLING = "pending_sampling";
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
-    private static final String STATUS_PENDING_APPROVAL = "pending_approval";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
     private static final String STATUS_ANALYSIS_SKIPPED = "analysis_skipped";
     private static final String STATUS_WORKON_SCRAP_IN_PROGRESS = "workon_scrap_in_progress";

@@ -2,7 +2,6 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisReportDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImageUploadResult;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisReport;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;

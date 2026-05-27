@@ -48,7 +48,6 @@ public class ExcelTemplateParserService {
             String type = matcher.group(1);
             String name = matcher.group(2);
             String labelZh = matcher.group(3).isEmpty() ? name : matcher.group(3);
-            String labelEn = matcher.group(4).isEmpty() ? name : matcher.group(4);
             boolean required = matcher.group(5).isEmpty() ? false : Boolean.parseBoolean(matcher.group(5));
             String optionsStr = matcher.group(6);
 

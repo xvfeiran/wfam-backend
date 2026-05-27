@@ -45,7 +45,6 @@ public class PartService {
     private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_IN_INITIAL_ANALYSIS = "in_initial_analysis";
     private static final String STATUS_INITIAL_ANALYSIS_COMPLETED = "initial_analysis_completed";
-    private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_PENDING_APPROVAL = "pending_approval";
     private static final String STATUS_ANALYSIS_COMPLETED = "analysis_completed";
     private static final String STATUS_ANALYSIS_SKIPPED = "analysis_skipped";
@@ -625,11 +624,6 @@ public class PartService {
             return false;
         }
         return headers.getRoleNames().contains(roleName);
-    }
-
-    private PartDTO toDTO(Part part, Map<String, String> orderIdToNumber) {
-        String orderNumber = orderIdToNumber.get(part.getOrderId());
-        return buildDTO(part, orderNumber);
     }
 
     private PartDTO toDTO(Part part) {

@@ -16,6 +16,8 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * SMB 连接池工厂。
@@ -51,6 +53,7 @@ public class SmbjConfig {
         private final String domain;
         private final String user;
         private final String password;
+        private final Map<DiskShare, SMBClient> clientMap = new ConcurrentHashMap<>();
 
         DiskShareFactory(String host, String shareName, String domain,
                          String user, String password) {
@@ -70,6 +73,7 @@ public class SmbjConfig {
                     user, password.toCharArray(), domain);
             Session session = connection.authenticate(ac);
             DiskShare diskShare = (DiskShare) session.connectShare(shareName);
+            clientMap.put(diskShare, smbClient);
             log.info("SMB DiskShare created: {}//{}/{}", host, shareName, domain);
             return new DefaultPooledObject<>(diskShare);
         }
@@ -79,6 +83,10 @@ public class SmbjConfig {
             DiskShare diskShare = p.getObject();
             if (diskShare != null) {
                 diskShare.close();
+            }
+            SMBClient client = clientMap.remove(diskShare);
+            if (client != null) {
+                client.close();
             }
         }
 

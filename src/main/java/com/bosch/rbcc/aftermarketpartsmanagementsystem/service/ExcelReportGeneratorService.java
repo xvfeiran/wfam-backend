@@ -185,7 +185,6 @@ public class ExcelReportGeneratorService {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> extractImagePaths(Object value) {
         if (value == null) return List.of();
         if (value instanceof String s) {

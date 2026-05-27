@@ -124,7 +124,6 @@ public class VerifyOptimizationTest {
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     // All data already fetched in single query
-                    String orderNumber = rs.getString("ORDER_NUMBER");
                 }
             }
         }

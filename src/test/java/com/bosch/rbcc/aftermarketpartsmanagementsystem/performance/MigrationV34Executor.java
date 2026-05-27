@@ -118,9 +118,8 @@ public class MigrationV34Executor {
                     "SELECT * FROM APMS_ANALYSIS_ORDER WHERE ANALYST = ?")) {
                 pstmt.setString(1, analyst);
                 try (ResultSet rs = pstmt.executeQuery()) {
-                    int count = 0;
                     while (rs.next()) {
-                        count++;
+                        // consume rows
                     }
                 }
             }

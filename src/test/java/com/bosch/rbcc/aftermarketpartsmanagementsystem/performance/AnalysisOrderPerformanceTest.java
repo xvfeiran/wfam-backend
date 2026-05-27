@@ -124,7 +124,6 @@ public class AnalysisOrderPerformanceTest {
     }
 
     private static void showExecutionPlan(Connection conn, String sql) throws SQLException {
-        String planSql = "SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ALLSTATS LAST'))";
         // First execute the query with gather_plan_statistics
         try (Statement stmt = conn.createStatement()) {
             // Enable statistics collection
