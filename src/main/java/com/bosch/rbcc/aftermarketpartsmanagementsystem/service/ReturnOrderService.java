@@ -3,6 +3,7 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.constant.ComplaintTypeConstants;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Customer;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
@@ -216,23 +217,22 @@ public class ReturnOrderService {
         orderRepo.save(order);
 
         // Batch-create analysis orders grouped by analyst
-        java.util.Set<String> analysts = parts.stream()
+        Set<String> analysts = parts.stream()
                 .map(Part::getAnalyst)
                 .filter(a -> a != null && !a.isBlank())
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
         for (String analyst : analysts) {
             if (analysisOrderRepo.findByOrderIdAndAnalyst(id, analyst).isEmpty()) {
                 String initialStatus = ComplaintTypeConstants.isZeroKm(order.getComplaintType())
                         ? "analysis_completed"
                         : "pending_sampling";
-                com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder ao =
-                        com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder.builder()
-                                .id(java.util.UUID.randomUUID().toString())
-                                .orderId(id)
-                                .analyst(analyst)
-                                .status(initialStatus)
-                                .statusChangedAt(java.time.LocalDateTime.now())
-                                .build();
+                AnalysisOrder ao = AnalysisOrder.builder()
+                        .id(UUID.randomUUID().toString())
+                        .orderId(id)
+                        .analyst(analyst)
+                        .status(initialStatus)
+                        .statusChangedAt(LocalDateTime.now())
+                        .build();
                 analysisOrderRepo.save(ao);
             }
         }
