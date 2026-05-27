@@ -64,16 +64,19 @@ class AnalysisOrderServiceGetOrCreateTest {
 
     @Test
     void getOrCreate_existingAo_returnsExistingWithoutSaving() {
+        ReturnOrder order = ReturnOrder.builder().id("order-1").orderNumber("26QMC0001").build();
         AnalysisOrder existing = AnalysisOrder.builder()
                 .id("ao-1").orderId("order-1").analyst("analyst1")
                 .status("in_detailed_analysis").build();
+        when(returnOrderRepo.findById("order-1")).thenReturn(Optional.of(order));
         when(analysisOrderRepo.findByOrderIdAndAnalyst("order-1", "analyst1"))
                 .thenReturn(Optional.of(existing));
 
         AnalysisOrderDTO result = service.getOrCreate("order-1", "analyst1");
 
         assertEquals("ao-1", result.getId());
+        assertEquals("26QMC0001", result.getOrderNumber());
         verify(analysisOrderRepo, never()).save(any());
-        verify(returnOrderRepo, never()).findById(any());
+        verify(returnOrderRepo, times(1)).findById("order-1");
     }
 }

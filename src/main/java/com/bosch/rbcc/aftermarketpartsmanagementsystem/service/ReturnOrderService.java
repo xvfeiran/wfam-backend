@@ -1,5 +1,6 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.constant.ComplaintTypeConstants;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Customer;
@@ -203,9 +204,39 @@ public class ReturnOrderService {
         if (!STATUS_DRAFT.equals(order.getStatus())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order is not in draft status");
         }
+
+        // Validate: must have at least one part
+        List<Part> parts = partRepo.findByOrderId(id);
+        if (parts.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot submit return order without parts");
+        }
+
         order.setOrderNumber(generateOrderNumber());
         order.setStatus(STATUS_SUBMITTED);
         orderRepo.save(order);
+
+        // Batch-create analysis orders grouped by analyst
+        java.util.Set<String> analysts = parts.stream()
+                .map(Part::getAnalyst)
+                .filter(a -> a != null && !a.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
+        for (String analyst : analysts) {
+            if (analysisOrderRepo.findByOrderIdAndAnalyst(id, analyst).isEmpty()) {
+                String initialStatus = ComplaintTypeConstants.isZeroKm(order.getComplaintType())
+                        ? "analysis_completed"
+                        : "pending_sampling";
+                com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder ao =
+                        com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder.builder()
+                                .id(java.util.UUID.randomUUID().toString())
+                                .orderId(id)
+                                .analyst(analyst)
+                                .status(initialStatus)
+                                .statusChangedAt(java.time.LocalDateTime.now())
+                                .build();
+                analysisOrderRepo.save(ao);
+            }
+        }
+
         return toDTO(order);
     }
 
