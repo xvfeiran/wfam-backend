@@ -39,6 +39,7 @@ import java.util.*;
  * Excel第23列 博世失效描述 -> boschFailureType
  * Excel第32列 QC号 -> qcNo（仅12位纯数字时生效）
  * Excel第33列 退货单号 -> orderNumber
+ * MRB号列（可选，Tesla专用） -> otherInfo，格式："MRB 号：{value}"
  *
  * 事业部/产品平台通过零件号主数据映射，不再直接读取 Excel 列。
  */
@@ -72,6 +73,7 @@ public class PartImportParser {
     private static final List<String> OTHER_DESCRIPTION_HEADERS = List.of("其他", "others");
     private static final List<String> BOSCH_FAILURE_TYPE_HEADERS = List.of("博世失效", "failure desc", "bosch failure");
     private static final List<String> QC_NO_HEADERS = List.of("qc号", "qc notification", "qc no");
+    private static final List<String> MRB_NO_HEADERS = List.of("mrb号", "mrb no", "mrb number");
 
     private static final String DEFAULT_IMPORTED_ANALYST = "-";
 
@@ -174,6 +176,9 @@ public class PartImportParser {
         String businessUnit = partCodeMapping == null ? null : normalizeText(partCodeMapping.getBusinessUnit());
         String productPlatform = partCodeMapping == null ? null : normalizeText(partCodeMapping.getProductPlatform());
 
+        String mrbNo = normalizeText(getCellString(row, mapping.mrbNoCol()));
+        String otherInfo = mrbNo != null ? "MRB 号：" + mrbNo : null;
+
         return PartDTO.builder()
                 .orderNumber(orderNumber)
                 .partCode(partCode)
@@ -192,6 +197,7 @@ public class PartImportParser {
                 .repairStation(normalizeText(getCellString(row, mapping.repairStationCol())))
                 .analyst(DEFAULT_IMPORTED_ANALYST)
                 .qcNo(normalizeQcNo(getCellString(row, mapping.qcNoCol())))
+                .otherInfo(otherInfo)
                 .build();
     }
 
@@ -302,7 +308,8 @@ public class PartImportParser {
                 resolveOptionalColumn(headers, FAILURE_TYPE_HEADERS),
                 resolveOptionalColumn(headers, OTHER_DESCRIPTION_HEADERS),
                 resolveOptionalColumn(headers, BOSCH_FAILURE_TYPE_HEADERS),
-                resolveOptionalColumn(headers, QC_NO_HEADERS));
+                resolveOptionalColumn(headers, QC_NO_HEADERS),
+                resolveOptionalColumn(headers, MRB_NO_HEADERS));
     }
 
     private int resolveRequiredColumn(Map<Integer, String> headers, List<String> aliases, String displayName) {
@@ -375,6 +382,7 @@ public class PartImportParser {
             int failureTypeCol,
             int otherDescriptionCol,
             int boschFailureTypeCol,
-            int qcNoCol) {
+            int qcNoCol,
+            int mrbNoCol) {
     }
 }
