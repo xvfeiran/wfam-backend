@@ -6,6 +6,7 @@ import com.hierynomus.mserref.NtStatus;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.mssmb2.SMBApiException;
+import com.hierynomus.mserref.NtStatus;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.smbj.share.File;
 import lombok.RequiredArgsConstructor;
@@ -29,12 +30,10 @@ import java.util.UUID;
 
 /**
  * 基于 SMB 的文件存储服务。
- * 标注 @Primary，优先于 LocalFileStorageService 被注入。
  * 若 SMB 未配置/未启用，各方法抛出 503 SERVICE_UNAVAILABLE。
  */
 @Slf4j
 @Service
-@Primary
 @RequiredArgsConstructor
 public class SmbFileStorageService implements FileStorageService {
 
@@ -63,6 +62,7 @@ public class SmbFileStorageService implements FileStorageService {
             throw e;
         } catch (Exception e) {
             log.error("读取SMB文件失败", e);
+            throwIfAuthFailure(e);
             return null;
         } finally {
             if (diskShare != null) {
@@ -101,6 +101,19 @@ public class SmbFileStorageService implements FileStorageService {
 
     // ── 私有方法 ──────────────────────────────────────────────────────────────
 
+    private void throwIfAuthFailure(Exception e) {
+        if (e instanceof SMBApiException smbEx
+                && smbEx.getStatusCode() == NtStatus.STATUS_LOGON_FAILURE.getValue()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "SMB_AUTH_FAILURE");
+        }
+        if (e.getCause() instanceof SMBApiException smbEx
+                && smbEx.getStatusCode() == NtStatus.STATUS_LOGON_FAILURE.getValue()) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "SMB_AUTH_FAILURE");
+        }
+    }
+
     private GenericObjectPool<DiskShare> requirePool() {
         GenericObjectPool<DiskShare> pool = smbConfigurationService.getPool();
         if (pool == null) {
@@ -132,6 +145,7 @@ public class SmbFileStorageService implements FileStorageService {
             throw e;
         } catch (Exception e) {
             log.error("SMB文件存储失败", e);
+            throwIfAuthFailure(e);
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR, "文件保存失败(SMB)", e);
         } finally {

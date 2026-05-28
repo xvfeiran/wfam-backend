@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.util.IOUtils;
 import org.apache.poi.util.Units;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,13 +52,9 @@ public class ExcelReportGeneratorService {
 
         // filePath 格式为 "templates/WSA-NVH-xxx.xlsx"，需拆分为 category + 文件名
         String filePath = template.getFilePath();
-        int sep = filePath.indexOf('/');
-        String category = sep >= 0 ? filePath.substring(0, sep) : "templates";
-        String fileName = sep >= 0 ? filePath.substring(sep + 1) : filePath;
-
-        Resource templateResource = fileStorageService.load(category, fileName);
+        Resource templateResource = loadTemplateResource(filePath);
         if (templateResource == null) {
-            throw new IllegalArgumentException("Template file not found on SMB: " + filePath);
+            throw new IllegalArgumentException("Template file not found: " + filePath);
         }
 
         try (InputStream is = templateResource.getInputStream();
@@ -80,6 +79,24 @@ public class ExcelReportGeneratorService {
 
             outputStream.write(writtenBytes);
         }
+    }
+
+    private Resource loadTemplateResource(String filePath) {
+        // 本地绝对路径（旧数据兼容）：直接从本地文件系统加载
+        Path localPath = Path.of(filePath);
+        if (localPath.isAbsolute()) {
+            if (Files.exists(localPath)) {
+                log.info("Loading template from local path: {}", filePath);
+                return new FileSystemResource(localPath);
+            }
+            log.warn("Local template path does not exist: {}", filePath);
+            return null;
+        }
+        // SMB 相对路径："templates/WSA-NVH-xxx.xlsx" → category + fileName
+        int sep = filePath.indexOf('/');
+        String category = sep >= 0 ? filePath.substring(0, sep) : "templates";
+        String fileName = sep >= 0 ? filePath.substring(sep + 1) : filePath;
+        return fileStorageService.load(category, fileName);
     }
 
     private int countRemainingPlaceholders(Workbook workbook) {

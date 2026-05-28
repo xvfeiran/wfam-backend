@@ -266,9 +266,9 @@ public class PartService {
         LocalDateTime importCreatedAt = parseDateTime(dto.getCreatedAt());
 
         String orderStatus = returnOrder.getStatus();
-        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
+        if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus) && !STATUS_SCRAPPED.equals(orderStatus)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: "
+                    "Parts can only be imported into return orders in 'draft', 'submitted' or 'scrapped' status. Current status: "
                             + orderStatus);
         }
 
@@ -341,9 +341,9 @@ public class PartService {
             }
 
             String orderStatus = returnOrder.getStatus();
-            if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus)) {
+            if (!STATUS_DRAFT.equals(orderStatus) && !STATUS_SUBMITTED.equals(orderStatus) && !STATUS_SCRAPPED.equals(orderStatus)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Parts can only be imported into return orders in 'draft' or 'submitted' status. Current status: "
+                        "Parts can only be imported into return orders in 'draft', 'submitted' or 'scrapped' status. Current status: "
                                 + orderStatus);
             }
 

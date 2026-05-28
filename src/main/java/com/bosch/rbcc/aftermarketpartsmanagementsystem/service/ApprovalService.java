@@ -86,7 +86,7 @@ public class ApprovalService {
         };
     }
 
-    private Map<String, String> parseContent(String json) {
+    private Map<String, Object> parseContent(String json) {
         if (json == null || json.isEmpty()) {
             return new HashMap<>();
         }

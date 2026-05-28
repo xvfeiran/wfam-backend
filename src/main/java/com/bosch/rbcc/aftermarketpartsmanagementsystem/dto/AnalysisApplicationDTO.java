@@ -31,5 +31,5 @@ public class AnalysisApplicationDTO {
     @Schema(description = "申请状态", example = "pending")
     private String status;
     private String summary;
-    private Map<String, String> content;
+    private Map<String, Object> content;
 }

@@ -40,6 +40,7 @@ public class ReturnOrderService {
     private static final String STATUS_DRAFT = "draft";
     private static final String STATUS_SUBMITTED = "submitted";
     private static final String STATUS_REGISTERED = "registered";
+    private static final String STATUS_SCRAPPED = "scrapped";
     private static final String ROLE_QMC_LEADER = "W_RBCC_AEP_WFAM_QMC_Leader";
 
     private final ReturnOrderRepository orderRepo;
@@ -380,7 +381,7 @@ public class ReturnOrderService {
     }
 
     /**
-     * 导入专用：创建退货单并直接提交。
+     * 导入专用：创建退货单并直接设为已报废状态。
      * 若 DTO 已带退货单号，则优先使用 Excel 中的退货单号；否则按年份规则生成。
      * 返回包含 orderId 和 orderNumber 的 DTO。
      */
@@ -415,7 +416,7 @@ public class ReturnOrderService {
                 .complaintType(dto.getComplaintType())
                 .otherInfo(dto.getOtherInfo())
 
-                .status(STATUS_SUBMITTED)
+                .status(STATUS_SCRAPPED)
                 .build();
         orderRepo.save(order);
 
@@ -496,7 +497,7 @@ public class ReturnOrderService {
                     .returnQuantity(dto.getReturnQuantity())
                     .complaintType(dto.getComplaintType())
                     .otherInfo(dto.getOtherInfo())
-                    .status(STATUS_SUBMITTED)
+                    .status(STATUS_SCRAPPED)
                     .build();
             orders.add(order);
         }
