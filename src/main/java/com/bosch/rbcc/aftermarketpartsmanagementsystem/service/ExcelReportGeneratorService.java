@@ -179,6 +179,9 @@ public class ExcelReportGeneratorService {
         log.info("fillDataToWorkbook: {} cells processed, {} text replacements, {} image cells",
             cellsWithPlaceholders, replaced, images.size());
 
+        // 清除主流程未匹配到的残留占位符（非必填字段未填时可能遗留）
+        cleanupRemainingPlaceholders(workbook);
+
         // 嵌入图片
         for (ImagePlacement ip : images) {
             embedImages(workbook, ip);
@@ -198,6 +201,31 @@ public class ExcelReportGeneratorService {
                 .toList();
         }
         return List.of();
+    }
+
+    private void cleanupRemainingPlaceholders(Workbook workbook) {
+        Pattern placeholderPattern = Pattern.compile("\\[\\[[^\\]]*\\]\\]");
+        int cleaned = 0;
+        for (int si = 0; si < workbook.getNumberOfSheets(); si++) {
+            Sheet sheet = workbook.getSheetAt(si);
+            for (int r = sheet.getFirstRowNum(); r <= sheet.getLastRowNum(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+                for (int c = row.getFirstCellNum(); c < row.getLastCellNum(); c++) {
+                    Cell cell = row.getCell(c);
+                    if (cell == null) continue;
+                    String cellValue = getCellValueAsString(cell);
+                    if (cellValue != null && cellValue.contains("[[")) {
+                        String cleanedValue = placeholderPattern.matcher(cellValue).replaceAll("").trim();
+                        replaceCellValue(cell, cleanedValue.isEmpty() ? null : cleanedValue);
+                        cleaned++;
+                    }
+                }
+            }
+        }
+        if (cleaned > 0) {
+            log.info("cleanupRemainingPlaceholders: {} cells cleaned", cleaned);
+        }
     }
 
     private void embedImages(Workbook workbook, ImagePlacement ip) {
