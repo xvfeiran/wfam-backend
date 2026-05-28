@@ -12,9 +12,17 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +36,24 @@ public class PartController {
     private final AnalysisReportService analysisReportService;
     private final ReportTemplateService reportTemplateService;
     private final PartRepository partRepository;
+
+    @Operation(summary = "导出售后件列表为 Excel")
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) String orderNumber,
+            @RequestParam(required = false) String partCode,
+            @RequestParam(required = false) String businessUnit,
+            @RequestParam(required = false) String productPlatform,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String qcCreated,
+            @RequestParam(required = false) String analyst) {
+        byte[] data = partService.exportToExcel(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst);
+        String filename = URLEncoder.encode("售后件明细_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE), StandardCharsets.UTF_8) + ".xlsx";
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        return ResponseEntity.ok().headers(headers).body(data);
+    }
 
     @Operation(summary = "查询售后件列表（分页）", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入、分析员筛选，page从0开始")
     @GetMapping

@@ -14,7 +14,9 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.config.ExportProperties;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.constant.ComplaintTypeConstants;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.excel.PartExcelHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +63,8 @@ public class PartService {
     private final EntityManager entityManager;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
+    private final PartExcelHandler partExcelHandler;
+    private final ExportProperties exportProperties;
 
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
@@ -122,6 +126,60 @@ public class PartService {
                                 o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""));
 
         return partPage.map(p -> buildDTO(p, orderIdToNumber.get(p.getOrderId())));
+    }
+
+    public byte[] exportToExcel(String orderNumber, String partCode, String businessUnit,
+            String productPlatform, String status, String qcCreated, String analyst) {
+        List<Part> matchingParts = partRepo.findAll((root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (orderNumber != null && !orderNumber.isBlank()) {
+                Subquery<String> subquery = query.subquery(String.class);
+                Root<ReturnOrder> roRoot = subquery.from(ReturnOrder.class);
+                subquery.select(roRoot.get("id"));
+                subquery.where(cb.like(cb.upper(roRoot.get("orderNumber")), "%" + orderNumber.toUpperCase() + "%"));
+                predicates.add(root.get("orderId").in(subquery));
+            }
+            if (partCode != null && !partCode.isBlank()) {
+                predicates.add(cb.like(cb.upper(root.get("partCode")), "%" + partCode.toUpperCase() + "%"));
+            }
+            if (businessUnit != null && !businessUnit.isBlank()) {
+                predicates.add(cb.equal(root.get("businessUnit"), businessUnit));
+            }
+            if (productPlatform != null && !productPlatform.isBlank()) {
+                predicates.add(cb.equal(root.get("productPlatform"), productPlatform));
+            }
+            if (status != null && !status.isBlank()) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+            if (analyst != null && !analyst.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("analyst")), "%" + analyst.toLowerCase() + "%"));
+            }
+            if ("yes".equals(qcCreated)) {
+                predicates.add(cb.isNotNull(root.get("qcNo")));
+            } else if ("no".equals(qcCreated)) {
+                predicates.add(cb.or(cb.isNull(root.get("qcNo")), cb.equal(root.get("qcNo"), "")));
+            }
+            return cb.and(predicates.toArray(new Predicate[0]));
+        });
+
+        int maxRows = exportProperties.getMaxRows();
+        if (matchingParts.size() > maxRows) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "导出数据量（" + matchingParts.size() + " 条）超过上限 " + maxRows + " 条，请缩小筛选条件范围");
+        }
+
+        // Batch load order numbers
+        Set<String> orderIds = matchingParts.stream().map(Part::getOrderId).collect(Collectors.toSet());
+        Map<String, String> orderIdToNumber = orderIds.isEmpty()
+                ? Collections.emptyMap()
+                : returnOrderRepository.findAllById(orderIds).stream()
+                        .collect(Collectors.toMap(ReturnOrder::getId, o -> o.getOrderNumber() != null ? o.getOrderNumber() : ""));
+
+        List<PartDTO> dtos = matchingParts.stream()
+                .map(p -> buildDTO(p, orderIdToNumber.get(p.getOrderId())))
+                .collect(Collectors.toList());
+
+        return partExcelHandler.exportToExcel(dtos);
     }
 
     private PageRequest buildPageRequest(int page, int size, String sortBy, String sortOrder) {
