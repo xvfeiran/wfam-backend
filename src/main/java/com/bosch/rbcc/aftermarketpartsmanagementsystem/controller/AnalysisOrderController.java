@@ -2,6 +2,7 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PageResponse;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.WorkonConfirmRequest;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.header.CommonHeaderManager;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.AnalysisOrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.domain.Pageable;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -60,7 +62,7 @@ public class AnalysisOrderController {
 
     @Operation(summary = "确认 WorkOn 完成", description = "workon_scrap_in_progress → workon_scrapped")
     @PostMapping("/{id}/scrap/workon-confirm")
-    public AnalysisOrderDTO workonConfirm(@PathVariable String id) {
-        return analysisOrderService.workonConfirm(id);
+    public AnalysisOrderDTO workonConfirm(@PathVariable String id, @Valid @RequestBody WorkonConfirmRequest request) {
+        return analysisOrderService.workonConfirm(id, request.getWorkonScrapNo());
     }
 }

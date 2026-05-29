@@ -179,7 +179,7 @@ public class AnalysisOrderService {
     }
 
     @Transactional
-    public AnalysisOrderDTO workonConfirm(String id) {
+    public AnalysisOrderDTO workonConfirm(String id, String workonScrapNo) {
         AnalysisOrder ao = analysisOrderRepo.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Analysis order not found: " + id));
 
@@ -188,6 +188,12 @@ public class AnalysisOrderService {
                 "Analysis order must be in workon_scrap_in_progress status");
         }
 
+        if (workonScrapNo == null || workonScrapNo.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "WorkON报废单号不能为空");
+        }
+
+        ao.setWorkonScrapNo(workonScrapNo.trim());
         ao.setStatus(STATUS_WORKON_SCRAPPED);
         ao.setStatusChangedAt(LocalDateTime.now());
         analysisOrderRepo.save(ao);
@@ -217,6 +223,7 @@ public class AnalysisOrderService {
                 .orderNumber(orderNumber)
                 .analyst(ao.getAnalyst())
                 .status(ao.getStatus())
+                .workonScrapNo(ao.getWorkonScrapNo())
                 .statusChangedAt(ao.getStatusChangedAt() != null ? ao.getStatusChangedAt().toString() : null)
                 .createdBy(ao.getCreatedBy())
                 .createdAt(ao.getCreatedAt() != null ? ao.getCreatedAt().toString() : null)
@@ -236,6 +243,7 @@ public class AnalysisOrderService {
                 .orderNumber(p.getOrderNumber())
                 .analyst(p.getAnalyst())
                 .status(p.getStatus())
+                .workonScrapNo(p.getWorkonScrapNo())
                 .statusChangedAt(p.getStatusChangedAt() != null ? p.getStatusChangedAt().toString() : null)
                 .createdBy(p.getCreatedBy())
                 .createdAt(p.getCreatedAt() != null ? p.getCreatedAt().toString() : null)

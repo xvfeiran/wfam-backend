@@ -32,6 +32,9 @@ public class AnalysisOrder {
     @Column(name = "STATUS", length = 50, nullable = false)
     private String status;
 
+    @Column(name = "WORKON_SCRAP_NO", length = 100)
+    private String workonScrapNo;
+
     @Column(name = "STATUS_CHANGED_AT")
     private LocalDateTime statusChangedAt;
 

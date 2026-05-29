@@ -29,6 +29,9 @@ public class AnalysisOrderDTO {
     @Schema(description = "状态", example = "pending_sampling")
     private String status;
 
+    @Schema(description = "WorkON报废单号")
+    private String workonScrapNo;
+
     private String statusChangedAt;
 
     @Schema(description = "关联售后件列表")

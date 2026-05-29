@@ -39,7 +39,7 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
      */
     @Query(value = """
         SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
-            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
+            a.id, a.orderId, a.analyst, a.status, a.workonScrapNo, a.statusChangedAt,
             a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
             r.orderNumber
         )
@@ -68,7 +68,7 @@ public interface AnalysisOrderRepository extends JpaRepository<AnalysisOrder, St
      */
     @Query(value = """
         SELECT new com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.AnalysisOrderWithOrderNumberDTO(
-            a.id, a.orderId, a.analyst, a.status, a.statusChangedAt,
+            a.id, a.orderId, a.analyst, a.status, a.workonScrapNo, a.statusChangedAt,
             a.createdBy, a.createdAt, a.updatedBy, a.updatedAt,
             r.orderNumber
         )

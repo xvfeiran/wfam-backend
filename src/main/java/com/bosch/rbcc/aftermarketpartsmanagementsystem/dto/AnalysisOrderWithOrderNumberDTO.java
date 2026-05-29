@@ -22,6 +22,7 @@ public class AnalysisOrderWithOrderNumberDTO {
     private String orderId;
     private String analyst;
     private String status;
+    private String workonScrapNo;
     private LocalDateTime statusChangedAt;
     private String createdBy;
     private LocalDateTime createdAt;
