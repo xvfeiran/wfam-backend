@@ -226,6 +226,13 @@ public class ReturnOrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot end entry without parts");
         }
 
+        // Validate: all parts must be submitted (not draft)
+        long draftCount = parts.stream().filter(p -> STATUS_DRAFT.equals(p.getStatus())).count();
+        if (draftCount > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot end entry: " + draftCount + " part(s) have not been submitted");
+        }
+
         // Check if analysis orders already exist (idempotent)
         if (analysisOrderRepo.countByOrderId(id) > 0) {
             return toDTO(order);
@@ -560,6 +567,7 @@ public class ReturnOrderService {
         int scrappedCount = (int) parts.stream().filter(p -> "scrapped".equals(p.getStatus())).count();
         int qcCreated = (int) parts.stream().filter(p -> p.getQcNo() != null && !p.getQcNo().isBlank()).count();
         int qcNotCreated = parts.size() - qcCreated;
+        int draftPartsCount = (int) parts.stream().filter(p -> STATUS_DRAFT.equals(p.getStatus())).count();
 
         return ReturnOrderDTO.builder()
                 .id(order.getId())
@@ -578,6 +586,7 @@ public class ReturnOrderService {
                 .scrappedQuantity(scrappedCount)
                 .qcCreatedQuantity(qcCreated)
                 .qcNotCreatedQuantity(qcNotCreated)
+                .draftPartsCount(draftPartsCount)
 
                 .status(order.getStatus())
                 .createdBy(order.getCreatedBy())

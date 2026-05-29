@@ -51,6 +51,8 @@ public class ReturnOrderDTO {
     private Integer scrappedQuantity;
     private Integer qcCreatedQuantity;
     private Integer qcNotCreatedQuantity;
+    @Schema(description = "未提交的退件数量")
+    private Integer draftPartsCount;
     @Schema(description = "状态", example = "pending_registration")
     private String status;
     private String createdBy;
