@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URLEncoder;
@@ -111,14 +112,14 @@ public class PartController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PartDTO create(
-            @RequestBody PartDTO dto,
+            @RequestBody @Validated PartDTO dto,
             @Parameter(description = "关联的 OCR 任务 ID（新建模式下由前端传入以完成绑定）") @RequestParam(value = "ocrTaskId", required = false) String ocrTaskId) {
         return partService.create(dto, ocrTaskId);
     }
 
     @Operation(summary = "更新售后件")
     @PutMapping("/{id}")
-    public PartDTO update(@PathVariable String id, @RequestBody PartDTO dto) {
+    public PartDTO update(@PathVariable String id, @RequestBody @Validated PartDTO dto) {
         return partService.update(id, dto);
     }
 

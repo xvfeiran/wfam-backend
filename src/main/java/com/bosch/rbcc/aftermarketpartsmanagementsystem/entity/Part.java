@@ -33,10 +33,10 @@ public class Part {
     @Column(name = "PART_CODE", length = 50, nullable = false)
     private String partCode;
 
-    @Column(name = "BUSINESS_UNIT", length = 50)
+    @Column(name = "BUSINESS_UNIT", length = 50, nullable = false)
     private String businessUnit;
 
-    @Column(name = "PRODUCT_PLATFORM", length = 50)
+    @Column(name = "PRODUCT_PLATFORM", length = 50, nullable = false)
     private String productPlatform;
 
     @Column(name = "PART_PRODUCTION_DATE")

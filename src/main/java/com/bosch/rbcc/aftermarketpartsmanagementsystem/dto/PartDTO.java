@@ -1,6 +1,7 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,8 +26,10 @@ public class PartDTO {
     @Schema(description = "零件码", example = "F00RJ02806")
     private String partCode;
     @Schema(description = "事业部", example = "WS")
+    @NotBlank(message = "业务单元不能为空")
     private String businessUnit;
     @Schema(description = "产品平台", example = "WSA")
+    @NotBlank(message = "产品平台不能为空")
     private String productPlatform;
     private String partProductionDate;
     private String productionShift;
