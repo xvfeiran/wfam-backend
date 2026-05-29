@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URLEncoder;
@@ -46,8 +47,13 @@ public class PartController {
             @RequestParam(required = false) String productPlatform,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String qcCreated,
-            @RequestParam(required = false) String analyst) {
-        byte[] data = partService.exportToExcel(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst);
+            @RequestParam(required = false) String analyst,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate partProductionDateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate partProductionDateTo,
+            @RequestParam(required = false) Integer vehicleMileageFrom,
+            @RequestParam(required = false) Integer vehicleMileageTo) {
+        byte[] data = partService.exportToExcel(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst,
+                partProductionDateFrom, partProductionDateTo, vehicleMileageFrom, vehicleMileageTo);
         String filename = URLEncoder.encode("售后件明细_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE), StandardCharsets.UTF_8) + ".xlsx";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
@@ -55,7 +61,7 @@ public class PartController {
         return ResponseEntity.ok().headers(headers).body(data);
     }
 
-    @Operation(summary = "查询售后件列表（分页）", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入、分析员筛选，page从0开始")
+    @Operation(summary = "查询售后件列表（分页）", description = "支持按退货单号、零件码、事业部、产品平台、状态、QC录入、分析员、生产日期范围、公里数范围筛选，page从0开始")
     @GetMapping
     public PageResponse<PartDTO> list(
             @Parameter(description = "退货单号（模糊匹配）") @RequestParam(required = false) String orderNumber,
@@ -65,12 +71,17 @@ public class PartController {
             @Parameter(description = "售后件状态") @RequestParam(required = false) String status,
             @Parameter(description = "QC录入：yes=已录，no=未录") @RequestParam(required = false) String qcCreated,
             @Parameter(description = "分析员（模糊匹配）") @RequestParam(required = false) String analyst,
+            @Parameter(description = "零件生产日期起") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate partProductionDateFrom,
+            @Parameter(description = "零件生产日期止") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate partProductionDateTo,
+            @Parameter(description = "公里数最小值") @RequestParam(required = false) Integer vehicleMileageFrom,
+            @Parameter(description = "公里数最大值") @RequestParam(required = false) Integer vehicleMileageTo,
             @Parameter(description = "页码，从0开始") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size,
             @Parameter(description = "排序字段（如 partNumber、partCode、businessUnit、productPlatform、analyst、status、createdAt）") @RequestParam(required = false) String sortBy,
             @Parameter(description = "排序方向：ascend/descend") @RequestParam(required = false) String sortOrder) {
         return PageResponse.of(
                 partService.list(orderNumber, partCode, businessUnit, productPlatform, status, qcCreated, analyst,
+                        partProductionDateFrom, partProductionDateTo, vehicleMileageFrom, vehicleMileageTo,
                         page, size, sortBy, sortOrder));
     }
 

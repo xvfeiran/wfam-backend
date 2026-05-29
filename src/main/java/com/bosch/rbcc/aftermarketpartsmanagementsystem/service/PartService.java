@@ -69,7 +69,9 @@ public class PartService {
 
     public Page<PartDTO> list(String orderNumber, String partCode, String businessUnit,
             String productPlatform, String status, String qcCreated,
-            String analyst, int page, int size, String sortBy, String sortOrder) {
+            String analyst, LocalDate partProductionDateFrom, LocalDate partProductionDateTo,
+            Integer vehicleMileageFrom, Integer vehicleMileageTo,
+            int page, int size, String sortBy, String sortOrder) {
 
         log.info("Part list params - qcCreated: '{}', status: '{}'", qcCreated, status);
 
@@ -77,7 +79,6 @@ public class PartService {
             List<Predicate> predicates = new ArrayList<>();
 
             if (orderNumber != null && !orderNumber.isBlank()) {
-                // 子查询匹配退货单号
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ReturnOrder> roRoot = subquery.from(ReturnOrder.class);
                 subquery.select(roRoot.get("id"));
@@ -101,13 +102,22 @@ public class PartService {
             }
             if ("yes".equals(qcCreated)) {
                 predicates.add(cb.isNotNull(root.get("qcNo")));
-                log.debug("Adding QC created filter: yes");
             } else if ("no".equals(qcCreated)) {
-                // QC未录入：qcNo为null或为空字符串
                 predicates.add(cb.or(
                         cb.isNull(root.get("qcNo")),
                         cb.equal(root.get("qcNo"), "")));
-                log.debug("Adding QC created filter: no");
+            }
+            if (partProductionDateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("partProductionDate"), partProductionDateFrom));
+            }
+            if (partProductionDateTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("partProductionDate"), partProductionDateTo));
+            }
+            if (vehicleMileageFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("vehicleMileage"), vehicleMileageFrom));
+            }
+            if (vehicleMileageTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("vehicleMileage"), vehicleMileageTo));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         }, buildPageRequest(page, size, sortBy, sortOrder));
@@ -129,7 +139,9 @@ public class PartService {
     }
 
     public byte[] exportToExcel(String orderNumber, String partCode, String businessUnit,
-            String productPlatform, String status, String qcCreated, String analyst) {
+            String productPlatform, String status, String qcCreated, String analyst,
+            LocalDate partProductionDateFrom, LocalDate partProductionDateTo,
+            Integer vehicleMileageFrom, Integer vehicleMileageTo) {
         List<Part> matchingParts = partRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (orderNumber != null && !orderNumber.isBlank()) {
@@ -158,6 +170,18 @@ public class PartService {
                 predicates.add(cb.isNotNull(root.get("qcNo")));
             } else if ("no".equals(qcCreated)) {
                 predicates.add(cb.or(cb.isNull(root.get("qcNo")), cb.equal(root.get("qcNo"), "")));
+            }
+            if (partProductionDateFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("partProductionDate"), partProductionDateFrom));
+            }
+            if (partProductionDateTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("partProductionDate"), partProductionDateTo));
+            }
+            if (vehicleMileageFrom != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("vehicleMileage"), vehicleMileageFrom));
+            }
+            if (vehicleMileageTo != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("vehicleMileage"), vehicleMileageTo));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         });
