@@ -310,9 +310,7 @@ public class PartService {
                 .responsibleEngineer(trimText(dto.getResponsibleEngineer()))
                 .analyst(trimText(dto.getAnalyst()))
                 .qcNo(trimText(dto.getQcNo()))
-                .status(ComplaintTypeConstants.isZeroKm(returnOrder.getComplaintType())
-                        ? STATUS_ANALYSIS_SKIPPED
-                        : STATUS_IN_INITIAL_ANALYSIS)
+                .status(STATUS_IN_INITIAL_ANALYSIS)
                 .statusChangedAt(LocalDateTime.now())
                 .build();
         if (dto.getImages() != null && !dto.getImages().isEmpty()) {
@@ -523,8 +521,8 @@ public class PartService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
 
         // Check permission: submitted parts (with partNumber) can only be edited by QMC
-        // Leader
-        if (part.getPartNumber() != null) {
+        // Leader, unless still in initial analysis (暂存状态所有人可编辑)
+        if (part.getPartNumber() != null && !STATUS_IN_INITIAL_ANALYSIS.equals(part.getStatus())) {
             boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
             if (!isQMCLeader) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Leader can edit submitted parts");
@@ -561,8 +559,8 @@ public class PartService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Part not found: " + id));
 
         // Check permission: submitted parts (with partNumber) can only be deleted by
-        // QMC Leader
-        if (part.getPartNumber() != null) {
+        // QMC Leader, unless still in initial analysis (暂存状态所有人可删除)
+        if (part.getPartNumber() != null && !STATUS_IN_INITIAL_ANALYSIS.equals(part.getStatus())) {
             boolean isQMCLeader = hasRole(ROLE_QMC_LEADER);
             if (!isQMCLeader) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only QMC Leader can delete submitted parts");
@@ -594,9 +592,11 @@ public class PartService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Part number '" + part.getPartNumber() + "' already exists in this return order");
         }
-        // 提交后状态变为信息录入/已完成
+        // 提交后状态变化：0km → analysis_skipped，非0km → initial_analysis_completed
         if (STATUS_IN_INITIAL_ANALYSIS.equals(part.getStatus())) {
-            part.setStatus(STATUS_INITIAL_ANALYSIS_COMPLETED);
+            var returnOrder = returnOrderRepository.findById(part.getOrderId()).orElse(null);
+            boolean is0km = returnOrder != null && ComplaintTypeConstants.isZeroKm(returnOrder.getComplaintType());
+            part.setStatus(is0km ? STATUS_ANALYSIS_SKIPPED : STATUS_INITIAL_ANALYSIS_COMPLETED);
             part.setStatusChangedAt(LocalDateTime.now());
         }
         // 已提交的单据也可以再次提交（用于更新数据），只保存更新
