@@ -35,6 +35,9 @@ public class AnalysisOrder {
     @Column(name = "WORKON_SCRAP_NO", length = 100)
     private String workonScrapNo;
 
+    @Column(name = "SCRAP_STARTED_AT")
+    private LocalDateTime scrapStartedAt;
+
     @Column(name = "STATUS_CHANGED_AT")
     private LocalDateTime statusChangedAt;
 

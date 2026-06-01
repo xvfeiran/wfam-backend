@@ -747,6 +747,7 @@ public class PartService {
                 .otherDescription(part.getOtherDescription())
                 .otherInfo(part.getOtherInfo())
                 .status(part.getStatus())
+                .isSample(part.getIsSample())
                 .images(parseImages(part.getImages()))
                 .createdBy(part.getCreatedBy())
                 .createdAt(part.getCreatedAt() != null ? part.getCreatedAt().toString() : null)

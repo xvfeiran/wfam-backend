@@ -165,6 +165,7 @@ public class AnalysisOrderService {
         }
 
         ao.setStatus(STATUS_WORKON_SCRAP_IN_PROGRESS);
+        ao.setScrapStartedAt(LocalDateTime.now());
         ao.setStatusChangedAt(LocalDateTime.now());
         analysisOrderRepo.save(ao);
 
@@ -224,6 +225,7 @@ public class AnalysisOrderService {
                 .analyst(ao.getAnalyst())
                 .status(ao.getStatus())
                 .workonScrapNo(ao.getWorkonScrapNo())
+                .scrapStartedAt(ao.getScrapStartedAt() != null ? ao.getScrapStartedAt().toString() : null)
                 .statusChangedAt(ao.getStatusChangedAt() != null ? ao.getStatusChangedAt().toString() : null)
                 .createdBy(ao.getCreatedBy())
                 .createdAt(ao.getCreatedAt() != null ? ao.getCreatedAt().toString() : null)
@@ -244,6 +246,7 @@ public class AnalysisOrderService {
                 .analyst(p.getAnalyst())
                 .status(p.getStatus())
                 .workonScrapNo(p.getWorkonScrapNo())
+                .scrapStartedAt(p.getScrapStartedAt() != null ? p.getScrapStartedAt().toString() : null)
                 .statusChangedAt(p.getStatusChangedAt() != null ? p.getStatusChangedAt().toString() : null)
                 .createdBy(p.getCreatedBy())
                 .createdAt(p.getCreatedAt() != null ? p.getCreatedAt().toString() : null)

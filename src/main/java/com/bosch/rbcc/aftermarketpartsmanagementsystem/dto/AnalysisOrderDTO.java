@@ -32,6 +32,9 @@ public class AnalysisOrderDTO {
     @Schema(description = "WorkON报废单号")
     private String workonScrapNo;
 
+    @Schema(description = "报废开始时间")
+    private String scrapStartedAt;
+
     private String statusChangedAt;
 
     @Schema(description = "关联售后件列表")
