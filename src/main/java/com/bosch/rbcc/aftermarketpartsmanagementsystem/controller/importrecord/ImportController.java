@@ -55,48 +55,27 @@ public class ImportController {
     }
 
     @Operation(
-        summary = "导入售后件（异步）",
-        description = "立即返回 status=processing 的记录；后台异步处理文件；通过 GET /imports/{id} 轮询结果"
+        summary = "导入售后件（ZIP包，异步）",
+        description = "上传包含 .xls/.xlsx 文件的 ZIP 压缩包；立即返回 status=processing 的记录；后台异步解压并处理；通过 GET /imports/{id} 轮询结果"
     )
     @PostMapping("/parts")
     public ImportRecordDTO importParts(@RequestParam("file") MultipartFile file) throws IOException {
-        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown.xlsx";
-        log.info("[ImportController] 收到售后件导入请求: fileName={}, size={} bytes", fileName, file.getSize());
+        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "unknown.zip";
+        if (!fileName.toLowerCase().endsWith(".zip")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "仅支持上传ZIP文件");
+        }
+        log.info("[ImportController] 收到售后件导入请求(ZIP): fileName={}, size={} bytes", fileName, file.getSize());
 
         byte[] fileBytes = file.getBytes();
 
         ImportRecordDTO record = importService.createPendingPartRecord(fileName);
         log.info("[ImportController] 返回售后件导入 processing 记录: id={}", record.getId());
 
-        importService.processPartsAsync(record.getId(), fileBytes);
+        importService.processPartsZipAsync(record.getId(), fileBytes);
 
         return record;
     }
 
-    @Operation(
-        summary = "按文件夹导入售后件（递归，异步）",
-        description = "传入后端可访问的目录路径；递归扫描子文件夹内的 .xls/.xlsx；通过 GET /imports/{id} 轮询结果"
-    )
-    @PostMapping("/parts/folder")
-    public ImportRecordDTO importPartsFromFolder(@RequestBody PartFolderImportRequest request) {
-        if (request == null || request.getFolderPath() == null || request.getFolderPath().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "folderPath is required");
-        }
-
-        String folderPath = request.getFolderPath().trim();
-        log.info("[ImportController] Received part folder import request: folderPath={}", escapeForLog(folderPath));
-
-        ImportRecordDTO record = importService.createPendingPartRecord("[FOLDER] " + folderPath);
-        log.info("[ImportController] Created processing import record: id={}", record.getId());
-
-        importService.processPartsFolderAsync(record.getId(), folderPath);
-        return record;
-    }
-
-    private String escapeForLog(String value) {
-        // 日志框架已处理转义，直接返回原值支持中文
-        return value;
-    }
 
     @Operation(summary = "查询单条导入记录（用于轮询状态）")
     @GetMapping("/{id}")

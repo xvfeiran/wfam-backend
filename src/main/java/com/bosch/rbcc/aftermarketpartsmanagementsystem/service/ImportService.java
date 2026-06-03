@@ -37,6 +37,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -60,6 +61,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Slf4j
 @Service
@@ -792,6 +795,164 @@ public class ImportService {
                 recordId, excelFiles.size(), totalCount, successCount, failCount);
         markCompleted(recordId, totalCount, successCount, failCount, failLogs, importLogs);
     }
+
+    // ─────────────────────────────────────────────
+    // ZIP包导入售后件
+    // ─────────────────────────────────────────────
+
+    @Async("importTaskExecutor")
+    public void processPartsZipAsync(String recordId, byte[] zipBytes) {
+        log.info("[Import] [{}] ZIP售后件异步任务启动，线程: {}", recordId, Thread.currentThread().getName());
+
+        // 1. 从ZIP中提取Excel文件
+        List<ZipEntryContent> excelEntries;
+        try {
+            excelEntries = extractExcelFromZip(zipBytes);
+        } catch (IOException e) {
+            log.error("[Import] [{}] ZIP解压失败: {}", recordId, e.getMessage(), e);
+            markFailed(recordId, "ZIP文件解压失败: " + e.getMessage());
+            return;
+        }
+
+        if (excelEntries.isEmpty()) {
+            markFailed(recordId, "ZIP中未找到Excel文件（.xls/.xlsx）");
+            return;
+        }
+
+        log.info("[Import] [{}] ZIP中包含 {} 个Excel文件", recordId, excelEntries.size());
+
+        // 2. 逐文件处理（逻辑与目录导入一致）
+        int totalCount = 0;
+        int successCount = 0;
+        int processedCount = 0;
+        List<Map<String, Object>> failLogEntries = new ArrayList<>();
+        List<Map<String, Object>> importLogEntries = new ArrayList<>();
+        List<PendingPartImport> pendingBatch = new ArrayList<>(BATCH_SAVE_SIZE);
+
+        for (ZipEntryContent excelEntry : excelEntries) {
+            String entryName = excelEntry.entryName();
+
+            List<PartImportParser.ParseResult> parseResults;
+            try {
+                parseResults = partImportParser.parseBytes(excelEntry.content());
+            } catch (Exception e) {
+                Map<String, Object> failEntry = new LinkedHashMap<>();
+                failEntry.put("fileName", entryName);
+                failEntry.put("row", 0);
+                failEntry.put("status", "failed");
+                failEntry.put("errorCode", "FILE_PARSE_FAILED");
+                failEntry.put("error", "文件解析失败: " + e.getMessage());
+                failLogEntries.add(failEntry);
+                importLogEntries.add(failEntry);
+                processedCount++;
+                selfProvider.getObject().flushProgressIfNeeded(recordId, Math.max(totalCount, processedCount),
+                        successCount, processedCount, failLogEntries, importLogEntries);
+                continue;
+            }
+
+            totalCount += parseResults.size();
+            ReturnOrderPreparation orderPreparation = prepareReturnOrdersForPartImport(entryName, parseResults);
+
+            for (PartImportParser.ParseResult result : parseResults) {
+                if (!result.isSuccess()) {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("fileName", entryName);
+                    entry.put("row", result.getRowNum());
+                    entry.put("status", "failed");
+                    entry.put("errorCode", classifyErrorCode(result.getError()));
+                    entry.put("error", result.getError());
+                    entry.put("rawData", result.getRawData());
+                    failLogEntries.add(entry);
+                    importLogEntries.add(entry);
+                    processedCount++;
+                    selfProvider.getObject().flushProgressIfNeeded(recordId, totalCount, successCount, processedCount,
+                            failLogEntries, importLogEntries);
+                    continue;
+                }
+
+                try {
+                    String orderNumber = normalizeOrderNumber(result.getDto().getOrderNumber());
+                    ReturnOrderDTO createdOrder = orderPreparation.createdOrders().get(orderNumber);
+                    if (createdOrder == null) {
+                        throw new IllegalArgumentException(
+                                orderPreparation.orderErrors().getOrDefault(orderNumber, "退货单创建失败: " + orderNumber));
+                    }
+                    result.getDto().setOrderId(createdOrder.getId());
+                    result.getDto().setOrderNumber(createdOrder.getOrderNumber());
+                    LocalDateTime importCreatedAt = resolveImportCreatedAt(entryName, result.getRawData());
+                    result.getDto().setCreatedAt(importCreatedAt != null ? importCreatedAt.toString() : null);
+
+                    pendingBatch.add(new PendingPartImport(
+                            result, entryName, createdOrder,
+                            orderPreparation.orderCreatedFlags().getOrDefault(orderNumber, false)));
+
+                    if (pendingBatch.size() >= BATCH_SAVE_SIZE) {
+                        int created = flushPendingPartBatch(pendingBatch, importLogEntries, failLogEntries);
+                        successCount += created;
+                        processedCount += pendingBatch.size();
+                        pendingBatch.clear();
+                        selfProvider.getObject().flushProgressNow(recordId, totalCount, successCount, processedCount);
+                    }
+                } catch (Exception e) {
+                    String errMsg = resolveImportErrorMessage(e);
+                    Map<String, Object> failEntry = new LinkedHashMap<>();
+                    failEntry.put("fileName", entryName);
+                    failEntry.put("row", result.getRowNum());
+                    failEntry.put("status", "failed");
+                    failEntry.put("errorCode", classifyErrorCode(errMsg));
+                    failEntry.put("error", errMsg);
+                    failEntry.put("rawData", result.getRawData());
+                    failLogEntries.add(failEntry);
+                    importLogEntries.add(failEntry);
+                    processedCount++;
+                    selfProvider.getObject().flushProgressIfNeeded(recordId, totalCount, successCount, processedCount,
+                            failLogEntries, importLogEntries);
+                }
+            }
+        }
+
+        // flush剩余批次
+        if (!pendingBatch.isEmpty()) {
+            int created = flushPendingPartBatch(pendingBatch, importLogEntries, failLogEntries);
+            successCount += created;
+            processedCount += pendingBatch.size();
+            pendingBatch.clear();
+            selfProvider.getObject().flushProgressNow(recordId, totalCount, successCount, processedCount);
+        }
+
+        int failCount = Math.max(0, totalCount - successCount);
+        String failLogs = serialize(failLogEntries);
+        String importLogs = serialize(importLogEntries);
+
+        log.info("[Import] [{}] ZIP导入处理完成 — 文件数: {}, 总计: {}, 成功: {}, 失败: {}",
+                recordId, excelEntries.size(), totalCount, successCount, failCount);
+        markCompleted(recordId, totalCount, successCount, failCount, failLogs, importLogs);
+    }
+
+    /**
+     * 从ZIP字节数组中提取所有Excel文件
+     */
+    private List<ZipEntryContent> extractExcelFromZip(byte[] zipBytes) throws IOException {
+        List<ZipEntryContent> entries = new ArrayList<>();
+        try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if (entry.isDirectory()) continue;
+                String name = entry.getName();
+                // 路径穿越防护
+                if (name.contains("..")) continue;
+                String lowerName = name.toLowerCase();
+                if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
+                    byte[] content = zis.readAllBytes();
+                    entries.add(new ZipEntryContent(name, content));
+                }
+                zis.closeEntry();
+            }
+        }
+        return entries;
+    }
+
+    private record ZipEntryContent(String entryName, byte[] content) {}
 
     // ─────────────────────────────────────────────
     // 3. 查询单条（前端轮询用）
