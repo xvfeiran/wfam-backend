@@ -315,7 +315,7 @@ public class ReturnOrderService {
         int maxRows = exportProperties.getMaxRows();
         if (totalParts > maxRows) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "导出数据量（" + totalParts + " 条）超过上限 " + maxRows + " 条，请缩小筛选条件范围");
+                    "当前查询结果共 " + totalParts + " 条，超过单次导出上限 " + maxRows + " 条。请修改查询条件后点击「查询」，缩小导出范围后再试。");
         }
 
         List<ReturnOrderExcelHandler.ExportRow> rows = new ArrayList<>();
