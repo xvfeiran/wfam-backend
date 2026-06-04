@@ -46,6 +46,30 @@ public class ApprovalService {
     }
 
     /**
+     * Get all analysis approvals related to current QMC Leader
+     * (pending + already approved/rejected by this user)
+     */
+    public List<AnalysisApplicationDTO> getMyApprovals(String username) {
+        // Get pending (submitted) reports
+        List<AnalysisReport> pending = analysisReportRepository.findByStatus("submitted");
+        // Get reports already approved/rejected by this user
+        List<AnalysisReport> processed = analysisReportRepository.findByApprovedBy(username);
+
+        // Merge and deduplicate by ID
+        Map<String, AnalysisReport> merged = new java.util.LinkedHashMap<>();
+        for (AnalysisReport r : pending) {
+            merged.put(r.getId(), r);
+        }
+        for (AnalysisReport r : processed) {
+            merged.put(r.getId(), r);
+        }
+
+        return merged.values().stream()
+            .map(this::toApplicationDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
      * Convert AnalysisReport entity to AnalysisApplicationDTO
      */
     private AnalysisApplicationDTO toApplicationDTO(AnalysisReport report) {
@@ -69,6 +93,7 @@ public class ApprovalService {
             .approveTime(formatDateTime(report.getApprovedAt()))
             .status(mapStatus(report.getStatus()))
             .summary(report.getSummary())
+            .templateId(report.getTemplateId())
             .content(parseContent(report.getContent()))
             .build();
     }

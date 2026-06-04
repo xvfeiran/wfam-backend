@@ -39,6 +39,13 @@ public class ApprovalController {
         return approvalService.getPendingAnalysisApprovals();
     }
 
+    @Operation(summary = "获取我的审批记录（含待审批和已审批）")
+    @GetMapping("/my-approvals/analysis")
+    public List<AnalysisApplicationDTO> getMyApprovals() {
+        requireQMCLeader();
+        return approvalService.getMyApprovals(getCurrentUsername());
+    }
+
     @Operation(summary = "审批通过")
     @PostMapping("/{id}/approve")
     public void approve(

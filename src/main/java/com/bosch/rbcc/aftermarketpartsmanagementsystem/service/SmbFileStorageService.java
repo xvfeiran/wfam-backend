@@ -63,7 +63,8 @@ public class SmbFileStorageService implements FileStorageService {
         } catch (Exception e) {
             log.error("读取SMB文件失败", e);
             throwIfAuthFailure(e);
-            return null;
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "SMB_CONNECTION_ERROR", e);
         } finally {
             if (diskShare != null) {
                 pool.returnObject(diskShare);
@@ -118,7 +119,7 @@ public class SmbFileStorageService implements FileStorageService {
         GenericObjectPool<DiskShare> pool = smbConfigurationService.getPool();
         if (pool == null) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "SMB 未配置或已禁用，请在「设置 → SMB 存储」中配置后保存");
+                    "SMB_NOT_CONFIGURED");
         }
         return pool;
     }
@@ -147,7 +148,7 @@ public class SmbFileStorageService implements FileStorageService {
             log.error("SMB文件存储失败", e);
             throwIfAuthFailure(e);
             throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR, "文件保存失败(SMB)", e);
+                    HttpStatus.SERVICE_UNAVAILABLE, "SMB_CONNECTION_ERROR", e);
         } finally {
             if (diskShare != null) {
                 pool.returnObject(diskShare);

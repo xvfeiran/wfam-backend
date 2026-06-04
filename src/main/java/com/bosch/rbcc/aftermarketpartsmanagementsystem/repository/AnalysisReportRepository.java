@@ -24,5 +24,9 @@ public interface AnalysisReportRepository extends JpaRepository<AnalysisReport, 
 
     long countByStatus(String status);
 
+    List<AnalysisReport> findByStatusIn(List<String> statuses);
+
+    List<AnalysisReport> findByApprovedBy(String approvedBy);
+
     void deleteByPartIdIn(List<String> partIds);
 }

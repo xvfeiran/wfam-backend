@@ -74,8 +74,6 @@ public class PartService {
             Integer vehicleMileageFrom, Integer vehicleMileageTo,
             int page, int size, String sortBy, String sortOrder) {
 
-        log.info("Part list params - qcCreated: '{}', status: '{}'", qcCreated, status);
-
         Page<Part> partPage = partRepo.findAll((root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -122,9 +120,6 @@ public class PartService {
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         }, buildPageRequest(page, size, sortBy, sortOrder));
-
-        log.debug("Part query result - total: {}, page size: {}, qcCreated filter: '{}'",
-                partPage.getTotalElements(), partPage.getContent().size(), qcCreated);
 
         // 仅对当前页批量查询退货单号
         Set<String> orderIds = partPage.getContent().stream()
