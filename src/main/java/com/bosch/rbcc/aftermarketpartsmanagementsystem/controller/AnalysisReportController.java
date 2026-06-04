@@ -68,9 +68,10 @@ public class AnalysisReportController {
     @Operation(summary = "Submit report for approval", description = "Submit a draft report for approval")
     public AnalysisReportDTO submitReport(
         @PathVariable String id,
-        @Parameter(description = "Username of the submitter") @RequestParam String submittedBy
+        @Parameter(description = "Username of the submitter (optional, defaults to current user)") @RequestParam(required = false) String submittedBy
     ) {
-        return reportService.submit(id, submittedBy);
+        String user = submittedBy != null ? submittedBy : getCurrentUsername();
+        return reportService.submit(id, user);
     }
 
     @PostMapping("/{id}/approve")
