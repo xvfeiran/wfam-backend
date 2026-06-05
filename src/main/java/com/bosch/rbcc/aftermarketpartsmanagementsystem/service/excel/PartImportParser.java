@@ -26,10 +26,11 @@ import java.util.*;
  *
  * 关键映射：
  * Excel第2列 博世零件号 -> partCode
- * Excel第6列 班次 -> productionShift
- * Excel第7列 车辆生产日期 -> vehicleProductionDate
- * Excel第8列 失效日期 -> vehicleFailureDate
- * Excel第9列 维修站号/... -> repairStation
+ * Excel第4列(通常) 博世生产日期 -> partProductionDate（可选，按表头名称动态定位）
+ * Excel第5列 班次 -> productionShift
+ * Excel第6列 车辆生产日期 -> vehicleProductionDate
+ * Excel第7列 失效日期 -> vehicleFailureDate
+ * Excel第8列 维修站号/... -> repairStation
  * Excel第11列 VIN码/... -> vehicleVIN
  * Excel第12列 购车日期 -> vehiclePurchaseDate
  * Excel第13列 行驶里程 -> vehicleMileage
@@ -74,6 +75,8 @@ public class PartImportParser {
     private static final List<String> BOSCH_FAILURE_TYPE_HEADERS = List.of("博世失效", "failure desc", "bosch failure");
     private static final List<String> QC_NO_HEADERS = List.of("qc号", "qc notification", "qc no");
     private static final List<String> MRB_NO_HEADERS = List.of("mrb号", "mrb no", "mrb number");
+    private static final List<String> PART_PRODUCTION_DATE_HEADERS = List.of(
+            "博世生产日期", "bosch prod", "供方生产日期", "supplier prod", "part prod");
 
     private static final String DEFAULT_IMPORTED_ANALYST = "-";
 
@@ -198,6 +201,7 @@ public class PartImportParser {
                 .analyst(DEFAULT_IMPORTED_ANALYST)
                 .qcNo(normalizeQcNo(getCellString(row, mapping.qcNoCol())))
                 .otherInfo(otherInfo)
+                .partProductionDate(parseDate(getCellString(row, mapping.partProductionDateCol())))
                 .build();
     }
 
@@ -309,7 +313,8 @@ public class PartImportParser {
                 resolveOptionalColumn(headers, OTHER_DESCRIPTION_HEADERS),
                 resolveOptionalColumn(headers, BOSCH_FAILURE_TYPE_HEADERS),
                 resolveOptionalColumn(headers, QC_NO_HEADERS),
-                resolveOptionalColumn(headers, MRB_NO_HEADERS));
+                resolveOptionalColumn(headers, MRB_NO_HEADERS),
+                resolveOptionalColumn(headers, PART_PRODUCTION_DATE_HEADERS));
     }
 
     private int resolveRequiredColumn(Map<Integer, String> headers, List<String> aliases, String displayName) {
@@ -383,6 +388,7 @@ public class PartImportParser {
             int otherDescriptionCol,
             int boschFailureTypeCol,
             int qcNoCol,
-            int mrbNoCol) {
+            int mrbNoCol,
+            int partProductionDateCol) {
     }
 }
