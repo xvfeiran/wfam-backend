@@ -20,6 +20,8 @@ public class AnalysisApplicationDTO {
     private String reportNumber;
     @Schema(description = "附件编号", example = "WS-WSA-0001")
     private String partNumber;
+    @Schema(description = "售后件ID")
+    private String partId;
     @Schema(description = "产品平台", example = "WSA")
     private String productPlatform;
     @Schema(description = "失效类型", example = "噪音")
@@ -31,6 +33,7 @@ public class AnalysisApplicationDTO {
     @Schema(description = "申请状态", example = "pending")
     private String status;
     private String summary;
+    private String rejectReason;
     private String templateId;
     private Map<String, Object> content;
 }

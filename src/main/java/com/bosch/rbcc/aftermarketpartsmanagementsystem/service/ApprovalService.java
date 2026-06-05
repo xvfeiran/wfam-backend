@@ -85,6 +85,7 @@ public class ApprovalService {
             .id(report.getId())
             .reportNumber(reportNumber)
             .partNumber(partNumber)
+            .partId(report.getPartId())
             .productPlatform(productPlatform)
             .failureType(failureType)
             .submitter(report.getSubmittedBy())
@@ -93,6 +94,7 @@ public class ApprovalService {
             .approveTime(formatDateTime(report.getApprovedAt()))
             .status(mapStatus(report.getStatus()))
             .summary(report.getSummary())
+            .rejectReason(report.getRejectReason())
             .templateId(report.getTemplateId())
             .content(parseContent(report.getContent()))
             .build();
