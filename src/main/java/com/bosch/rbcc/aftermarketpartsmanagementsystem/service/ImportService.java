@@ -4,7 +4,6 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImportFileSummaryDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ImportRecordDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.PartDTO;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReturnOrderDTO;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Customer;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ImportLogDetail;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ImportRecord;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
@@ -12,7 +11,6 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ImportRecordListView;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ImportRecordRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ImportLogDetailRepository;
-import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.CustomerRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisReportRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.OcrTaskRepository;
@@ -55,7 +53,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -86,6 +83,8 @@ public class ImportService {
     private static final int PROGRESS_FLUSH_INTERVAL = 20;
     private static final int BATCH_SAVE_SIZE = 200; // 批量保存大小，与 hibernate.jdbc.batch_size 对齐
     private static final Pattern CUSTOMER_NAME_PATTERN = Pattern.compile("(?i)DATA_(.+?)_Amount");
+    private static final String CUSTOMER_IDENTIFIER_PARSE_ERROR =
+            "无法从文件名解析客户标识，请确认文件名包含 DATA_客户标识_Amount 格式";
     private static final Pattern YEAR_PATTERN = Pattern.compile("(20\\d{2})");
     private static final Pattern MONTH_TEXT_PATTERN = Pattern.compile("(?<!\\d)(1[0-2]|0?[1-9])\\s*月");
 
@@ -110,7 +109,6 @@ public class ImportService {
     private final PartService partService;
     private final PartRepository partRepository;
     private final ImportRecordRepository importRecordRepo;
-    private final CustomerRepository customerRepository;
     private final ReturnOrderRepository returnOrderRepository;
     private final AnalysisOrderRepository analysisOrderRepository;
     private final AnalysisReportRepository analysisReportRepository;
@@ -1266,8 +1264,6 @@ public class ImportService {
 
     private ReturnOrderPreparation prepareReturnOrdersForPartImport(String sourceFileName,
             List<PartImportParser.ParseResult> parseResults) {
-        String customerName = extractCustomerName(sourceFileName);
-        String customerId = resolveCustomerId(customerName);
         Map<String, List<PartImportParser.ParseResult>> groupedResults = parseResults.stream()
                 .filter(PartImportParser.ParseResult::isSuccess)
                 .collect(Collectors.groupingBy(result -> normalizeOrderNumber(result.getDto().getOrderNumber()),
@@ -1276,6 +1272,11 @@ public class ImportService {
         Map<String, ReturnOrderDTO> createdOrders = new HashMap<>();
         Map<String, String> orderErrors = new HashMap<>();
         Map<String, Boolean> orderCreatedFlags = new HashMap<>();
+        String customerIdentifier = extractCustomerIdentifier(sourceFileName);
+        if (customerIdentifier == null) {
+            groupedResults.keySet().forEach(orderNumber -> orderErrors.put(orderNumber, CUSTOMER_IDENTIFIER_PARSE_ERROR));
+            return new ReturnOrderPreparation(createdOrders, orderErrors, orderCreatedFlags);
+        }
 
         for (Map.Entry<String, List<PartImportParser.ParseResult>> entry : groupedResults.entrySet()) {
             String orderNumber = entry.getKey();
@@ -1292,8 +1293,8 @@ public class ImportService {
 
             ReturnOrderDTO dto = ReturnOrderDTO.builder()
                     .orderNumber(orderNumber)
-                    .customer(customerName)
-                    .customerId(customerId)
+                    .customer(customerIdentifier)
+                    .customerId(null)
                     .receiveDate(failureDate)
                     .complaintDate(failureDate)
                     .returnMethod(IMPORT_RETURN_METHOD)
@@ -1508,22 +1509,14 @@ public class ImportService {
                 || "-".equals(normalized);
     }
 
-    private String extractCustomerName(String sourceFileName) {
+    private String extractCustomerIdentifier(String sourceFileName) {
         String fileName = Paths.get(sourceFileName).getFileName().toString();
         Matcher matcher = CUSTOMER_NAME_PATTERN.matcher(fileName);
         if (matcher.find()) {
-            return matcher.group(1);
+            String customerIdentifier = matcher.group(1).trim();
+            return customerIdentifier.isBlank() ? null : customerIdentifier;
         }
-        int dotIndex = fileName.lastIndexOf('.');
-        return dotIndex >= 0 ? fileName.substring(0, dotIndex) : fileName;
-    }
-
-    private String resolveCustomerId(String customerName) {
-        if (customerName == null || customerName.isBlank()) {
-            return null;
-        }
-        Optional<Customer> customer = customerRepository.findByName(customerName);
-        return customer.map(Customer::getId).orElse(null);
+        return null;
     }
 
     private String buildTrackingPlaceholder(String orderNumber) {
@@ -1657,6 +1650,8 @@ public class ImportService {
             return "ORDER_NOT_FOUND";
         if (msg.contains("退货单号已存在"))
             return "DUPLICATE_ORDER_NUMBER";
+        if (msg.contains("无法从文件名解析客户标识"))
+            return "CUSTOMER_IDENTIFIER_PARSE_FAILED";
         if (msg.contains("零件号主数据不存在") || msg.contains("未映射事业部") || msg.contains("未映射产品平台"))
             return "PART_CODE_MAPPING_NOT_FOUND";
         if (msg.contains("不能为空") || msg.contains("required"))

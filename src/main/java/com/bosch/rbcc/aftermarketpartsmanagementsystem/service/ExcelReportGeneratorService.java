@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -60,6 +61,10 @@ public class ExcelReportGeneratorService {
         try (InputStream is = templateResource.getInputStream();
              Workbook workbook = WorkbookFactory.create(is)) {
             Map<String, Object> content = parseJsonContent(report.getContent());
+            // 补充顶级字段（可能作为占位符出现在模板中）
+            if (report.getSummary() != null) {
+                content.put("summary", report.getSummary());
+            }
             fillDataToWorkbook(workbook, content);
 
             // 验证1：内存中 workbook 是否还有残留占位符
@@ -126,13 +131,13 @@ public class ExcelReportGeneratorService {
     private Map<String, Object> parseJsonContent(String jsonContent) {
         if (jsonContent == null || jsonContent.isBlank()) {
             log.warn("Report content is null or empty, returning empty map");
-            return Map.of();
+            return new HashMap<>();
         }
         try {
             return objectMapper.readValue(jsonContent, new TypeReference<>() {});
         } catch (Exception e) {
             log.error("Failed to parse report content JSON: {}", jsonContent, e);
-            return Map.of();
+            return new HashMap<>();
         }
     }
 

@@ -48,6 +48,7 @@ import java.util.Map;
 public class ReturnOrderImportParser {
 
     private static final String FIXED_CUSTOMER_ID = "60399b05-b5e9-4b0e-b2eb-107df4ebbcbc";
+    private static final String FIXED_CUSTOMER = "UNKNOWN";
     private static final String FIXED_RETURN_METHOD = "express";
     private static final int FIXED_RETURN_QUANTITY = 0;
     private static final String FIXED_COMPLAINT_TYPE = "BA40";
@@ -146,6 +147,7 @@ public class ReturnOrderImportParser {
 
         return ReturnOrderDTO.builder()
                 .customerId(FIXED_CUSTOMER_ID)
+                .customer(FIXED_CUSTOMER)
                 .receiveDate(parsedDate)
                 .complaintDate(parsedDate)
                 .returnMethod(FIXED_RETURN_METHOD)

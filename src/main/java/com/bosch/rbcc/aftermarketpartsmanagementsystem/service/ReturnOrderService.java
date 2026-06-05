@@ -92,15 +92,12 @@ public class ReturnOrderService {
 
     @Transactional
     public ReturnOrderDTO create(ReturnOrderDTO dto) {
-        String customerName = dto.getCustomer();
-        if (customerName == null || customerName.isBlank()) {
-            customerName = getCustomerName(dto.getCustomerId());
-        }
+        String customerValue = resolveCustomerValue(dto.getCustomerId(), dto.getCustomer());
 
         ReturnOrder order = ReturnOrder.builder()
                 .id(UUID.randomUUID().toString())
                 .customerId(dto.getCustomerId())
-                .customer(customerName)
+                .customer(customerValue)
                 .receiveDate(parseDate(dto.getReceiveDate()))
                 .complaintDate(parseDate(dto.getComplaintDate()))
                 .returnMethod(dto.getReturnMethod())
@@ -135,11 +132,7 @@ public class ReturnOrderService {
 
         order.setCustomerId(dto.getCustomerId());
 
-        String customerName = dto.getCustomer();
-        if (customerName == null || customerName.isBlank()) {
-            customerName = getCustomerName(dto.getCustomerId());
-        }
-        order.setCustomer(customerName);
+        order.setCustomer(resolveCustomerValue(dto.getCustomerId(), dto.getCustomer()));
 
         order.setReceiveDate(parseDate(dto.getReceiveDate()));
         order.setComplaintDate(parseDate(dto.getComplaintDate()));
@@ -671,16 +664,19 @@ public class ReturnOrderService {
         return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
     }
 
-    /**
-     * 根据客户ID获取客户名称
-     */
-    private String getCustomerName(String customerId) {
+    private String resolveCustomerValue(String customerId, String fallbackValue) {
         if (customerId == null || customerId.isBlank()) {
-            return null;
+            return fallbackValue;
         }
         return customerRepo.findById(customerId)
-                .map(Customer::getName)
-                .orElse(null);
+                .map(customer -> {
+                    String code = customer.getCode();
+                    if (code != null && !code.isBlank()) {
+                        return code;
+                    }
+                    return customer.getName();
+                })
+                .orElse(fallbackValue);
     }
 
     /**
