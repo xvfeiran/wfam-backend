@@ -33,6 +33,8 @@ public class AnalysisReportDTO {
     private String submittedAt;
     private String approvedBy;
     private String approvedAt;
+    @Schema(description = "驳回原因")
+    private String rejectReason;
     private String createdBy;
     private String createdAt;
 }

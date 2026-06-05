@@ -329,6 +329,7 @@ public class AnalysisReportService {
             .submittedAt(formatDateTime(entity.getSubmittedAt()))
             .approvedBy(entity.getApprovedBy())
             .approvedAt(formatDateTime(entity.getApprovedAt()))
+            .rejectReason(entity.getRejectReason())
             .createdBy(entity.getCreatedBy())
             .createdAt(formatDateTime(entity.getCreatedAt()))
             .build();
