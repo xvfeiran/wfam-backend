@@ -17,9 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -88,13 +91,62 @@ public class AnalysisOrderService {
         String orderNumberFilter = (orderNumber != null && !orderNumber.isBlank()) ? orderNumber.trim() : null;
         String analystFilterNorm = (analystFilter != null && !analystFilter.isBlank()) ? analystFilter.trim() : null;
 
+        // Resolve sort fields that don't exist on AnalysisOrder entity
+        // (e.g., orderNumber comes from joined ReturnOrder r)
+        Pageable resolvedPageable = resolveSortFields(pageable);
+
         Page<AnalysisOrderWithOrderNumberDTO> page;
         if (statuses == null || statuses.isEmpty()) {
-            page = analysisOrderRepo.findWithFilters(loginNameRestriction, analystFilterNorm, orderNumberFilter, pageable);
+            page = analysisOrderRepo.findWithFilters(loginNameRestriction, analystFilterNorm, orderNumberFilter, resolvedPageable);
         } else {
-            page = analysisOrderRepo.findWithFiltersAndStatuses(loginNameRestriction, analystFilterNorm, orderNumberFilter, statuses, pageable);
+            page = analysisOrderRepo.findWithFiltersAndStatuses(loginNameRestriction, analystFilterNorm, orderNumberFilter, statuses, resolvedPageable);
         }
         return page.map(this::toDTOFromProjection);
+    }
+
+    /**
+     * Resolve sort fields that don't exist on the AnalysisOrder entity.
+     * When the frontend sends sortBy=orderNumber, the Spring Data Pageable
+     * cannot resolve it because orderNumber belongs to the joined ReturnOrder
+     * entity, not AnalysisOrder. We remap such fields to properties that
+     * exist on AnalysisOrder and provide deterministic ordering.
+     */
+    private Pageable resolveSortFields(Pageable pageable) {
+        Sort sort = pageable.getSort();
+        if (sort.isUnsorted()) {
+            return pageable;
+        }
+
+        List<Sort.Order> resolvedOrders = new ArrayList<>();
+        for (Sort.Order order : sort) {
+            String property = order.getProperty();
+            String resolved = resolveSortField(property);
+            resolvedOrders.add(order.isAscending()
+                    ? Sort.Order.asc(resolved)
+                    : Sort.Order.desc(resolved));
+        }
+
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(resolvedOrders));
+    }
+
+    /**
+     * Maps sort field names from the frontend to JPA entity property names.
+     * orderNumber is not an AnalysisOrder column; use orderId for
+     * deterministic DB-side ordering (same as PartService pattern).
+     */
+    private String resolveSortField(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "updatedAt";
+        }
+
+        return switch (sortBy) {
+            case "orderNumber" -> "orderId"; // From joined ReturnOrder, sort by correlated FK
+            case "analyst" -> "analyst";
+            case "status" -> "status";
+            case "createdAt" -> "createdAt";
+            case "updatedAt" -> "updatedAt";
+            default -> "updatedAt";
+        };
     }
 
     public AnalysisOrderDTO getById(String id) {
@@ -269,7 +321,19 @@ public class AnalysisOrderService {
                 .productionShift(p.getProductionShift())
                 .failureType(p.getFailureType())
                 .boschFailureType(p.getBoschFailureType())
+                .repairStation(p.getRepairStation())
+                .complaintLocation(p.getComplaintLocation())
+                .responsibleEngineer(p.getResponsibleEngineer())
                 .analyst(p.getAnalyst())
+                .qcNo(p.getQcNo())
+                .vehicleProductionDate(p.getVehicleProductionDate() != null ? p.getVehicleProductionDate().toString() : null)
+                .vehiclePurchaseDate(p.getVehiclePurchaseDate() != null ? p.getVehiclePurchaseDate().toString() : null)
+                .vehicleFailureDate(p.getVehicleFailureDate() != null ? p.getVehicleFailureDate().toString() : null)
+                .vehicleVIN(p.getVehicleVin())
+                .vehicleMileage(p.getVehicleMileage())
+                .customerDescription(p.getCustomerDescription())
+                .otherDescription(p.getOtherDescription())
+                .otherInfo(p.getOtherInfo())
                 .isSample(p.getIsSample())
                 .status(p.getStatus())
                 .images(Collections.emptyList())
