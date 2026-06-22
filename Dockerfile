@@ -8,7 +8,7 @@ COPY settings.xml /root/.m2/settings.xml
 
 RUN mvn clean package -DskipTests
 
-FROM docker-virtual.rb-artifactory.bosch.com/eclipse-temurin:21-jre
+FROM cngvm00110.apac.bosch.com:20443/library/eclipse-temurin:21-jre
 
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
