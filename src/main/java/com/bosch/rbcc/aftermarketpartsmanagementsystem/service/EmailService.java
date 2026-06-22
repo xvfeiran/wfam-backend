@@ -1,5 +1,6 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.EmailConfigurationDTO;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -48,11 +49,26 @@ public class EmailService {
             return;
         }
 
+        // 与测试邮件保持一致：必须显式设置 From（= 配置的发件邮箱），
+        // 否则 SMTP 服务器会使用默认 From，触发 Exchange "Client does not have
+        // permissions to send as this sender" (550 5.7.60) 拒信。
+        EmailConfigurationDTO cfg = configurationService.getConfiguration();
+        if (cfg == null || cfg.getEmailFrom() == null || cfg.getEmailFrom().isBlank()) {
+            log.warn("[email-vt] No from-address configured, skip sending to {}", to);
+            return;
+        }
+
         try {
             JavaMailSender mailSender = configurationService.getMailSender();
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            String displayName = cfg.getEmailFromDisplayName();
+            if (displayName != null && !displayName.isBlank()) {
+                helper.setFrom(cfg.getEmailFrom(), displayName);
+            } else {
+                helper.setFrom(cfg.getEmailFrom());
+            }
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(content, html);
