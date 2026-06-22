@@ -4,12 +4,20 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ImportLogDetail;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 
 import java.util.List;
 
 /**
  * 导入日志明细仓库
+ *
+ * <p>不作为 Spring Data REST 资源对外暴露（exported = false）。
+ * 该仓库仅用于内部 JPA 查询；其中存在同名重载的 finder 方法
+ * （{@code findByImportIdOrderByRowNumberAsc}），若被 SDR 暴露会因
+ * 映射到同一条 search 路径而导致 ambiguous mapping，并在 springdoc
+ * 生成 OpenAPI 时抛出 IllegalStateException。关闭导出可消除该冲突。</p>
  */
+@RepositoryRestResource(exported = false)
 public interface ImportLogDetailRepository extends JpaRepository<ImportLogDetail, String> {
 
     /**
