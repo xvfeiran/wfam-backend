@@ -70,8 +70,6 @@ public class AnalysisReportService {
     public AnalysisReportDTO createOrUpdate(AnalysisReportDTO dto, String username) {
         Optional<AnalysisReport> existing = repository.findByPartId(dto.getPartId());
         AnalysisReport report;
-        // 旧责任判定值——仅在已存在记录时从 DB 读出，用于变化检测
-        String previousResponsibility = null;
 
         if (existing.isPresent()) {
             report = existing.get();
@@ -79,14 +77,6 @@ public class AnalysisReportService {
                 throw new IllegalStateException("Cannot modify an approved analysis report");
             }
             updateReportFromDTO(report, dto, username);
-            // 读出更新前的 RESPONSIBILITY 值（entity 未映射该列，走 JDBC）
-            try {
-                previousResponsibility = jdbcTemplate.queryForObject(
-                    "SELECT RESPONSIBILITY FROM APMS_ANALYSIS_REPORT WHERE ID = ?",
-                    String.class, report.getId());
-            } catch (Exception e) {
-                log.warn("Failed to read previous responsibility for report {}: {}", report.getId(), e.getMessage());
-            }
         } else {
             report = createReportFromDTO(dto, username);
         }
@@ -97,21 +87,7 @@ public class AnalysisReportService {
                 "UPDATE APMS_ANALYSIS_REPORT SET RESPONSIBILITY = ? WHERE ID = ?",
                 dto.getResponsibility(), report.getId());
         }
-        // 仅在责任判定值真正发生变化（含首次设置）时才触发通知，
-        // 避免草稿反复保存或重复点击导致重复发送邮件。
-        String newResponsibility = dto.getResponsibility();
-        boolean responsibilityChanged = newResponsibility != null
-            && (newResponsibility.equalsIgnoreCase("B") || newResponsibility.equalsIgnoreCase("O"))
-            && !newResponsibility.equalsIgnoreCase(previousResponsibility);
-        if (responsibilityChanged) {
-            try {
-                notificationService.sendResponsibilityNotification(report.getPartId(), newResponsibility);
-            } catch (Exception e) {
-                log.warn("Responsibility notification failed: {}", e.getMessage());
-            }
-        }
-        log.info("Report saved: id={}, partId={}, responsibilityChanged={}",
-            report.getId(), report.getPartId(), responsibilityChanged);
+        log.info("Report saved: id={}, partId={}", report.getId(), report.getPartId());
         return toDTO(report);
     }
 
@@ -119,11 +95,28 @@ public class AnalysisReportService {
     public AnalysisReportDTO submit(String reportId, String submittedBy) {
         AnalysisReport report = repository.findById(reportId)
             .orElseThrow(() -> new IllegalArgumentException("Report not found: " + reportId));
+        String previousStatus = report.getStatus();
         report.setStatus("submitted");
         report.setSubmittedBy(submittedBy);
         report.setSubmittedAt(LocalDateTime.now());
         report = repository.save(report);
         log.info("Report submitted: id={}, by={}", reportId, submittedBy);
+
+        // 仅在首次提交（draft → submitted）时触发责任判定通知，避免重复提交导致重复发送。
+        // 责任值通过 JDBC 读取（entity 未映射 RESPONSIBILITY 列）；
+        // sendResponsibilityNotification 内部会过滤掉非 B/O 值（含 null）。
+        if (!"submitted".equals(previousStatus)) {
+            try {
+                String responsibility = jdbcTemplate.queryForObject(
+                    "SELECT RESPONSIBILITY FROM APMS_ANALYSIS_REPORT WHERE ID = ?",
+                    String.class, report.getId());
+                if (responsibility != null) {
+                    notificationService.sendResponsibilityNotification(report.getPartId(), responsibility);
+                }
+            } catch (Exception e) {
+                log.warn("Responsibility notification failed on submit: {}", e.getMessage());
+            }
+        }
 
         // 联动：Part → analysis_report_submitted
         partRepository.findById(report.getPartId()).ifPresent(part -> {

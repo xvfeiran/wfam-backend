@@ -322,8 +322,7 @@ public class PartService {
                     "Part number '" + dto.getPartNumber() + "' already exists in this return order");
         }
 
-        // 检查是否为 0km 退货，触发通知（returnOrder 在方法头部已加载，直接复用）
-        notificationService.sendZeroKmNotification(part.getId(), returnOrder.getComplaintType());
+        // 0km 退货通知已移至 Part.submit（仅在首次提交时触发），创建/暂存阶段不发通知
 
         // 绑定 OCR 任务（新建模式下在此时才有 partId）
         if (ocrTaskId != null && !ocrTaskId.isBlank()) {
@@ -593,6 +592,16 @@ public class PartService {
             boolean is0km = returnOrder != null && ComplaintTypeConstants.isZeroKm(returnOrder.getComplaintType());
             part.setStatus(is0km ? STATUS_ANALYSIS_SKIPPED : STATUS_INITIAL_ANALYSIS_COMPLETED);
             part.setStatusChangedAt(LocalDateTime.now());
+
+            // 仅在首次提交（in_initial_analysis → 下一状态）且为 0km 类型时触发退货通知，
+            // 避免暂存阶段或重复提交导致重复发送。
+            if (is0km) {
+                try {
+                    notificationService.sendZeroKmNotification(part.getId(), returnOrder.getComplaintType());
+                } catch (Exception e) {
+                    log.warn("Zero-km notification failed: {}", e.getMessage());
+                }
+            }
         }
         // 已提交的单据也可以再次提交（用于更新数据），只保存更新
         try {
