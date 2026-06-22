@@ -14,7 +14,10 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -50,12 +53,18 @@ public class NotificationService {
             return;
         }
 
-        List<String> recipients = new ArrayList<>();
-        List<String> ccList = new ArrayList<>();
+        // 收件人去重：analyst 与 responsibleEngineer 可能是同一人，避免重复发送
+        Set<String> recipientSet = new LinkedHashSet<>();
+        addEmailIfExists(recipientSet, part.getAnalyst());
+        addEmailIfExists(recipientSet, part.getResponsibleEngineer());
 
-        addEmailIfExists(recipients, part.getAnalyst());
-        addEmailIfExists(recipients, part.getResponsibleEngineer());
-        addQmcLeaders(ccList);
+        // CC 去重：去掉 QMC leaders 中已经作为直接收件人的地址
+        Set<String> ccSet = new LinkedHashSet<>();
+        addQmcLeaders(ccSet);
+        ccSet.removeAll(recipientSet);
+
+        List<String> recipients = new ArrayList<>(recipientSet);
+        List<String> ccList = new ArrayList<>(ccSet);
 
         if (recipients.isEmpty()) {
             log.warn("No recipients for responsibility notification, partId={}", partId);
@@ -310,11 +319,11 @@ public class NotificationService {
 
     // ========== Helpers ==========
 
-    private void addEmailIfExists(List<String> list, String loginName) {
+    private void addEmailIfExists(Collection<String> list, String loginName) {
         userEmailService.getEmail(loginName).ifPresent(list::add);
     }
 
-    private void addQmcLeaders(List<String> list) {
+    private void addQmcLeaders(Collection<String> list) {
         list.addAll(userEmailService.getQmcLeaderEmails());
     }
 }
