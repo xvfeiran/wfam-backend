@@ -2,10 +2,14 @@ package com.bosch.rbcc.aftermarketpartsmanagementsystem.service;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.config.NotificationProperties;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.constant.ComplaintTypeConstants;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.AnalysisOrder;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.NotificationLog;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.Part;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.entity.ReturnOrder;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.NotificationLogRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -41,6 +45,8 @@ public class NotificationService {
     private final NotificationLogRepository logRepo;
     private final PartRepository partRepository;
     private final UserEmailService userEmailService;
+    private final AnalysisOrderRepository analysisOrderRepository;
+    private final ReturnOrderRepository returnOrderRepository;
 
     // ========== Event-triggered notifications ==========
 
@@ -77,7 +83,7 @@ public class NotificationService {
             part.getPartNumber(), responsibility);
         String content = buildResponsibilityEmail(part, responsibility);
 
-        sendAndLog(partId, TYPE_RESPONSIBILITY, recipients, ccList, subject, content);
+        sendAndLog(partId, null, TYPE_RESPONSIBILITY, recipients, ccList, subject, content);
     }
 
     public void sendZeroKmNotification(String partId, String orderComplaintType) {
@@ -102,7 +108,7 @@ public class NotificationService {
         String subject = String.format("[WFAM] 0公里退货通知 - 售后件 %s", part.getPartNumber());
         String content = buildZeroKmEmail(part, orderComplaintType);
 
-        sendAndLog(partId, TYPE_ZERO_KM, recipients, List.of(), subject, content);
+        sendAndLog(partId, null, TYPE_ZERO_KM, recipients, List.of(), subject, content);
     }
 
     // ========== Scheduled notifications ==========
@@ -156,7 +162,7 @@ public class NotificationService {
                 part.getPartNumber(), daysInAnalysis);
             String content = buildWarningEmail(part, daysInAnalysis);
 
-            sendAndLog(part.getId(), TYPE_WARNING, recipients, List.of(), subject, content);
+            sendAndLog(part.getId(), null, TYPE_WARNING, recipients, List.of(), subject, content);
         }
     }
 
@@ -192,7 +198,7 @@ public class NotificationService {
                 part.getPartNumber(), daysInAnalysis - props.getAnalysis().getOverdueDays());
             String content = buildOverdueEmail(part, daysInAnalysis);
 
-            sendAndLog(part.getId(), TYPE_OVERDUE, recipients, ccList, subject, content);
+            sendAndLog(part.getId(), null, TYPE_OVERDUE, recipients, ccList, subject, content);
         }
     }
 
@@ -224,7 +230,7 @@ public class NotificationService {
                 part.getPartNumber(), daysPending);
             String content = buildApprovalReminderEmail(part, daysPending);
 
-            sendAndLog(part.getId(), TYPE_APPROVAL_REMINDER, recipients, List.of(), subject, content);
+            sendAndLog(null, part.getId(), TYPE_APPROVAL_REMINDER, recipients, List.of(), subject, content);
         }
     }
 
@@ -238,7 +244,8 @@ public class NotificationService {
 
     // ========== Send + Log ==========
 
-    private void sendAndLog(String partId, String type, List<String> recipients, List<String> ccList,
+    private void sendAndLog(String partId, String analysisOrderId, String type,
+                            List<String> recipients, List<String> ccList,
                             String subject, String content) {
         String recipientsStr = String.join(";", recipients);
         String ccStr = ccList.isEmpty() ? null : String.join(";", ccList);
@@ -267,6 +274,7 @@ public class NotificationService {
             logRepo.save(NotificationLog.builder()
                 .id(UUID.randomUUID().toString())
                 .partId(partId)
+                .analysisOrderId(analysisOrderId)
                 .notificationType(type)
                 .recipients(recipientsStr)
                 .ccRecipients(ccStr)
@@ -277,8 +285,8 @@ public class NotificationService {
         } catch (Exception e) {
             log.warn("Failed to log notification: {}", e.getMessage());
         }
-        log.info("Notification dispatched: type={}, partId={}, recipients={}, status={}",
-            type, partId, recipientsStr, status);
+        log.info("Notification dispatched: type={}, partId={}, analysisOrderId={}, recipients={}, status={}",
+            type, partId, analysisOrderId, recipientsStr, status);
     }
 
     // ========== Email content builders ==========
