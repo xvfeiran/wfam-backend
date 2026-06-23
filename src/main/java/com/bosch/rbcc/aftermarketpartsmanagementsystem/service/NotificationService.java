@@ -204,34 +204,44 @@ public class NotificationService {
 
     private void sendApprovalReminderNotifications() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(props.getApproval().getOverdueDays());
-        List<Part> parts = partRepository.findByStatusAndStatusChangedAtLessThanEqual(
+        List<AnalysisOrder> orders = analysisOrderRepository.findByStatusAndStatusChangedAtLessThanEqual(
             STATUS_PENDING_APPROVAL, threshold);
 
-        log.info("APPROVAL scan: candidateCount={}, threshold={}", parts.size(), threshold);
-        for (Part part : parts) {
-            log.info("APPROVAL check: partId={}, partNumber={}, analyst={}, statusChangedAt={}",
-                part.getId(), part.getPartNumber(), part.getAnalyst(), part.getStatusChangedAt());
-            if (shouldSkip(part.getId(), TYPE_APPROVAL_REMINDER, props.getFrequency().getApprovalReminder())) {
-                log.info("APPROVAL skip (within frequency window {}d): partId={}",
-                    props.getFrequency().getApprovalReminder(), part.getId());
+        log.info("APPROVAL scan: candidateCount={}, threshold={}", orders.size(), threshold);
+        for (AnalysisOrder order : orders) {
+            log.info("APPROVAL check: analysisOrderId={}, orderId={}, analyst={}, statusChangedAt={}",
+                order.getId(), order.getOrderId(), order.getAnalyst(), order.getStatusChangedAt());
+            if (shouldSkipOrder(order.getId(), TYPE_APPROVAL_REMINDER,
+                                props.getFrequency().getApprovalReminder())) {
+                log.info("APPROVAL skip (within frequency window {}d): analysisOrderId={}",
+                    props.getFrequency().getApprovalReminder(), order.getId());
                 continue;
             }
 
             List<String> recipients = new ArrayList<>();
             addQmcLeaders(recipients);
-
             if (recipients.isEmpty()) {
-                log.warn("APPROVAL skip (no recipient email): partId={}", part.getId());
+                log.warn("APPROVAL skip (no QMC leader email): analysisOrderId={}", order.getId());
                 continue;
             }
 
-            long daysPending = Duration.between(part.getStatusChangedAt(), LocalDateTime.now()).toDays();
-            String subject = String.format("[WFAM] 审批超期提醒 - 售后件 %s - 审批已等待 %d 天",
-                part.getPartNumber(), daysPending);
-            String content = buildApprovalReminderEmail(part, daysPending);
+            long daysPending = Duration.between(order.getStatusChangedAt(), LocalDateTime.now()).toDays();
+            String orderNumber = returnOrderRepository.findById(order.getOrderId())
+                .map(ReturnOrder::getOrderNumber)
+                .orElse(order.getOrderId());
+            String subject = String.format("[WFAM] 审批超期提醒 - 退货单 %s - 审批已等待 %d 天",
+                orderNumber, daysPending);
+            String content = buildApprovalReminderEmail(order, orderNumber, daysPending);
 
-            sendAndLog(null, part.getId(), TYPE_APPROVAL_REMINDER, recipients, List.of(), subject, content);
+            sendAndLog(null, order.getId(), TYPE_APPROVAL_REMINDER, recipients, List.of(), subject, content);
         }
+    }
+
+    private boolean shouldSkipOrder(String analysisOrderId, String type, int frequencyDays) {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(frequencyDays);
+        // 只认 SENT：FAILED 记录不构成"已发送"，下一轮 cron 会重试。
+        return logRepo.existsByAnalysisOrderIdAndNotificationTypeAndStatusAndSentAtAfter(
+            analysisOrderId, type, STATUS_SENT, cutoff);
     }
 
     // ========== Frequency control ==========
@@ -362,19 +372,19 @@ public class NotificationService {
             days, days - props.getAnalysis().getOverdueDays());
     }
 
-    private String buildApprovalReminderEmail(Part part, long days) {
+    private String buildApprovalReminderEmail(AnalysisOrder order, String orderNumber, long days) {
         return String.format("""
             <h3>审批超期提醒</h3>
-            <p>售后件 <strong>%s</strong> 的精分析报告审批已等待 <strong>%d</strong> 天。</p>
+            <p>退货单 <strong>%s</strong>（分析师 %s）的精分析报告审批已等待 <strong>%d</strong> 天。</p>
             <table border="1" cellpadding="5" cellspacing="0">
-            <tr><td>售后件编号</td><td>%s</td></tr>
-            <tr><td>零件号</td><td>%s</td></tr>
+            <tr><td>退货单号</td><td>%s</td></tr>
+            <tr><td>分析师</td><td>%s</td></tr>
             <tr><td>等待审批天数</td><td>%d</td></tr>
             </table>
             <p>请尽快完成审批。</p>
             """,
-            part.getPartNumber(), days,
-            part.getPartNumber(), part.getPartCode(), days);
+            orderNumber, order.getAnalyst(), days,
+            orderNumber, order.getAnalyst(), days);
     }
 
     // ========== Helpers ==========
