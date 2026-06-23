@@ -37,5 +37,13 @@ public class NotificationProperties {
         private int warning;
         private int overdue;
         private int approvalReminder;
+
+        /**
+         * 频率 ≤0 会使 shouldSkip 的 cutoff = now，"sentAt AFTER now" 几乎永不命中 → 永不去重 →
+         * 每轮 cron 重复发送。兜底按 1 天处理（仅当配置缺失或误配为 0/负数时生效）。
+         */
+        public int getWarning() { return Math.max(1, warning); }
+        public int getOverdue() { return Math.max(1, overdue); }
+        public int getApprovalReminder() { return Math.max(1, approvalReminder); }
     }
 }
