@@ -16,7 +16,7 @@ public class NotificationLog {
     @Column(name = "ID", length = 36)
     private String id;
 
-    @Column(name = "PART_ID", length = 36, nullable = false)
+    @Column(name = "PART_ID", length = 36)
     private String partId;
 
     @Column(name = "NOTIFICATION_TYPE", length = 30, nullable = false)
@@ -27,6 +27,9 @@ public class NotificationLog {
 
     @Column(name = "CC_RECIPIENTS", length = 500)
     private String ccRecipients;
+
+    @Column(name = "ANALYSIS_ORDER_ID", length = 36)
+    private String analysisOrderId;
 
     @Column(name = "STATUS", length = 10, nullable = false)
     private String status;

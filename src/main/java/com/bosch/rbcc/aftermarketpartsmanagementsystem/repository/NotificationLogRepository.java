@@ -20,4 +20,11 @@ public interface NotificationLogRepository extends JpaRepository<NotificationLog
      */
     boolean existsByPartIdAndNotificationTypeAndStatusAndSentAtAfter(
             String partId, String notificationType, String status, LocalDateTime after);
+
+    /**
+     * 批次维度去重：仅 APPROVAL_REMINDER 使用。
+     * 只统计 STATUS='SENT' 的记录，FAILED 不计，确保失败的下轮重试。
+     */
+    boolean existsByAnalysisOrderIdAndNotificationTypeAndStatusAndSentAtAfter(
+            String analysisOrderId, String notificationType, String status, LocalDateTime after);
 }
