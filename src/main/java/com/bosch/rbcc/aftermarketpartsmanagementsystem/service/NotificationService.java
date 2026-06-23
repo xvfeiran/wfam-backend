@@ -33,6 +33,8 @@ public class NotificationService {
 
     private static final String STATUS_IN_DETAILED_ANALYSIS = "in_detailed_analysis";
     private static final String STATUS_PENDING_APPROVAL = "pending_approval";
+    private static final String STATUS_SENT = "SENT";
+    private static final String STATUS_FAILED = "FAILED";
 
     private final EmailService emailService;
     private final NotificationProperties props;
@@ -120,17 +122,34 @@ public class NotificationService {
 
     private void sendWarningNotifications() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(props.getAnalysis().getWarningDays());
+        // 超期下界：达到此时间点的件由 sendOverdueNotifications 接管，预警阶段跳过，
+        // 避免同一售后件在同一天既收到预警又收到超期邮件。预警窗口 = [warningDays, overdueDays)。
+        LocalDateTime overdueThreshold = LocalDateTime.now().minusDays(props.getAnalysis().getOverdueDays());
         List<Part> parts = partRepository.findByStatusAndStatusChangedAtLessThanEqual(
             STATUS_IN_DETAILED_ANALYSIS, threshold);
 
+        log.info("WARNING scan: candidateCount={}, threshold={}", parts.size(), threshold);
         for (Part part : parts) {
+            log.info("WARNING check: partId={}, partNumber={}, analyst={}, statusChangedAt={}",
+                part.getId(), part.getPartNumber(), part.getAnalyst(), part.getStatusChangedAt());
+            // 已满足超期条件（statusChangedAt <= overdueThreshold）的件不再发预警
+            if (!part.getStatusChangedAt().isAfter(overdueThreshold)) {
+                log.info("WARNING skip (already overdue, handled by OVERDUE): partId={}", part.getId());
+                continue;
+            }
             if (shouldSkip(part.getId(), TYPE_WARNING, props.getFrequency().getWarning())) {
+                log.info("WARNING skip (within frequency window {}d): partId={}",
+                    props.getFrequency().getWarning(), part.getId());
                 continue;
             }
 
             List<String> recipients = new ArrayList<>();
             addEmailIfExists(recipients, part.getAnalyst());
-            if (recipients.isEmpty()) continue;
+            if (recipients.isEmpty()) {
+                log.warn("WARNING skip (no recipient email): partId={}, analyst={}",
+                    part.getId(), part.getAnalyst());
+                continue;
+            }
 
             long daysInAnalysis = Duration.between(part.getStatusChangedAt(), LocalDateTime.now()).toDays();
             String subject = String.format("[WFAM] 精分析预警 - 售后件 %s - 已进入精分析 %d 天",
@@ -146,8 +165,13 @@ public class NotificationService {
         List<Part> parts = partRepository.findByStatusAndStatusChangedAtLessThanEqual(
             STATUS_IN_DETAILED_ANALYSIS, threshold);
 
+        log.info("OVERDUE scan: candidateCount={}, threshold={}", parts.size(), threshold);
         for (Part part : parts) {
+            log.info("OVERDUE check: partId={}, partNumber={}, analyst={}, statusChangedAt={}",
+                part.getId(), part.getPartNumber(), part.getAnalyst(), part.getStatusChangedAt());
             if (shouldSkip(part.getId(), TYPE_OVERDUE, props.getFrequency().getOverdue())) {
+                log.info("OVERDUE skip (within frequency window {}d): partId={}",
+                    props.getFrequency().getOverdue(), part.getId());
                 continue;
             }
 
@@ -157,7 +181,11 @@ public class NotificationService {
             List<String> ccList = new ArrayList<>();
             addQmcLeaders(ccList);
 
-            if (recipients.isEmpty()) continue;
+            if (recipients.isEmpty()) {
+                log.warn("OVERDUE skip (no recipient email): partId={}, analyst={}",
+                    part.getId(), part.getAnalyst());
+                continue;
+            }
 
             long daysInAnalysis = Duration.between(part.getStatusChangedAt(), LocalDateTime.now()).toDays();
             String subject = String.format("[WFAM] 精分析超期 - 售后件 %s - 已超期 %d 天",
@@ -173,15 +201,23 @@ public class NotificationService {
         List<Part> parts = partRepository.findByStatusAndStatusChangedAtLessThanEqual(
             STATUS_PENDING_APPROVAL, threshold);
 
+        log.info("APPROVAL scan: candidateCount={}, threshold={}", parts.size(), threshold);
         for (Part part : parts) {
+            log.info("APPROVAL check: partId={}, partNumber={}, analyst={}, statusChangedAt={}",
+                part.getId(), part.getPartNumber(), part.getAnalyst(), part.getStatusChangedAt());
             if (shouldSkip(part.getId(), TYPE_APPROVAL_REMINDER, props.getFrequency().getApprovalReminder())) {
+                log.info("APPROVAL skip (within frequency window {}d): partId={}",
+                    props.getFrequency().getApprovalReminder(), part.getId());
                 continue;
             }
 
             List<String> recipients = new ArrayList<>();
             addQmcLeaders(recipients);
 
-            if (recipients.isEmpty()) continue;
+            if (recipients.isEmpty()) {
+                log.warn("APPROVAL skip (no recipient email): partId={}", part.getId());
+                continue;
+            }
 
             long daysPending = Duration.between(part.getStatusChangedAt(), LocalDateTime.now()).toDays();
             String subject = String.format("[WFAM] 审批超期提醒 - 售后件 %s - 审批已等待 %d 天",
@@ -196,7 +232,8 @@ public class NotificationService {
 
     private boolean shouldSkip(String partId, String type, int frequencyDays) {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(frequencyDays);
-        return logRepo.existsByPartIdAndNotificationTypeAndSentAtAfter(partId, type, cutoff);
+        // 只认 SENT：FAILED 记录不构成"已发送"，下一轮 cron 会重试。
+        return logRepo.existsByPartIdAndNotificationTypeAndStatusAndSentAtAfter(partId, type, STATUS_SENT, cutoff);
     }
 
     // ========== Send + Log ==========
@@ -206,11 +243,24 @@ public class NotificationService {
         String recipientsStr = String.join(";", recipients);
         String ccStr = ccList.isEmpty() ? null : String.join(";", ccList);
 
+        // 同步发送：按真实结果落库状态。任一收件人/CC 失败 → STATUS=FAILED，
+        // shouldSkip 只认 SENT，因此失败记录不进 dedup，下一轮 cron 自动重试。
+        List<String> errors = new ArrayList<>();
         for (String to : recipients) {
-            emailService.sendHtmlEmail(to, subject, content);
+            emailService.sendHtmlEmailSync(to, subject, content, errors);
         }
         for (String cc : ccList) {
-            emailService.sendHtmlEmail(cc, subject, content);
+            emailService.sendHtmlEmailSync(cc, subject, content, errors);
+        }
+
+        boolean allSent = errors.isEmpty();
+        String status = allSent ? STATUS_SENT : STATUS_FAILED;
+        String errorMessage = null;
+        if (!allSent) {
+            errorMessage = String.join("; ", errors);
+            if (errorMessage.length() > 500) {
+                errorMessage = errorMessage.substring(0, 497) + "...";
+            }
         }
 
         try {
@@ -220,13 +270,15 @@ public class NotificationService {
                 .notificationType(type)
                 .recipients(recipientsStr)
                 .ccRecipients(ccStr)
-                .status("SENT")
+                .status(status)
                 .sentAt(LocalDateTime.now())
+                .errorMessage(errorMessage)
                 .build());
         } catch (Exception e) {
             log.warn("Failed to log notification: {}", e.getMessage());
         }
-        log.info("Notification dispatched: type={}, partId={}, recipients={}", type, partId, recipientsStr);
+        log.info("Notification dispatched: type={}, partId={}, recipients={}, status={}",
+            type, partId, recipientsStr, status);
     }
 
     // ========== Email content builders ==========
