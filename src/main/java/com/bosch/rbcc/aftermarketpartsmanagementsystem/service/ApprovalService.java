@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,9 @@ public class ApprovalService {
      */
     public List<AnalysisApplicationDTO> getMyAnalysisApplications(String username) {
         return analysisReportRepository.findBySubmittedBy(username).stream()
+            .sorted(Comparator.comparing(
+                AnalysisReport::getSubmittedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
             .map(this::toApplicationDTO)
             .collect(Collectors.toList());
     }
@@ -41,6 +45,9 @@ public class ApprovalService {
      */
     public List<AnalysisApplicationDTO> getPendingAnalysisApprovals() {
         return analysisReportRepository.findByStatus("submitted").stream()
+            .sorted(Comparator.comparing(
+                AnalysisReport::getSubmittedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
             .map(this::toApplicationDTO)
             .collect(Collectors.toList());
     }
@@ -65,6 +72,10 @@ public class ApprovalService {
         }
 
         return merged.values().stream()
+            // 新提交的排在最前面：按提交时间倒序，未提交的（submittedAt 为空）排最后
+            .sorted(Comparator.comparing(
+                AnalysisReport::getSubmittedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())))
             .map(this::toApplicationDTO)
             .collect(Collectors.toList());
     }
