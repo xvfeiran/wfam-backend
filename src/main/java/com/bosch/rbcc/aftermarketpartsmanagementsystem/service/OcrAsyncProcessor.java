@@ -222,7 +222,7 @@ public class OcrAsyncProcessor {
         JsonNode dataNode = result;
         if (result.isTextual()) {
             try {
-                dataNode = objectMapper.readTree(result.asText());
+                dataNode = objectMapper.readTree(extractJsonObject(result.asText()));
             } catch (Exception e) {
                 log.error("解析 result 字符串失败: {}", result.asText(), e);
                 return OcrResultDTO.builder().build();
@@ -305,6 +305,23 @@ public class OcrAsyncProcessor {
         if (field.isMissingNode() || field.isNull()) return null;
         String text = field.asText("").trim();
         return text.isEmpty() ? null : text;
+    }
+
+    /**
+     * 从 LLM/Dify 输出中稳健地提取最外层 JSON 对象字符串。
+     * <p>无论输出是纯 JSON、被 ```json / ``` 代码块包裹、还是前后带说明文字，
+     * 都通过定位第一个 '{' 到最后一个 '}' 来截取，避免对某种特定包裹形式做特判。
+     * <p>找不到成对花括号时返回原文，由调用方按原逻辑报解析错误。
+     */
+    private String extractJsonObject(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        int start = s.indexOf('{');
+        int end = s.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return s.substring(start, end + 1);
+        }
+        return s;
     }
 
     private String inferMimeType(String fileName) {
