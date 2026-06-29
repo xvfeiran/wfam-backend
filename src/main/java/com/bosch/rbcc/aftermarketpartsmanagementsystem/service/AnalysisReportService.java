@@ -86,6 +86,10 @@ public class AnalysisReportService {
             jdbcTemplate.update(
                 "UPDATE APMS_ANALYSIS_REPORT SET RESPONSIBILITY = ? WHERE ID = ?",
                 dto.getResponsibility(), report.getId());
+            // 同步回写到零件的“博世失效类型”字段，供前端基本信息直接展示（避免前端耦合精分析报告）
+            jdbcTemplate.update(
+                "UPDATE APMS_PART SET BOSCH_FAILURE_TYPE = ? WHERE ID = ?",
+                dto.getResponsibility(), report.getPartId());
         }
         log.info("Report saved: id={}, partId={}", report.getId(), report.getPartId());
         return toDTO(report);
