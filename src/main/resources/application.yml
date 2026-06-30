@@ -1,6 +1,8 @@
 spring:
   application:
     name: aftermarket-parts-service
+  jackson:
+    time-zone: Asia/Shanghai
   jpa:
     open-in-view: false
     properties:

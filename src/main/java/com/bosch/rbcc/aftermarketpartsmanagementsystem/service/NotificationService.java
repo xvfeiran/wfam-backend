@@ -113,7 +113,7 @@ public class NotificationService {
 
     // ========== Scheduled notifications ==========
 
-    @Scheduled(cron = "${custom.notification.cron}")
+    @Scheduled(cron = "${custom.notification.cron}", zone = "Asia/Shanghai")
     public void scheduledNotificationCheck() {
         log.info("Scheduled notification check started");
         try {

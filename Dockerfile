@@ -18,5 +18,6 @@ RUN keytool -importcert -trustcacerts -cacerts \
     -alias bosch-root \
     -file /app/bosch-chain.pem -noprompt
 
+ENV TZ=Asia/Shanghai
 EXPOSE 8102
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=test"]
+ENTRYPOINT ["java", "-Duser.timezone=Asia/Shanghai", "-jar", "app.jar", "--spring.profiles.active=test"]
