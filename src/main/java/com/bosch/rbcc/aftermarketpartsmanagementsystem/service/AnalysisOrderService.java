@@ -11,6 +11,7 @@ import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.AnalysisOrderR
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.PartRepository;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.repository.ReturnOrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AnalysisOrderService {
@@ -91,6 +93,14 @@ public class AnalysisOrderService {
         String orderNumberFilter = (orderNumber != null && !orderNumber.isBlank()) ? orderNumber.trim() : null;
         String analystFilterNorm = (analystFilter != null && !analystFilter.isBlank()) ? analystFilter.trim() : null;
 
+        log.info("[AO-DEBUG] isAnalyst={} (loginName={}, roles={})", isAnalyst, loginName, roleNamesStr);
+        log.info("[AO-DEBUG] Effective filters: loginNameRestriction={}, analystFilter={}, orderNumberFilter={}, statuses={}",
+                loginNameRestriction, analystFilterNorm, orderNumberFilter, statuses);
+
+        // 查询全库 analyst 分布，帮助对比
+        long totalInDb = analysisOrderRepo.count();
+        log.info("[AO-DEBUG] Total AnalysisOrder rows in DB: {}", totalInDb);
+
         // Resolve sort fields that don't exist on AnalysisOrder entity
         // (e.g., orderNumber comes from joined ReturnOrder r)
         Pageable resolvedPageable = resolveSortFields(pageable);
@@ -101,6 +111,21 @@ public class AnalysisOrderService {
         } else {
             page = analysisOrderRepo.findWithFiltersAndStatuses(loginNameRestriction, analystFilterNorm, orderNumberFilter, statuses, resolvedPageable);
         }
+        log.info("[AO-DEBUG] Query returned {} rows (total={})",
+                page.getNumberOfElements(), page.getTotalElements());
+
+        // 如果结果为空且全库有数据，dump 前 10 条 analyst 值帮助定位
+        if (page.getTotalElements() == 0 && totalInDb > 0) {
+            List<AnalysisOrder> sample = analysisOrderRepo.findAll(
+                    PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "updatedAt"))).getContent();
+            List<String> analystsInDb = sample.stream()
+                    .map(AnalysisOrder::getAnalyst)
+                    .distinct()
+                    .collect(Collectors.toList());
+            log.warn("[AO-DEBUG] Result EMPTY but DB has {} rows. Sample analyst values (latest 10): {}",
+                    totalInDb, analystsInDb);
+        }
+
         return page.map(this::toDTOFromProjection);
     }
 
