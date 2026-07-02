@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 // Note: CommonHeaders.getRoleNames() returns comma-separated string
 
-@Slf4j
 @Tag(name = "分析单管理", description = "分析单 CRUD 及抽样/报废操作")
 @RestController
 @RequestMapping("/api/v1/analysis-orders")
@@ -39,22 +37,7 @@ public class AnalysisOrderController {
         var headers = CommonHeaderManager.getCommonHeaders();
         String loginName = headers != null ? headers.getUsername() : null;
         String roleNamesStr = headers != null ? headers.getRoleNames() : null;
-        log.info("[AO-DEBUG] ===== AnalysisOrder list request =====");
-        log.info("[AO-DEBUG] headers.ntAccount={}, headers.username={}, headers.roleNames={}",
-                headers != null ? headers.getNtAccount() : null, loginName, roleNamesStr);
-        log.info("[AO-DEBUG] params: analyst={}, orderNumber={}, statuses={}, page={}, size={}",
-                analyst, orderNumber, statuses, pageable.getPageNumber(), pageable.getPageSize());
-        var result = analysisOrderService.list(loginName, roleNamesStr, orderNumber, analyst, statuses, pageable);
-        log.info("[AO-DEBUG] Result: totalElements={}, returnedRows={}",
-                result.getTotalElements(), result.getContent().size());
-        if (!result.getContent().isEmpty()) {
-            log.info("[AO-DEBUG] First row analyst={}, status={}",
-                    result.getContent().get(0).getAnalyst(), result.getContent().get(0).getStatus());
-        } else {
-            // 查询全库分析单数 + 各analyst分布，帮助定位
-            log.warn("[AO-DEBUG] Empty result! Check DB for all analyst values.");
-        }
-        return PageResponse.of(result);
+        return PageResponse.of(analysisOrderService.list(loginName, roleNamesStr, orderNumber, analyst, statuses, pageable));
     }
 
     @Operation(summary = "获取分析单详情（含关联售后件）")
