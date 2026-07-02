@@ -37,13 +37,11 @@ public class AnalysisOrderController {
             @Parameter(description = "状态列表（多选）") @RequestParam(required = false) List<String> statuses,
             @PageableDefault(size = 10, sort = "updatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
         var headers = CommonHeaderManager.getCommonHeaders();
-        String loginName = headers != null ? headers.getNtAccount() : null;
+        String loginName = headers != null ? headers.getUsername() : null;
         String roleNamesStr = headers != null ? headers.getRoleNames() : null;
-        String username = headers != null ? headers.getUsername() : null;
-        String name = headers != null ? headers.getName() : null;
         log.info("[AO-DEBUG] ===== AnalysisOrder list request =====");
-        log.info("[AO-DEBUG] headers.ntAccount={}, headers.username={}, headers.name={}, headers.roleNames={}",
-                loginName, username, name, roleNamesStr);
+        log.info("[AO-DEBUG] headers.ntAccount={}, headers.username={}, headers.roleNames={}",
+                headers != null ? headers.getNtAccount() : null, loginName, roleNamesStr);
         log.info("[AO-DEBUG] params: analyst={}, orderNumber={}, statuses={}, page={}, size={}",
                 analyst, orderNumber, statuses, pageable.getPageNumber(), pageable.getPageSize());
         var result = analysisOrderService.list(loginName, roleNamesStr, orderNumber, analyst, statuses, pageable);
