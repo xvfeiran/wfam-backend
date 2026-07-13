@@ -288,7 +288,9 @@ public class AnalysisReportService {
         if (dto.getStatus() != null) {
             report.setStatus(dto.getStatus());
         }
-        report.setAttachments(serializeAttachments(dto.getAttachments()));
+        // 附件（attachments 列）由上传/删除接口（uploadAttachment/deleteAttachment）单独维护，
+        // 此处不可用 DTO 覆盖——前端 saveReport 不携带 attachments，否则会把刚上传的附件路径清空，
+        // 导致后续 DELETE /attachments/{id} 因查不到记录而返回 404。
         if ("submitted".equals(dto.getStatus())) {
             report.setSubmittedBy(username);
             report.setSubmittedAt(LocalDateTime.now());
