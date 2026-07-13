@@ -29,7 +29,8 @@ public class AnalysisReport {
     @Column(name = "TEMPLATE_ID", length = 36, nullable = false)
     private String templateId;
 
-    @Column(name = "CONTENT", length = 4000)
+    @Lob
+    @Column(name = "CONTENT", columnDefinition = "CLOB")
     private String content;
 
     @Column(name = "SUMMARY", length = 500)
