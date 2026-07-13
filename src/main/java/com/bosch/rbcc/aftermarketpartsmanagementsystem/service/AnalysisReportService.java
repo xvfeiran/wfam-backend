@@ -384,17 +384,14 @@ public class AnalysisReportService {
 
     @Transactional
     public ImageUploadResult uploadAttachment(String reportId, MultipartFile file) {
-        AnalysisReport report = repository.findById(reportId)
+        repository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "精分析报告不存在: " + reportId));
 
         String ext = getExtension(file.getOriginalFilename());
         String relativePath = fileStorageService.store(ANALYSIS_CATEGORY, reportId + "/" + UUID.randomUUID() + ext, file);
 
-        List<String> attachments = new ArrayList<>(parseAttachments(report.getAttachments()));
-        attachments.add(relativePath);
-        report.setAttachments(serializeAttachments(attachments));
-        repository.save(report);
-
+        // 附件路径由前端写入 content JSON 的对应字段。attachments 列退役为冗余列，不再维护，
+        // 以避免与 content 双写不一致（历史 bug：saveReport 会清空 attachments 列导致删除 404）。
         return ImageUploadResult.builder()
                 .relativePath(relativePath)
                 .url("/api/v1/files/" + relativePath)
@@ -406,16 +403,47 @@ public class AnalysisReportService {
         AnalysisReport report = repository.findById(reportId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "精分析报告不存在: " + reportId));
 
-        List<String> attachments = new ArrayList<>(parseAttachments(report.getAttachments()));
-        if (!attachments.contains(attachmentRelativePath)) {
+        // 以 content JSON 为唯一事实源：在其中查找并移除附件路径。
+        // 不再依赖 attachments 列（历史 bug 已将其清空，老数据无法据此判断）。
+        Map<String, Object> content = new LinkedHashMap<>(parseContent(report.getContent()));
+        if (!removePathFromContent(content, attachmentRelativePath)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "附件不存在: " + attachmentRelativePath);
         }
-
-        attachments.remove(attachmentRelativePath);
-        report.setAttachments(attachments.isEmpty() ? null : serializeAttachments(attachments));
+        report.setContent(serializeContent(content));
         repository.save(report);
 
         fileStorageService.delete(ANALYSIS_CATEGORY, attachmentRelativePath.substring(ANALYSIS_CATEGORY.length() + 1));
+    }
+
+    /**
+     * 从 content JSON 的所有字段中移除指定附件路径。
+     * photo 字段值为单个字符串，photolist 字段值为字符串数组；两者均处理。
+     * @return 是否找到并移除了该路径
+     */
+    private boolean removePathFromContent(Map<String, Object> content, String path) {
+        boolean removed = false;
+        for (Map.Entry<String, Object> entry : content.entrySet()) {
+            Object value = entry.getValue();
+            if (path.equals(value)) {
+                entry.setValue(null);
+                removed = true;
+            } else if (value instanceof List<?> list) {
+                List<Object> kept = new ArrayList<>();
+                boolean changed = false;
+                for (Object item : list) {
+                    if (path.equals(item)) {
+                        changed = true;
+                    } else {
+                        kept.add(item);
+                    }
+                }
+                if (changed) {
+                    entry.setValue(kept.isEmpty() ? null : kept);
+                    removed = true;
+                }
+            }
+        }
+        return removed;
     }
 
     private String getExtension(String filename) {
