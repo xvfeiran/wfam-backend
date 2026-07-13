@@ -38,8 +38,12 @@ public class SmbjConfig {
         poolConfig.setMaxIdle(5);
         poolConfig.setMaxWait(Duration.ofMillis(30000));
         poolConfig.setTestOnBorrow(true);
-        poolConfig.setSoftMinEvictableIdleDuration(Duration.ofMillis(60000));
-        poolConfig.setTimeBetweenEvictionRuns(Duration.ofMillis(30000));
+        // 主动探测并清理空闲连接：避免等到 smbj PacketReader 线程踩到服务端已重置的 socket
+        // 才抛 Connection reset/Broken pipe。验证失败的连接会走 destroyObject 干净关闭。
+        poolConfig.setTestWhileIdle(true);
+        // 空闲连接在服务端 idle 超时之前就由池主动回收（干净 logoff，而非被服务端 RST）
+        poolConfig.setSoftMinEvictableIdleDuration(Duration.ofMillis(30000));
+        poolConfig.setTimeBetweenEvictionRuns(Duration.ofMillis(15000));
         return new GenericObjectPool<>(
                 new DiskShareFactory(cfg.getHost(), cfg.getShareName(),
                         cfg.getDomain(), cfg.getUser(), cfg.getPassword()),
@@ -67,7 +71,12 @@ public class SmbjConfig {
         @Override
         public PooledObject<DiskShare> makeObject() throws Exception {
             SMBClient smbClient = new SMBClient(
-                    SmbConfig.builder().withEncryptData(true).build());
+                    SmbConfig.builder()
+                            .withEncryptData(true)
+                            // socket 读超时：防止连接在网络黑洞中无限挂起（如服务端静默宕机），
+                            // 60s 内读不到任何数据即抛 SocketTimeoutException 并触发连接回收。
+                            .withSoTimeout(60_000)
+                            .build());
             Connection connection = smbClient.connect(host);
             AuthenticationContext ac = new AuthenticationContext(
                     user, password.toCharArray(), domain);
