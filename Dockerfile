@@ -10,6 +10,8 @@ RUN mvn clean package -DskipTests
 
 FROM cngvm00110.apac.bosch.com:20443/library/eclipse-temurin:21-jre
 
+ARG PROFILE=dev
+
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 COPY bosch-chain.pem /app/bosch-chain.pem
@@ -20,4 +22,5 @@ RUN keytool -importcert -trustcacerts -cacerts \
 
 ENV TZ=Asia/Shanghai
 EXPOSE 8102
-ENTRYPOINT ["java", "-Duser.timezone=Asia/Shanghai", "-jar", "app.jar", "--spring.profiles.active=test"]
+# 使用构建参数替换硬编码的 test
+ENTRYPOINT ["sh", "-c", "java -Duser.timezone=Asia/Shanghai -jar app.jar --spring.profiles.active=${PROFILE}"]
