@@ -540,6 +540,7 @@ public class PartService {
         part.setVehicleMileage(dto.getVehicleMileage());
         part.setCustomerDescription(trimText(dto.getCustomerDescription()));
         part.setOtherDescription(trimText(dto.getOtherDescription()));
+        part.setOtherInfo(trimText(dto.getOtherInfo()));
         part.setRepairStation(trimText(dto.getRepairStation())); part.setComplaintLocation(trimText(dto.getComplaintLocation()));
         part.setResponsibleEngineer(trimText(dto.getResponsibleEngineer()));
         part.setAnalyst(trimText(dto.getAnalyst()));

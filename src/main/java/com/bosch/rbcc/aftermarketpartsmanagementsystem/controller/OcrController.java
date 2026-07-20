@@ -1,16 +1,22 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.OcrTaskDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.FileStorageService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.OcrService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * OCR 任务控制器
@@ -26,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class OcrController {
 
     private final OcrService ocrService;
+    private final FileStorageService fileStorageService;
 
     /**
      * 创建 OCR 任务。
@@ -70,14 +77,30 @@ public class OcrController {
     }
 
     @GetMapping("/tasks/{taskId}/image")
-    @Operation(summary = "获取 OCR 任务图片", description = "重定向到统一文件访问端点")
-    public ResponseEntity<Void> getTaskImage(
+    @Operation(summary = "获取 OCR 任务图片", description = "直接以图片形式返回 OCR 原图")
+    public ResponseEntity<Resource> getTaskImage(
             @Parameter(description = "任务 ID", required = true)
             @PathVariable String taskId) {
         String relativePath = ocrService.getTaskImageRelativePath(taskId);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(java.net.URI.create("/api/v1/files/" + relativePath))
-                .build();
+        int slashIdx = relativePath.indexOf('/');
+        String category = slashIdx >= 0 ? relativePath.substring(0, slashIdx) : "pending";
+        String fileName = slashIdx >= 0 ? relativePath.substring(slashIdx + 1) : relativePath;
+        Resource resource = fileStorageService.load(category, fileName);
+        if (resource == null || !resource.exists()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "OCR 图片不存在: " + relativePath);
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(inferImageContentType(fileName)))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(resource.getFilename()).build().toString())
+                .body(resource);
+    }
+
+    private String inferImageContentType(String path) {
+        String lower = path.toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        return "application/octet-stream";
     }
 
     @PostMapping("/tasks/{taskId}/retry")

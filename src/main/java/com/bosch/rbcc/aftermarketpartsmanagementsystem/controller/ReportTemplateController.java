@@ -1,14 +1,20 @@
 package com.bosch.rbcc.aftermarketpartsmanagementsystem.controller;
 
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.dto.ReportTemplateDTO;
+import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.FileStorageService;
 import com.bosch.rbcc.aftermarketpartsmanagementsystem.service.ReportTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -19,6 +25,7 @@ import java.util.List;
 public class ReportTemplateController {
 
     private final ReportTemplateService templateService;
+    private final FileStorageService fileStorageService;
 
     @GetMapping
     @Operation(summary = "Get all templates", description = "Retrieve all report templates")
@@ -68,12 +75,21 @@ public class ReportTemplateController {
     }
 
     @GetMapping("/{id}/download")
-    @Operation(summary = "下载模板文件", description = "重定向到统一文件访问端点")
-    public ResponseEntity<Void> downloadTemplate(@PathVariable String id) {
+    @Operation(summary = "下载模板文件", description = "以附件形式直接返回模板文件")
+    public ResponseEntity<Resource> downloadTemplate(@PathVariable String id) {
         String relativePath = templateService.getTemplateFilePath(id);
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(java.net.URI.create("/api/v1/files/" + relativePath))
-                .build();
+        int slashIdx = relativePath.indexOf('/');
+        String category = slashIdx >= 0 ? relativePath.substring(0, slashIdx) : "templates";
+        String fileName = slashIdx >= 0 ? relativePath.substring(slashIdx + 1) : relativePath;
+        Resource resource = fileStorageService.load(category, fileName);
+        if (resource == null || !resource.exists()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "模板文件不存在: " + relativePath);
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(resource.getFilename()).build().toString())
+                .body(resource);
     }
 
     @DeleteMapping("/{id}")
