@@ -69,7 +69,7 @@ public class UserService {
 
     public List<Map<String, String>> listCustomerQualityEngineers() {
         if (aepProxyProperties.isEnabled()) {
-            return fetchUsersFromAep("W_RBCC_AEP_WFAM_Customer_Quality");
+            return fetchUsersFromAep("R_RBCC_AEP_WFAM_Customer_Quality");
         }
         return CQE_LIST.stream().map(this::toMockUser).toList();
     }
